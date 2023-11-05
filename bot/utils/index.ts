@@ -1,9 +1,10 @@
-import { Channel, codeBlock, GuildTextBasedChannel, Message, time } from "discord.js";
+import { Channel, codeBlock, GuildTextBasedChannel, Message, Snowflake, time, UserResolvable } from "discord.js";
 import { ExtractFuncResult, RegexPattern } from "@bot/types/internals";
 import { ComponentCustomId, CustomId } from "@bot/types/interactions";
 import { MessageModel } from "@database/models/message";
 import { TimestampStyles } from "@discordjs/formatters";
 import { Presets, SingleBar } from "cli-progress";
+import { client } from "@bot/client";
 
 import Cache from "./cache";
 
@@ -83,6 +84,9 @@ export function getCustomId(customId: ComponentCustomId): CustomId {
 
 /** Maximum mute duration in milliseconds (28 days) */
 export const MAX_MUTE_DURATION = 86_400_000;
+
+/** Amount of time to wait before closing a ticket in milliseconds (2 days) */
+export const TICKET_CLOSE_TIMEOUT = 172_800_000;
 
 export const RegexPatterns = {
     /**
@@ -170,4 +174,14 @@ export function ensureError(error: unknown): Error {
 
     const stringifiedError = JSON.stringify(error, null, 2);
     return new Error(`Unknown error\n${codeBlock(stringifiedError)}`);
+}
+
+/**
+ * Fetch a message from a DM channel
+ * @param {UserResolvable} user - The user to fetch the message from
+ * @param {Snowflake} messageId - The ID of the message to fetch
+ */
+export async function fetchDM(user: UserResolvable, messageId: Snowflake): Promise<Message | null> {
+    const dmChannel = await client.users.createDM(user);
+    return dmChannel.messages.fetch(messageId).catch(() => null);
 }

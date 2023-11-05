@@ -65,6 +65,7 @@ channels:
   muteRequestQueue: "channel-id"
   mediaConversion: "channel-id"
   notifications: "channel-id"
+  tickets: "channel-id"
 ```
 
 ### Custom Commands

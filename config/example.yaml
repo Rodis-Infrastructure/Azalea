@@ -44,6 +44,7 @@ channels:
   muteRequestQueue: "channel-id"
   notifications: "channel-id"
   mediaConversion: "channel-id"
+  tickets: "channel-id"
 
 permissions:
   - guildStaff: false

@@ -1,5 +1,15 @@
 BEGIN EXCLUSIVE;
 
+CREATE TABLE IF NOT EXISTS tickets (
+    target_id TEXT NOT NULL PRIMARY KEY,
+    initiator_id TEXT NOT NULL,
+    participants TEXT NOT NULL,
+    guild_id TEXT NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    first_message_id TEXT NOT NULL,
+    last_message_id TEXT NOT NULL
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS messages
 (
     message_id   TEXT      NOT NULL PRIMARY KEY,

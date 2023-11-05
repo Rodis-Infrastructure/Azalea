@@ -74,12 +74,15 @@ export interface NoticeConfig {
     mentionedRoles?: Snowflake[]
 }
 
-export interface ChannelConfig {
-    banRequestQueue?: Snowflake
-    muteRequestQueue?: Snowflake
-    mediaConversion?: Snowflake
-    notifications?: Snowflake
+export enum BotChannel {
+    BanRequestQueue = "banRequestQueue",
+    MuteRequestQueue = "muteRequestQueue",
+    MediaConversion = "mediaConversion",
+    Notifications = "notifications",
+    Tickets = "tickets"
 }
+
+export type ChannelConfig = Partial<Record<BotChannel, Snowflake>>;
 
 interface FAQOption {
     /** The option's displayed name */

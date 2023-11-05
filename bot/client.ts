@@ -10,12 +10,14 @@ export const client = new Client({
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildModeration,
         GatewayIntentBits.MessageContent,
+        GatewayIntentBits.DirectMessages,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.Guilds
     ],
     partials: [
-        Partials.Message
+        Partials.Message,
+        Partials.Channel
     ]
 });
 

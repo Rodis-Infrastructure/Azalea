@@ -15,6 +15,7 @@ import {
 } from "discord.js";
 
 import {
+    BotChannel,
     ChannelConfig,
     ConfigData,
     ConfirmationOptions,
@@ -93,6 +94,16 @@ export default class Config {
         Config.instances.set(guildId, config);
 
         return config;
+    }
+
+    async fetchChannel(channel: BotChannel): Promise<GuildTextBasedChannel | null> {
+        const channelId = this.channels[channel];
+        if (!channelId) return null;
+
+        const fetchedChannel = await client.channels.fetch(channelId).catch(() => null);
+        if (!fetchedChannel || !isGuildTextBasedChannel(fetchedChannel)) return null;
+
+        return fetchedChannel;
     }
 
     /** @param {string} value - The custom command's choice value */

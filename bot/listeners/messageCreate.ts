@@ -1,14 +1,27 @@
 import { getRequestType, handleBanRequestAutoMute, validateRequest } from "@bot/utils/requests";
-import { Events, hideLinkEmbed, Message, PartialMessage } from "discord.js";
-import { LoggingEvent, RolePermission } from "@bot/types/config";
+import {
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    Colors,
+    EmbedBuilder,
+    Events,
+    hideLinkEmbed,
+    Message,
+    PartialMessage
+} from "discord.js";
+
+import { BotChannel, LoggingEvent, RolePermission } from "@bot/types/config";
 import { Requests } from "@bot/types/requests";
 import { ensureError, serializeMessage } from "@bot/utils";
 import { sendLog } from "@bot/utils/logging";
+import { ErrorCause } from "@bot/types/internals";
+import { getQuery, runQuery } from "@database/utils";
+import { Ticket } from "@database/models/ticket";
 
 import EventListener from "@bot/handlers/listeners/eventListener";
 import Config from "@bot/utils/config";
 import Cache from "@bot/utils/cache";
-import { ErrorCause } from "@bot/types/internals";
 
 export default class MessageCreateEventListener extends EventListener {
     constructor() {
@@ -20,7 +33,12 @@ export default class MessageCreateEventListener extends EventListener {
             ? await createdMessage.fetch().catch(() => null)
             : createdMessage;
 
-        if (!message?.inGuild() || message.author.bot) return;
+        if (!message || message.author.bot) return;
+
+        if (!message.inGuild()) {
+            await handleTicketResponse(message);
+            return;
+        }
 
         // Cache the message
         const cache = Cache.get(message.guildId);
@@ -96,4 +114,58 @@ export default class MessageCreateEventListener extends EventListener {
             }
         }
     }
+}
+
+async function handleTicketResponse(message: Message): Promise<void> {
+    const openTicket = await getQuery<Pick<Ticket, "last_message_id" | "guild_id">>(`
+        SELECT last_message_id, guild_id
+        FROM tickets
+        WHERE target_id = ${message.author.id}
+    `);
+
+    if (!openTicket) return;
+
+    const config = Config.get(openTicket.guild_id);
+    if (!config) return;
+
+    const ticketChannel = await config.fetchChannel(BotChannel.Tickets);
+    if (!ticketChannel) return;
+
+    const ticketMessage = await ticketChannel.messages.fetch(openTicket.last_message_id).catch(() => null);
+    if (!ticketMessage) return;
+
+    if (ticketMessage.components.length) {
+        await ticketMessage.edit({ components: [] });
+    }
+
+    const response = new EmbedBuilder()
+        .setColor(Colors.NotQuiteBlack)
+        .setAuthor({ name: `Response from ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
+        .setDescription(message.content)
+        .setFooter({ text: `ID: ${message.author.id}` })
+        .setTimestamp();
+
+    const endConversationBtn = new ButtonBuilder()
+        .setCustomId(`ticket-close-${message.author.id}`)
+        .setLabel("End Conversation")
+        .setStyle(ButtonStyle.Danger);
+
+    const respondBtn = new ButtonBuilder()
+        .setCustomId(`ticket-respond-${message.author.id}`)
+        .setLabel("Respond")
+        .setStyle(ButtonStyle.Primary);
+
+    const actionRow = new ActionRowBuilder<ButtonBuilder>()
+        .setComponents(endConversationBtn, respondBtn);
+
+    const responseMessage = await ticketMessage.reply({
+        embeds: [response],
+        components: [actionRow]
+    });
+
+    await runQuery(`
+        UPDATE tickets
+        SET last_message_id = ${responseMessage.id}
+        WHERE target_id = ${message.author.id}
+    `);
 }
