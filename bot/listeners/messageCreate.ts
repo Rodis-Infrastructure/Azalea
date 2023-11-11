@@ -14,6 +14,7 @@ import { getRequestType, handleBanRequestAutoMute, validateRequest } from "@bot/
 import { BotChannel, LoggingEvent, RolePermission } from "@bot/types/config";
 import { Requests } from "@bot/types/requests";
 import { ensureError, serializeMessage } from "@bot/utils";
+import { ErrorCause } from "@bot/types/internals";
 import { sendLog } from "@bot/utils/logging";
 import { ErrorCause } from "@bot/types/internals";
 import { getQuery, runQuery } from "@database/utils";
@@ -53,7 +54,12 @@ export default class MessageCreateEventListener extends EventListener {
         }
 
         const reactions = config.getAutoReactions(message.channelId);
-        if (reactions.length) await Promise.all(reactions.map(r => message.react(r)));
+
+        // There are reactions configured to be added automatically
+        if (reactions.length) {
+            const reactionsAddPromise = reactions.map(r => message.react(r).catch(() => null));
+            await Promise.all(reactionsAddPromise);
+        }
 
         // Handle media to link conversion
         if (
@@ -125,14 +131,16 @@ export default class MessageCreateEventListener extends EventListener {
     }
 }
 
-async function handleMediaChannelMessage(message: Message, config: Config): Promise<void> {
+export async function handleMediaChannelMessage(message: Message, config: Config): Promise<void> {
     // Do not remove staff messages
     if (message.member && config.isGuildStaff(message.member)) return;
 
     const [reply] = await Promise.all([
-        message.channel.send(`${message.author} This is a media-only channel, your message must have at least one attachment.`),
+        message.channel.send(`${message.author} This is a media-only channel, your message must have at least one attachment.`).catch(() => null),
         message.delete().catch(() => null)
     ]);
+
+    if (!reply) return;
 
     // Remove after 3 seconds
     setTimeout(async() => {
