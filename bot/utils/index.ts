@@ -84,6 +84,7 @@ export function getCustomId(customId: ComponentCustomId): CustomId {
 
 /** Maximum mute duration in milliseconds (28 days) */
 export const MAX_MUTE_DURATION = 86_400_000;
+export const ROLE_REQUEST_MENTION_LIMIT = 30;
 
 /** Amount of time to wait before closing a ticket in milliseconds (2 days) */
 export const TICKET_CLOSE_TIMEOUT = 172_800_000;

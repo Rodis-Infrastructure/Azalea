@@ -49,6 +49,12 @@ channels:
   mediaConversion: "channel-id"
   tickets: "channel-id"
 
+roleRequests:
+  channelId: "channel-id"
+  roles:
+    - roleId: "role-id"
+      duration: 600000 # 10 minutes
+
 permissions:
   - guildStaff: false
     manageInfractions: false

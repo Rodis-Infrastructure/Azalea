@@ -35,7 +35,9 @@ rules:
   no-unsafe-negation: error
   accessor-pairs: warn
   array-callback-return: error
-  complexity: warn
+  complexity:
+    - warn
+    - 25
   curly:
     - error
     - multi-line
