@@ -64,6 +64,12 @@ export interface EmojiConfig {
     denyRequest?: string
 }
 
+export interface NicknameCensorshipConfig {
+    allowedRoles?: Snowflake[]
+    excludedRoles?: Snowflake[]
+    embed?: APIEmbed
+}
+
 export interface NoticeConfig {
     enabled: boolean
     /** The channel to send notices to */
@@ -127,13 +133,22 @@ interface TemporaryRole {
     duration?: number
 }
 
+export interface MediaChannel {
+    channelId: Snowflake
+    /** Require the user to have at least one of these roles to use the channel */
+    allowedRoles?: Snowflake[]
+    /** The response to send when a user without the required roles uses the channel */
+    fallbackResponse?: string
+}
+
 export interface ConfigData {
     commands?: FAQOption[]
     autoReactions?: AutoReaction[]
-    mediaChannels?: Snowflake[]
+    mediaChannels?: MediaChannel[]
     deleteMessageSecondsOnBan?: number
     scheduledMessages?: ScheduledMessage[]
     roleRequests?: RoleRequests
+    nicknameCensorship?: NicknameCensorshipConfig
     /** IDs of channels that can be linked to in infraction evidence */
     proofChannelIds?: Snowflake[]
     notices?: Notices

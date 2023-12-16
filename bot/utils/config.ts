@@ -8,6 +8,7 @@ import {
     GuildBasedChannel,
     GuildMember,
     GuildTextBasedChannel,
+    Message,
     MessageMentionTypes,
     ModalSubmitInteraction,
     Role,
@@ -22,8 +23,7 @@ import {
     ConfigData,
     ConfirmationOptions,
     EmojiConfig,
-    LoggingEvent,
-    NoticeConfig,
+    LoggingEvent, NicknameCensorshipConfig,
     NotificationOptions,
     RoleInteraction,
     RolePermission,
@@ -54,6 +54,16 @@ export default class Config {
         return this.data.roleRequests;
     }
 
+    get nicknameCensorship(): Required<Pick<NicknameCensorshipConfig, "allowedRoles" | "excludedRoles">> & Pick<NicknameCensorshipConfig, "embed"> {
+        const { allowedRoles, excludedRoles, embed } = this.data.nicknameCensorship ?? {};
+
+        return {
+            allowedRoles: allowedRoles ?? [],
+            excludedRoles: excludedRoles ?? [],
+            embed
+        };
+    }
+
     get deleteMessageSecondsOnBan(): number {
         const val = this.data.deleteMessageSecondsOnBan ?? 0;
 
@@ -75,18 +85,6 @@ export default class Config {
 
     get channels(): ChannelConfig {
         return this.data.channels ?? {};
-    }
-
-    get mediaChannels(): Snowflake[] {
-        return this.data.mediaChannels ?? [];
-    }
-
-    get banRequestNotices(): NoticeConfig | undefined {
-        return this.data.notices?.banRequests;
-    }
-
-    get muteRequestNotices(): NoticeConfig | undefined {
-        return this.data.notices?.muteRequests;
     }
 
     private get permissions(): RolePermissions[] {
@@ -132,6 +130,34 @@ export default class Config {
             label: role.name,
             value: role.id
         }));
+    }
+
+    isMediaChannel(channelId: Snowflake): boolean {
+        return this.data.mediaChannels?.some(mediaChannel =>
+            mediaChannel.channelId === channelId
+        ) ?? false;
+    }
+
+    /** @returns {string | void} - The error message if the member cannot post in the media channel */
+    isAllowedInMediaChannel(message: Message<true>): string | void {
+        if (message.member) {
+            const channel = this.data.mediaChannels?.find(mediaChannel =>
+                mediaChannel.channelId === message.channelId
+            );
+
+            if (!channel?.allowedRoles?.length) return;
+
+            const memberRoles = message.member.roles.cache;
+            const hasAnyRequiredRole = channel.allowedRoles.some(roleId => memberRoles.has(roleId));
+
+            if (!hasAnyRequiredRole) {
+                return channel.fallbackResponse || "You do not have permission to post in this channel";
+            }
+        }
+
+        if (!message.attachments.size && !message.content.match(/https?:\/\/\w+/g)) {
+            return "This is a media-only channel, your message must have at least one attachment.";
+        }
     }
 
     /** @param {string} value - The custom command's choice value */
