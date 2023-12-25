@@ -26,7 +26,7 @@ export default class CensorNicknameCommand extends Command {
             description: "Set a user's nickname to their ID.",
             type: ApplicationCommandType.ChatInput,
             defer: InteractionResponseType.Default,
-            skipInternalUsageCheck: false,
+            skipEphemeralCheck: false,
             options: [{
                 name: "user",
                 description: "The user to add a note to",
@@ -96,7 +96,8 @@ export default class CensorNicknameCommand extends Command {
         // Generate a random 5-digit number.
         const rnd = Math.floor(Math.random() * 90000) + 10000;
         const oldDisplayName = target.displayName;
-        await target.setNickname(`Unverified User ${rnd}`, `Nickname censored by ${interaction.user.tag} (${interaction.user.id})`);
+        const censoredNickname = `Unverified User ${rnd}`;
+        await target.setNickname(censoredNickname, `Nickname censored by ${interaction.user.tag} (${interaction.user.id})`);
 
         // Try to DM the user to let them know their nickname was censored.
         if (config.nicknameCensorship.embed) {
@@ -125,7 +126,7 @@ export default class CensorNicknameCommand extends Command {
                 },
                 {
                     name: "After",
-                    value: `${target.id}`
+                    value: `${censoredNickname}`
                 }
             ])
             .setTimestamp();
@@ -143,7 +144,7 @@ export default class CensorNicknameCommand extends Command {
         });
 
         await interaction.reply({
-            content: `Successfully changed ${target}'s nickname to \`${target.id}\``,
+            content: `Successfully changed ${target}'s nickname to \`${censoredNickname}\``,
             ephemeral
         });
     }
