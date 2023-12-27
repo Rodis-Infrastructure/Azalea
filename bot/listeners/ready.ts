@@ -72,7 +72,7 @@ export default class ReadyEventListener extends EventListener {
         await publishGlobalCommands();
 
         // Store cached messages every 10 minutes
-        new CronJob("* * * * *", Cache.storeMessages).start();
+        new CronJob("*/10 * * * *", Cache.storeMessages).start();
 
         // Delete messages older than 12 days every 6 hours
         new CronJob("0 */6 * * *", () => {
