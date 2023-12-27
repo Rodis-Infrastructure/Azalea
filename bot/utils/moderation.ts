@@ -208,8 +208,7 @@ export async function purgeMessages(data: {
             `, [{
                 $channelId: channel.id,
                 $limit: messagesToFetch,
-                $authorId: targetId ?? null,
-                $messageIds: messagesToPurge.join(",")
+                $authorId: targetId ?? null
             }]);
 
             // @formatter:on
