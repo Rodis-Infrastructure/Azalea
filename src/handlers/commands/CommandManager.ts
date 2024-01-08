@@ -3,11 +3,12 @@ import Command from "./Command.ts";
 import path from "path";
 import fs from "fs";
 
+import { BaseError, ensureError, ErrorType } from "../../utils/errors.ts";
+import { AbstractInstanceType } from "../../utils/types.ts";
 import { CommandInteraction } from "discord.js";
 import { client } from "../../index.ts";
-import { AbstractInstanceType } from "../../utils/types.ts";
 import { pluralize } from "../../utils";
-import { BaseError, ensureError, ErrorType } from "../../utils/errors.ts";
+import { ConfigManager } from "../../utils/config.ts";
 
 class CommandManager {
     // Class instances of commands mapped by their name
@@ -57,16 +58,24 @@ class CommandManager {
         Logger.info(`Published ${publishedCommands.size} ${pluralize(publishedCommands.size, "command")}`);
     }
 
-    async handle(interaction: CommandInteraction): Promise<void> {
+    async handle(interaction: CommandInteraction<"cached">): Promise<void> {
+        const config = ConfigManager.getConfig(interaction.guildId);
+
+        if (!config) {
+            await interaction.reply({
+                content: "This guild does not have a configuration set up.",
+                ephemeral: true
+            });
+            return;
+        }
+
         const command = this.instances.get(interaction.commandName);
 
         if (!command) {
             throw new Error(`Command "${interaction.commandName}" not found`);
         }
 
-        Logger.info(`Executing command ${interaction.commandName}`);
         await command.execute(interaction);
-        Logger.info(`Successfully executed command ${interaction.commandName}`);
     }
 }
 

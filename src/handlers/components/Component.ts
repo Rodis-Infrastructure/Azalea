@@ -1,9 +1,11 @@
-import { MessageComponentInteraction, ModalSubmitInteraction } from "discord.js";
+import { CacheType, MessageComponentInteraction, ModalSubmitInteraction } from "discord.js";
 
-export type ComponentInteraction = MessageComponentInteraction | ModalSubmitInteraction;
+export type ComponentInteraction<Cached extends CacheType = CacheType> =
+    MessageComponentInteraction<Cached> |
+    ModalSubmitInteraction<Cached>;
 
 export default abstract class Component {
     protected constructor(public customId: string) {}
 
-    abstract execute(interaction: ComponentInteraction): Promise<void> | void;
+    abstract execute(interaction: ComponentInteraction<"cached">): Promise<void> | void;
 }

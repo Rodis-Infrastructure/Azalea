@@ -14,7 +14,8 @@
     "start": "bun src/index.ts"
   },
   "dependencies": {
-    "discord.js": "^14.14.1"
+    "discord.js": "^14.14.1",
+    "yaml": "^2.3.4"
   },
   "devDependencies": {
     "bun-types": "^1.0.13"

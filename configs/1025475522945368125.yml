@@ -1,0 +1,5 @@
+logging:
+  logs:
+    - channel_id: "1025475523440291935"
+      events:
+        - message_delete

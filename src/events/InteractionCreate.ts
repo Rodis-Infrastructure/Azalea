@@ -15,6 +15,9 @@ export default class InteractionCreate extends EventListener {
             throw new Error(`Autocomplete interactions are not supported`);
         }
 
+        // Only allow interactions in guilds
+        if (!interaction.inCachedGuild()) return;
+
         try {
             if (interaction.isCommand()) {
                 await commands.handle(interaction);

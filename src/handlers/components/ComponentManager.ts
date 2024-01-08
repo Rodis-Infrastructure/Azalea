@@ -37,7 +37,7 @@ class ComponentManager {
         Logger.info(`Registered ${this.instances.size} ${pluralize(this.instances.size, "component")}`);
     }
 
-    async handle(interaction: ComponentInteraction): Promise<void> {
+    async handle(interaction: ComponentInteraction<"cached">): Promise<void> {
         const component = this.instances.get(interaction.customId);
 
         if (!component) {

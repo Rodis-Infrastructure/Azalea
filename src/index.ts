@@ -1,12 +1,17 @@
 import { loadListeners } from "./handlers/events/loader.ts";
-import { Client } from "discord.js";
+import { Client, GatewayIntentBits } from "discord.js";
 
 if (!process.env.DISCORD_TOKEN) {
     throw new Error("No token provided! Configure the DISCORD_TOKEN environment variable.");
 }
 
 export const client = new Client({
-    intents: [],
+    intents: [
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.Guilds,
+    ],
     partials: []
 });
 
