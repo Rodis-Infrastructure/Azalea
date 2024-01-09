@@ -59,7 +59,7 @@ class CommandManager {
     }
 
     async handle(interaction: CommandInteraction<"cached">): Promise<void> {
-        const config = ConfigManager.getConfig(interaction.guildId);
+        const config = ConfigManager.getGuildConfig(interaction.guildId);
 
         if (!config) {
             await interaction.reply({

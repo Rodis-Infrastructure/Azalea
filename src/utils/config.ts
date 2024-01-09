@@ -1,49 +1,69 @@
 import { Snowflake } from "discord-api-types/v10";
-import { Collection } from "discord.js";
+import { readYamlFile } from "./index.ts";
+import { Collection, Guild } from "discord.js";
+import { client } from "../index.ts";
 
-import YAML from "yaml";
+import _ from "lodash";
 import fs from "fs";
 
 export class ConfigManager {
-    private static instances = new Collection<Snowflake, Config>();
+    private static guildConfigs = new Collection<Snowflake, Config>();
+    static globalConfig: GlobalConfig;
 
     // Initialize the config manager by loading all configs from the configs directory
-    static seedConfigs() {
+    static async loadGuildConfigs() {
         const files = fs.readdirSync("configs")
             .filter(file => file !== "example.yml");
 
         for (const file of files) {
             const [guildId] = file.split(".");
 
-            const rawConfig = fs.readFileSync(`configs/${file}`, "utf-8");
-            const parsedConfig: Config = YAML.parse(rawConfig);
-            const config = fillConfig(parsedConfig);
+            const parsedConfig = readYamlFile(`configs/${file}`);
+            const config = await setConfigDefaults(guildId, parsedConfig);
 
-            ConfigManager.addConfig(guildId, config);
+            ConfigManager.addGuildConfig(guildId, config);
         }
     }
 
-    static addConfig(guildId: Snowflake, config: Config): Config {
-        return ConfigManager.instances.set(guildId, config).first()!;
+    static loadGlobalConfig() {
+        ConfigManager.globalConfig = readYamlFile<GlobalConfig>("azalea.cfg.yml");
     }
 
-    static getConfig(guildId: Snowflake): Config | undefined {
-        return ConfigManager.instances.get(guildId);
+    static addGuildConfig(guildId: Snowflake, config: Config): Config {
+        return ConfigManager.guildConfigs.set(guildId, config).first()!;
+    }
+
+    static getGuildConfig(guildId: Snowflake): Config | undefined {
+        return ConfigManager.guildConfigs.get(guildId);
     }
 }
 
-// Fill in any missing config values with defaults
-function fillConfig(config: Config): Config {
-    return {
+async function setConfigDefaults(guildId: Snowflake, data: unknown): Promise<Config> {
+    const guild = await client.guilds.fetch(guildId).catch(() => {
+        throw new Error("Failed to load config, unknown guild ID");
+    });
+
+    const scopingDefaults: Scoping = {
+        include_channels: [],
+        exclude_channels: [],
+        include_roles: []
+    }
+
+    const configDefaults: Config = {
+        guild,
         logging: {
-            logs: config.logging.logs,
-            default_scoping: config.logging.default_scoping ?? {
-                include_channels: [],
-                exclude_channels: [],
-                include_roles: []
-            }
+            default_scoping: scopingDefaults,
+            logs: []
         }
     }
+
+    const config: Config = _.defaultsDeep(data, configDefaults);
+
+    for (const log of config.logging.logs) {
+        log.scoping = _.defaultsDeep(log.scoping, scopingDefaults);
+    }
+
+    return config;
 }
 
 export interface Scoping {
@@ -55,7 +75,7 @@ export interface Scoping {
 interface Log {
     events: LoggingEvent[];
     channel_id: Snowflake;
-    scoping?: Scoping;
+    scoping: Scoping;
 }
 
 interface Logging {
@@ -65,6 +85,20 @@ interface Logging {
 
 export interface Config {
     logging: Logging;
+    guild: Guild;
+}
+
+interface Database {
+    messages: Messages;
+}
+
+interface Messages {
+    insert_crud: string;
+    delete_crud: string;
+}
+
+export interface GlobalConfig {
+    database: Database;
 }
 
 export enum LoggingEvent {

@@ -5,6 +5,7 @@ import { Client, Events } from "discord.js";
 
 import Logger, { AnsiColor } from "../utils/logger.ts";
 import EventListener from "../handlers/events/EventListener.ts";
+import { MessageCache } from "../utils/messages.ts";
 
 export default class Ready extends EventListener {
     constructor() {
@@ -19,13 +20,17 @@ export default class Ready extends EventListener {
             fullColor: true
         });
 
-        ConfigManager.seedConfigs();
+        ConfigManager.loadGlobalConfig();
 
         await Promise.all([
+            ConfigManager.loadGuildConfigs(),
             components.register(),
             commands.register()
         ]);
 
         await commands.publish();
+
+        // Operations that require the global config
+        MessageCache.startClearInterval();
     }
 }

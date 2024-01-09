@@ -1,0 +1,23 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Message {
+  message_id   String   @id
+  author_id    String
+  channel_id   String
+  guild_id     String
+  content      String
+  /// Epoch timestamp in milliseconds
+  created_at   DateTime
+  sticker_id   String?
+  /// ID of the message this message is replying to
+  reference_id String?
+  category_id  String?
+  deleted      Boolean  @default(false)
+}
