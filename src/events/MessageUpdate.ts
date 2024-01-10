@@ -1,4 +1,12 @@
-import { Colors, EmbedBuilder, Events, Message as DiscordMessage, PartialMessage } from "discord.js";
+import {
+    Colors,
+    EmbedBuilder,
+    Events,
+    hyperlink,
+    Message as DiscordMessage,
+    messageLink,
+    PartialMessage
+} from "discord.js";
 import { attachReferenceLog, formatMessageContentForLog, MessageCache } from "../utils/messages.ts";
 import { Config, ConfigManager, LoggingEvent } from "../utils/config.ts";
 import { log } from "../utils/logging.ts";
@@ -36,9 +44,11 @@ class MessageUpdateEventListener extends EventListener {
 async function handleMessageUpdateLog(message: DiscordMessage<true>, oldContent: string | null, config: Config): Promise<void> {
     if (!message.member) return;
 
+    const maskedJumpURL = hyperlink("Jump to message", message.url);
     const embed = new EmbedBuilder()
         .setColor(Colors.Orange)
         .setAuthor({ name: "Message Updated" })
+        .setDescription(maskedJumpURL)
         .setFields([
             { name: "Author", value: `${message.author} (\`${message.author.id}\`)` },
             { name: "Channel", value: `${message.channel} (\`#${message.channel.name}\`)` },
