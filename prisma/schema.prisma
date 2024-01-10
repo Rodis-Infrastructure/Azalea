@@ -12,9 +12,9 @@ model Message {
   author_id    String
   channel_id   String
   guild_id     String
-  content      String
   /// Epoch timestamp in milliseconds
   created_at   DateTime
+  content      String?
   sticker_id   String?
   /// ID of the message this message is replying to
   reference_id String?

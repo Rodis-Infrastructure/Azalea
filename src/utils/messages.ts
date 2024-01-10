@@ -1,16 +1,19 @@
 import {
-    Collection,
+    codeBlock,
+    Collection, Colors, EmbedBuilder,
     Guild,
     GuildMember,
-    GuildTextBasedChannel,
-    Message as DiscordMessage,
+    GuildTextBasedChannel, hyperlink,
+    Message as DiscordMessage, messageLink,
     PartialMessage
 } from "discord.js";
+
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
 import { prisma } from "../index.ts";
 import { CronJob } from "cron";
 import { ConfigManager } from "./config.ts";
+import { elipsify } from "./index.ts";
 
 import Logger from "./logger.ts";
 
@@ -22,9 +25,7 @@ export class MessageCache {
 
         if (!message) {
             message = await prisma.message.findUnique({
-                where: {
-                    message_id: id
-                }
+                where: { message_id: id }
             });
         }
 
@@ -36,37 +37,31 @@ export class MessageCache {
         this.queue.set(message.id, serializedMessage);
     }
 
-    static async delete(id: Snowflake): Promise<Message> {
+    static async delete(id: Snowflake): Promise<Message | null> {
         let message = MessageCache.queue.get(id);
 
         if (message) {
             message.deleted = true;
         } else {
             message = await prisma.message.delete({
-                where: {
-                    message_id: id
-                }
+                where: { message_id: id }
             });
         }
 
         return message;
     }
 
-    static async deleteMany(ids: Snowflake[]): Promise<Message[]> {
-        const messages: Message[] = [];
-        const uncachedMessageIds: Snowflake[] = [];
+    static async updateContent(id: Snowflake, newContent: string): Promise<void> {
+        let message = MessageCache.queue.get(id);
 
-        for (const id in ids) {
-            const message = MessageCache.queue.get(id);
-
-            if (message) {
-                messages.push(message);
-            } else {
-                uncachedMessageIds.push(id);
-            }
+        if (message) {
+            message.content = newContent;
+        } else {
+            await prisma.message.update({
+                where: { message_id: id },
+                data: { content: newContent }
+            });
         }
-
-        return messages;
     }
 
     // Clear the buffer and store the messages in the database
@@ -104,7 +99,7 @@ export async function fetchMessageReference(message: DiscordMessage<true>): Prom
     return null;
 }
 
-function prepareMessageForStorage(message: DiscordMessage<true>): Message {
+export function prepareMessageForStorage(message: DiscordMessage<true>): Message {
     const stickerId = message.stickers.first()?.id ?? null;
     const referenceId = message.reference?.messageId ?? null;
 
@@ -145,4 +140,40 @@ export async function fetchPartialData(guild: Guild, authorId: Snowflake, channe
     }
 
     return [author, channel];
+}
+
+export async function attachReferenceLog(referenceId: Snowflake, embeds: EmbedBuilder[]): Promise<void> {
+    const reference = await MessageCache.get(referenceId);
+    if (!reference) return;
+
+    const referenceURL = messageLink(reference.channel_id, reference.message_id, reference.guild_id);
+    const maskedJumpURL = hyperlink("Jump to message", referenceURL);
+
+    const embed = new EmbedBuilder()
+        .setColor(Colors.Grey)
+        .setAuthor({ name: "Reference" })
+        .setDescription(maskedJumpURL)
+        .setFields([
+            {
+                name: "Author",
+                value: `${reference.author_id} (\`${reference.author_id}\`)`
+            },
+            {
+                name: "Content",
+                value: reference.content
+            }
+        ])
+        .setTimestamp(reference.created_at);
+
+    // Insert the reference embed at the beginning of the array
+    embeds.splice(0, 0, embed);
+}
+
+export function formatMessageContentForLog(content: string | null): string {
+    if (!content) return "No message content";
+
+    let formatted = content.replaceAll("```", "\\`\\`\\`");
+    formatted = elipsify(formatted, 1000);
+
+    return codeBlock(formatted);
 }

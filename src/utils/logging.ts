@@ -2,17 +2,18 @@ import { EmbedBuilder, GuildMember, GuildTextBasedChannel } from "discord.js";
 import { Config, LoggingEvent, Scoping } from "./config.ts";
 import { Snowflake } from "discord-api-types/v10";
 
-export async function log(
+export async function log(data: {
     event: LoggingEvent,
     config: Config,
     channel: GuildTextBasedChannel,
     member: GuildMember,
-    embed: EmbedBuilder
-): Promise<void> {
+    embeds: EmbedBuilder[]
+}): Promise<void> {
+    const { event, config, channel, member, embeds } = data;
     const loggingChannels = await getLoggingChannels(event, config, channel, member);
 
     // Send the content in parallel to all logging channels
-    await Promise.all(loggingChannels.map(loggingChannel => loggingChannel.send({ embeds: [embed] })));
+    await Promise.all(loggingChannels.map(loggingChannel => loggingChannel.send({ embeds })));
 }
 
 async function getLoggingChannels(

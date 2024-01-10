@@ -11,7 +11,13 @@ import {
 import EventListener from "../handlers/events/EventListener.ts";
 
 import { Config, ConfigManager, LoggingEvent } from "../utils/config.ts";
-import { fetchPartialData, resolveMessage } from "../utils/messages.ts";
+import {
+    attachReferenceLog,
+    fetchPartialData, formatMessageContentForLog,
+    MessageCache,
+    prepareMessageForStorage,
+    resolveMessage
+} from "../utils/messages.ts";
 import { log } from "../utils/logging.ts";
 import { Message } from "@prisma/client";
 
@@ -21,7 +27,14 @@ export default class MessageDeleteEventListener extends EventListener {
     }
 
     async execute(deletedMessage: PartialMessage | DiscordMessage<true>): Promise<void> {
-        const message = await resolveMessage(deletedMessage);
+        let message: Message | null;
+
+        if (deletedMessage.partial) {
+            message = await MessageCache.delete(deletedMessage.id);
+        } else {
+            message = prepareMessageForStorage(deletedMessage);
+        }
+
         if (!message) return;
 
         const config = ConfigManager.getGuildConfig(message.guild_id);
@@ -41,15 +54,21 @@ async function handleMessageDeleteLog(message: Message, config: Config): Promise
         .setFields([
             { name: "Author", value: `${userMention(message.author_id)} (\`${message.author_id}\`)` },
             { name: "Channel", value: `${channelMention(sourceChannel.id)} (\`#${sourceChannel.name}\`)` },
-            { name: "Content", value: message.content }
+            { name: "Content", value: formatMessageContentForLog(message.content) }
         ])
         .setTimestamp(message.created_at);
 
-    await log(
-        LoggingEvent.MessageDelete,
+    const embeds = [embed];
+
+    if (message.reference_id) {
+        await attachReferenceLog(message.reference_id, embeds);
+    }
+
+    await log({
+        event: LoggingEvent.MessageDelete,
+        channel: sourceChannel,
+        member: author,
         config,
-        sourceChannel,
-        author,
-        embed
-    );
+        embeds
+    });
 }

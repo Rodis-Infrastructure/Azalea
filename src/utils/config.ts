@@ -102,5 +102,6 @@ export interface GlobalConfig {
 }
 
 export enum LoggingEvent {
-    MessageDelete = "message_delete"
+    MessageDelete = "message_delete",
+    MessageUpdate = "message_update"
 }
