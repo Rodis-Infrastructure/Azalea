@@ -1,6 +1,6 @@
 import fs from "fs";
 import YAML from "yaml";
-import { Config } from "./config.ts";
+import { GuildConfig } from "./config.ts";
 
 export function pluralize(count: number, singular: string, plural?: string): string {
     plural ??= `${singular}s`;

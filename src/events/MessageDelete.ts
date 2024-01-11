@@ -8,30 +8,30 @@ import {
     userMention
 } from "discord.js";
 
-import EventListener from "../handlers/events/EventListener.ts";
-
-import { Config, ConfigManager, LoggingEvent } from "../utils/config.ts";
 import {
-    attachReferenceLog,
-    fetchPartialData, formatMessageContentForLog,
+    prependReferenceLog,
+    fetchPartialMessageData, formatMessageContentForLog,
     MessageCache,
-    prepareMessageForStorage,
-    resolveMessage
+    prepareMessageForStorage
 } from "../utils/messages.ts";
+
+import { GuildConfig, ConfigManager, LoggingEvent } from "../utils/config.ts";
 import { log } from "../utils/logging.ts";
 import { Message } from "@prisma/client";
+
+import EventListener from "../handlers/events/EventListener.ts";
 
 export default class MessageDeleteEventListener extends EventListener {
     constructor() {
         super(Events.MessageDelete);
     }
 
-    async execute(deletedMessage: PartialMessage | DiscordMessage<true>): Promise<void> {
-        let message: Message | null;
+    async execute(deletedMessage: PartialMessage | DiscordMessage): Promise<void> {
+        let message: Message | null = null;
 
         if (deletedMessage.partial) {
             message = await MessageCache.delete(deletedMessage.id);
-        } else {
+        } else if (deletedMessage.inGuild()) {
             message = prepareMessageForStorage(deletedMessage);
         }
 
@@ -44,8 +44,10 @@ export default class MessageDeleteEventListener extends EventListener {
     }
 }
 
-async function handleMessageDeleteLog(message: Message, config: Config): Promise<void> {
-    const [author, sourceChannel] = await fetchPartialData(config.guild, message.author_id, message.channel_id);
+async function handleMessageDeleteLog(message: Message, config: GuildConfig): Promise<void> {
+    const [author, sourceChannel] = await fetchPartialMessageData(config.guild, message.author_id, message.channel_id);
+
+    // Member roles and the source channel are required to perform scope checks
     if (!author || !sourceChannel) return;
 
     const embed = new EmbedBuilder()
@@ -61,7 +63,7 @@ async function handleMessageDeleteLog(message: Message, config: Config): Promise
     const embeds = [embed];
 
     if (message.reference_id) {
-        await attachReferenceLog(message.reference_id, embeds);
+        await prependReferenceLog(message.reference_id, embeds);
     }
 
     await log({

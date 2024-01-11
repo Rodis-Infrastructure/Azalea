@@ -1,21 +1,16 @@
 import { Events, Message, PartialMessage } from "discord.js";
 
 import EventListener from "../handlers/events/EventListener.ts";
-import { MessageCache } from "../utils/messages.ts";
+import { resolvePartialMessage, MessageCache } from "../utils/messages.ts";
 
 export default class MessageCreateEventListener extends EventListener {
     constructor() {
         super(Events.MessageCreate);
     }
 
-    async execute(newMessage: PartialMessage | Message<true>): Promise<void> {
-        let message!: Message<true>;
-
-        if (newMessage.partial) {
-            message = await newMessage.fetch() as Message<true>;
-        } else {
-            message = newMessage;
-        }
+    async execute(newMessage: PartialMessage | Message): Promise<void> {
+        const message = await resolvePartialMessage(newMessage);
+        if (!message) return;
 
         await MessageCache.set(message);
     }

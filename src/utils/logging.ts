@@ -1,10 +1,10 @@
 import { EmbedBuilder, GuildMember, GuildTextBasedChannel } from "discord.js";
-import { Config, LoggingEvent, Scoping } from "./config.ts";
+import { GuildConfig, LoggingEvent, Scoping } from "./config.ts";
 import { Snowflake } from "discord-api-types/v10";
 
 export async function log(data: {
     event: LoggingEvent,
-    config: Config,
+    config: GuildConfig,
     channel: GuildTextBasedChannel,
     member: GuildMember,
     embeds: EmbedBuilder[]
@@ -18,7 +18,7 @@ export async function log(data: {
 
 async function getLoggingChannels(
     event: LoggingEvent,
-    config: Config,
+    config: GuildConfig,
     channel: GuildTextBasedChannel,
     member: GuildMember
 ): Promise<GuildTextBasedChannel[]> {

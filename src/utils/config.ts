@@ -7,7 +7,7 @@ import _ from "lodash";
 import fs from "fs";
 
 export class ConfigManager {
-    private static guildConfigs = new Collection<Snowflake, Config>();
+    private static guildConfigs = new Collection<Snowflake, GuildConfig>();
     static globalConfig: GlobalConfig;
 
     // Initialize the config manager by loading all configs from the configs directory
@@ -29,16 +29,16 @@ export class ConfigManager {
         ConfigManager.globalConfig = readYamlFile<GlobalConfig>("azalea.cfg.yml");
     }
 
-    static addGuildConfig(guildId: Snowflake, config: Config): Config {
+    static addGuildConfig(guildId: Snowflake, config: GuildConfig): GuildConfig {
         return ConfigManager.guildConfigs.set(guildId, config).first()!;
     }
 
-    static getGuildConfig(guildId: Snowflake): Config | undefined {
+    static getGuildConfig(guildId: Snowflake): GuildConfig | undefined {
         return ConfigManager.guildConfigs.get(guildId);
     }
 }
 
-async function setConfigDefaults(guildId: Snowflake, data: unknown): Promise<Config> {
+async function setConfigDefaults(guildId: Snowflake, data: unknown): Promise<GuildConfig> {
     const guild = await client.guilds.fetch(guildId).catch(() => {
         throw new Error("Failed to load config, unknown guild ID");
     });
@@ -49,7 +49,7 @@ async function setConfigDefaults(guildId: Snowflake, data: unknown): Promise<Con
         include_roles: []
     }
 
-    const configDefaults: Config = {
+    const configDefaults: GuildConfig = {
         guild,
         logging: {
             default_scoping: scopingDefaults,
@@ -57,7 +57,7 @@ async function setConfigDefaults(guildId: Snowflake, data: unknown): Promise<Con
         }
     }
 
-    const config: Config = _.defaultsDeep(data, configDefaults);
+    const config: GuildConfig = _.defaultsDeep(data, configDefaults);
 
     for (const log of config.logging.logs) {
         log.scoping = _.defaultsDeep(log.scoping, scopingDefaults);
@@ -83,7 +83,7 @@ interface Logging {
     logs: Log[];
 }
 
-export interface Config {
+export interface GuildConfig {
     logging: Logging;
     guild: Guild;
 }
@@ -103,5 +103,6 @@ export interface GlobalConfig {
 
 export enum LoggingEvent {
     MessageDelete = "message_delete",
-    MessageUpdate = "message_update"
+    MessageUpdate = "message_update",
+    ReactionAdd = "reaction_add"
 }

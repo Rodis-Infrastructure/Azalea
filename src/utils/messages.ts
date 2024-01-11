@@ -66,14 +66,17 @@ export class MessageCache {
 
     // Clear the buffer and store the messages in the database
     static async clear(): Promise<void> {
-        Logger.info("Storing cached messages");
+        Logger.info("Storing cached messages...");
 
-        const insertPromises = MessageCache.queue.map(message => {
-            return prisma.message.create({ data: message });
-        });
+        const insertPromises = MessageCache.queue.map(message =>
+            prisma.message.create({ data: message }).catch(() => null)
+        );
 
         await Promise.all(insertPromises);
+        const insertedCount = this.queue.size;
         this.queue.clear();
+
+        Logger.info(`Stored ${insertedCount} messages`);
     }
 
     static startClearInterval(): void {
@@ -85,20 +88,7 @@ export class MessageCache {
     }
 }
 
-export async function fetchMessageReference(message: DiscordMessage<true>): Promise<Message | null> {
-    if (!message.reference) return null;
-
-    const reference = await message.fetchReference().catch(() => null);
-
-    if (!reference && message.reference.messageId) {
-        return MessageCache.get(message.reference.messageId);
-    } else if (reference) {
-        return prepareMessageForStorage(reference);
-    }
-
-    return null;
-}
-
+// @returns Message object in a format appropriate for the database
 export function prepareMessageForStorage(message: DiscordMessage<true>): Message {
     const stickerId = message.stickers.first()?.id ?? null;
     const referenceId = message.reference?.messageId ?? null;
@@ -131,7 +121,7 @@ export async function resolveMessage(message: PartialMessage | DiscordMessage<tr
     return prepareMessageForStorage(message);
 }
 
-export async function fetchPartialData(guild: Guild, authorId: Snowflake, channelId: Snowflake): Promise<[GuildMember | null, GuildTextBasedChannel | null]> {
+export async function fetchPartialMessageData(guild: Guild, authorId: Snowflake, channelId: Snowflake): Promise<[GuildMember | null, GuildTextBasedChannel | null]> {
     let channel = await guild.channels.fetch(channelId).catch(() => null);
     const author = await guild.members.fetch(authorId).catch(() => null);
 
@@ -142,7 +132,8 @@ export async function fetchPartialData(guild: Guild, authorId: Snowflake, channe
     return [author, channel];
 }
 
-export async function attachReferenceLog(referenceId: Snowflake, embeds: EmbedBuilder[]): Promise<void> {
+// Prepend a reference embed to an embed array passed by reference
+export async function prependReferenceLog(referenceId: Snowflake, embeds: EmbedBuilder[]): Promise<void> {
     const reference = await MessageCache.get(referenceId);
     if (!reference) return;
 
@@ -169,6 +160,7 @@ export async function attachReferenceLog(referenceId: Snowflake, embeds: EmbedBu
     embeds.splice(0, 0, embed);
 }
 
+// Escape code blocks, truncate the content if it's too long, and wrap it in a code block
 export function formatMessageContentForLog(content: string | null): string {
     if (!content) return "No message content";
 
@@ -176,4 +168,16 @@ export function formatMessageContentForLog(content: string | null): string {
     formatted = elipsify(formatted, 1000);
 
     return codeBlock(formatted);
+}
+
+// Ignores messages that were sent in DMs
+// This function shouldn't be used on deleted messages
+export async function resolvePartialMessage(message: PartialMessage | DiscordMessage): Promise<DiscordMessage<true> | null> {
+    const fetchedMessage = message.partial
+        ? await message.fetch().catch(() => null)
+        : message;
+
+    if (!fetchedMessage?.inGuild()) return null;
+
+    return fetchedMessage;
 }
