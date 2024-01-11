@@ -15,7 +15,7 @@ import { log } from "../utils/logging.ts";
 
 import EventListener from "../handlers/events/EventListener.ts";
 
-class MessageReactionAddEventListener extends EventListener {
+export default class MessageReactionAddEventListener extends EventListener {
     constructor() {
         super(Events.MessageReactionAdd);
     }
