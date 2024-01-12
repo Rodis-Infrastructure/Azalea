@@ -61,7 +61,7 @@ async function handleReactionAddLog(reaction: MessageReaction, message: Message<
     await prependReferenceLog(message.id, embeds);
 
     await log({
-        event: LoggingEvent.ReactionAdd,
+        event: LoggingEvent.MessageReactionAdd,
         channel: message.channel,
         embeds,
         member,

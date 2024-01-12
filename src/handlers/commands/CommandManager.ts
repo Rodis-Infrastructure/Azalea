@@ -59,16 +59,6 @@ class CommandManager {
     }
 
     async handle(interaction: CommandInteraction<"cached">): Promise<void> {
-        const config = ConfigManager.getGuildConfig(interaction.guildId);
-
-        if (!config) {
-            await interaction.reply({
-                content: "This guild does not have a configuration set up.",
-                ephemeral: true
-            });
-            return;
-        }
-
         const command = this.instances.get(interaction.commandName);
 
         if (!command) {

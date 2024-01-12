@@ -9,8 +9,7 @@ export enum AnsiColor {
     Reset = "\x1b[0m",
     Green = "\x1b[32m",
     Cyan = "\x1b[36m",
-    Grey = "\x1b[90m",
-    Red = "\x1b[31m"
+    Grey = "\x1b[90m"
 }
 
 export default class Logger {
@@ -30,12 +29,6 @@ export default class Logger {
     static info(message: string): void {
         Logger.log("INFO", message, {
             color: AnsiColor.Cyan
-        });
-    }
-
-    static error(message: string): void {
-        Logger.log("ERROR", message, {
-            color: AnsiColor.Red
         });
     }
 }

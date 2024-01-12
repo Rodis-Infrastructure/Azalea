@@ -107,20 +107,6 @@ export function prepareMessageForStorage(message: DiscordMessage<true>): Message
     }
 }
 
-export async function resolveMessage(message: PartialMessage | DiscordMessage<true>): Promise<Message | null> {
-    if (message.partial) {
-        const fetchedMessage = await message.fetch().catch(() => null) as DiscordMessage<true> | null;
-
-        if (!fetchedMessage) {
-            return MessageCache.get(message.id);
-        }
-
-        return prepareMessageForStorage(fetchedMessage);
-    }
-
-    return prepareMessageForStorage(message);
-}
-
 export async function fetchPartialMessageData(guild: Guild, authorId: Snowflake, channelId: Snowflake): Promise<[GuildMember | null, GuildTextBasedChannel | null]> {
     let channel = await guild.channels.fetch(channelId).catch(() => null);
     const author = await guild.members.fetch(authorId).catch(() => null);

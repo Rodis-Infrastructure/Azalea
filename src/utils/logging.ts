@@ -85,7 +85,7 @@ function roleIsIncluded(scoping: Scoping, member: GuildMember): boolean {
         || scoping.include_roles.some(roleId => member.roles.cache.has(roleId));
 }
 
-interface ChannelData {
+export interface ChannelData {
     channelId: Snowflake;
     threadId: Snowflake | null;
     categoryId: Snowflake | null;

@@ -33,12 +33,16 @@ export class ConfigManager {
         return ConfigManager.guildConfigs.set(guildId, config).first()!;
     }
 
-    static getGuildConfig(guildId: Snowflake): GuildConfig | undefined {
-        return ConfigManager.guildConfigs.get(guildId);
+    static getGuildConfig(guildId: Snowflake, exists: true): GuildConfig;
+    static getGuildConfig(guildId: Snowflake, exists?: false): GuildConfig | undefined;
+    static getGuildConfig(guildId: Snowflake, exists?: boolean): GuildConfig | undefined {
+        return exists
+            ? ConfigManager.guildConfigs.get(guildId)!
+            : ConfigManager.guildConfigs.get(guildId);
     }
 }
 
-async function setConfigDefaults(guildId: Snowflake, data: unknown): Promise<GuildConfig> {
+export async function setConfigDefaults(guildId: Snowflake, data: unknown): Promise<GuildConfig> {
     const guild = await client.guilds.fetch(guildId).catch(() => {
         throw new Error("Failed to load config, unknown guild ID");
     });
@@ -102,7 +106,26 @@ export interface GlobalConfig {
 }
 
 export enum LoggingEvent {
+    MessageBulkDelete = "message_bulk_delete",
     MessageDelete = "message_delete",
     MessageUpdate = "message_update",
-    ReactionAdd = "reaction_add"
+    MessageReactionAdd = "message_reaction_add",
+    InfractionCreate = "infraction_create",
+    InfractionDelete = "infraction_delete",
+    InfractionUpdate = "infraction_update",
+    InteractionCreate = "interaction_create",
+    VoiceJoin = "voice_join",
+    VoiceLeave = "voice_leave",
+    VoiceMove = "voice_move",
+    ThreadCreate = "thread_create",
+    ThreadDelete = "thread_delete",
+    ThreadUpdate = "thread_update",
+    BanRequestApprove = "ban_request_approve",
+    BanRequestDeny = "ban_request_deny",
+    MuteRequestApprove = "mute_request_approve",
+    MuteRequestDeny = "mute_request_deny",
+    MessageReportCreate = "message_report_create",
+    MessageReportResolve = "message_report_resolve",
+    MediaStore = "media_store",
+    Ready = "ready"
 }
