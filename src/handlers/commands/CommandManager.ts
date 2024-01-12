@@ -8,14 +8,13 @@ import { AbstractInstanceType } from "../../utils/types.ts";
 import { CommandInteraction } from "discord.js";
 import { client } from "../../index.ts";
 import { pluralize } from "../../utils";
-import { ConfigManager } from "../../utils/config.ts";
 
-class CommandManager {
+export class CommandManager {
     // Class instances of commands mapped by their name
-    private instances = new Map<string, Command<CommandInteraction>>;
+    private static instances = new Map<string, Command<CommandInteraction>>;
 
     // Create instances of all commands and store them in a map
-    async register(): Promise<void> {
+    static async register(): Promise<void> {
         try {
             const dirpath = path.resolve(__dirname, "../../commands");
             const filenames = fs.readdirSync(dirpath);
@@ -41,9 +40,9 @@ class CommandManager {
         Logger.info(`Registered ${this.instances.size} ${pluralize(this.instances.size, "command")}`);
     }
 
-    async publish(): Promise<void> {
+    static async publish(): Promise<void> {
         const commands = Array.from(this.instances.values())
-            .map(command => command.data);
+            .map(command => command.build());
 
         if (!commands.length) return;
 
@@ -58,7 +57,7 @@ class CommandManager {
         Logger.info(`Published ${publishedCommands.size} ${pluralize(publishedCommands.size, "command")}`);
     }
 
-    async handle(interaction: CommandInteraction<"cached">): Promise<void> {
+    static async handle(interaction: CommandInteraction<"cached">): Promise<void> {
         const command = this.instances.get(interaction.commandName);
 
         if (!command) {
@@ -68,5 +67,3 @@ class CommandManager {
         await command.execute(interaction);
     }
 }
-
-export const commands = new CommandManager();

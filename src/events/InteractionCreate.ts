@@ -1,11 +1,11 @@
-import { ensureError, InteractionExecuteError } from "../utils/errors.ts";
-import { components } from "../handlers/components/ComponentManager.ts";
-import { commands } from "../handlers/commands/CommandManager.ts";
 import { AutocompleteInteraction, Colors, EmbedBuilder, Events, Interaction } from "discord.js";
+import { ConfigManager, GuildConfig, LoggingEvent } from "../utils/config.ts";
+import { ComponentManager } from "../handlers/components/ComponentManager.ts";
+import { ensureError, InteractionExecuteError } from "../utils/errors.ts";
+import { CommandManager } from "../handlers/commands/CommandManager.ts";
 
 import EventListener from "../handlers/events/EventListener.ts";
 import { log } from "../utils/logging.ts";
-import { ConfigManager, GuildConfig, LoggingEvent } from "../utils/config.ts";
 
 export default class InteractionCreate extends EventListener {
     constructor() {
@@ -38,12 +38,12 @@ export default class InteractionCreate extends EventListener {
 
         try {
             if (interaction.isCommand()) {
-                await commands.handle(interaction);
+                await CommandManager.handle(interaction);
                 return;
             }
 
             if (interaction.isMessageComponent() || interaction.isModalSubmit()) {
-                await components.handle(interaction);
+                await ComponentManager.handle(interaction);
                 return;
             }
         } catch (_error) {

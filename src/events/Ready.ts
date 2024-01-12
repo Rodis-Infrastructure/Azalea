@@ -1,11 +1,11 @@
-import { components } from "../handlers/components/ComponentManager.ts";
-import { commands } from "../handlers/commands/CommandManager.ts";
+import { ComponentManager } from "../handlers/components/ComponentManager.ts";
+import { CommandManager } from "../handlers/commands/CommandManager.ts";
+import { MessageCache } from "../utils/messages.ts";
 import { ConfigManager } from "../utils/config.ts";
 import { Client, Events } from "discord.js";
 
 import Logger, { AnsiColor } from "../utils/logger.ts";
 import EventListener from "../handlers/events/EventListener.ts";
-import { MessageCache } from "../utils/messages.ts";
 
 export default class Ready extends EventListener {
     constructor() {
@@ -24,11 +24,11 @@ export default class Ready extends EventListener {
 
         await Promise.all([
             ConfigManager.loadGuildConfigs(),
-            components.register(),
-            commands.register()
+            ComponentManager.register(),
+            CommandManager.register()
         ]);
 
-        await commands.publish();
+        await CommandManager.publish();
 
         // Operations that require the global config
         MessageCache.startClearInterval();

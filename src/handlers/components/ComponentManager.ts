@@ -1,17 +1,18 @@
+import { BaseError, ensureError, ErrorType } from "../../utils/errors.ts";
 import { AbstractInstanceType } from "../../utils/types.ts";
+import { pluralize } from "../../utils";
+
 import Component, { ComponentInteraction } from "./Component.ts";
 import Logger from "../../utils/logger.ts";
 import path from "path";
 import fs from "fs";
-import { pluralize } from "../../utils";
-import { BaseError, ensureError, ErrorType } from "../../utils/errors.ts";
 
-class ComponentManager {
+export class ComponentManager {
     // Class instances of components mapped by their customId
-    private instances = new Map<string, Component>;
+    private static instances = new Map<string, Component>;
 
     // Create instances of all components and store them in a map
-    async register(): Promise<void> {
+    static async register(): Promise<void> {
         try {
             const dirpath = path.resolve(__dirname, "../../components");
             const filenames = fs.readdirSync(dirpath);
@@ -37,7 +38,7 @@ class ComponentManager {
         Logger.info(`Registered ${this.instances.size} ${pluralize(this.instances.size, "component")}`);
     }
 
-    async handle(interaction: ComponentInteraction<"cached">): Promise<void> {
+    static async handle(interaction: ComponentInteraction<"cached">): Promise<void> {
         const component = this.instances.get(interaction.customId);
 
         if (!component) {
@@ -47,5 +48,3 @@ class ComponentManager {
         await component.execute(interaction);
     }
 }
-
-export const components = new ComponentManager();
