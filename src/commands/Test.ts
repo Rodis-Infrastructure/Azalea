@@ -13,7 +13,7 @@ export default class Test extends Command<ChatInputCommandInteraction> {
     constructor() {
         super({
             name: "test",
-            description: "Test all interactions",
+            description: "Test all interactions"
         });
     }
 

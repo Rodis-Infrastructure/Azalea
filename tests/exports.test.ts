@@ -10,19 +10,22 @@ import EventListener from "../src/handlers/events/EventListener";
 
 const customIDs: Snowflake[] = [];
 
+type ExpectedClass = typeof Command | typeof Component | typeof EventListener;
+
 describe("exports", () => {
     verifyModule("components", Component);
     verifyModule("commands", Command);
     verifyModule("events", EventListener);
 });
 
-function verifyModule(dirname: string, expectedClass: Function): void {
+function verifyModule(dirname: string, expectedClass: ExpectedClass): void {
     const modulesDirectoryPath = path.resolve(__dirname, "../src", dirname);
     const moduleFiles = fs.readdirSync(modulesDirectoryPath);
 
-    test.each(moduleFiles)(`${dirname}: %s`, moduleFile => {
+    test.each(moduleFiles)(`${dirname}: %s`, async moduleFile => {
         const moduleFilePath = path.resolve(modulesDirectoryPath, moduleFile);
-        const module = require(moduleFilePath).default;
+        const importedModule = await import(moduleFilePath);
+        const module = importedModule.default;
 
         expect(Object.getPrototypeOf(module)).toStrictEqual(expectedClass);
 

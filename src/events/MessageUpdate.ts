@@ -4,15 +4,16 @@ import {
     Events,
     hyperlink,
     Message as DiscordMessage,
-    messageLink,
     PartialMessage
 } from "discord.js";
+
 import {
     prependReferenceLog,
     formatMessageContentForLog,
     MessageCache,
     resolvePartialMessage
 } from "../utils/messages.ts";
+
 import { GuildConfig, ConfigManager, LoggingEvent } from "../utils/config.ts";
 import { log } from "../utils/logging.ts";
 
@@ -64,7 +65,7 @@ async function handleMessageUpdateLog(message: DiscordMessage<true>, oldContent:
     const embeds = [embed];
 
     if (message.reference?.messageId) {
-        await prependReferenceLog(message.reference?.messageId, embeds);
+        await prependReferenceLog(message.reference.messageId, embeds);
     }
 
     await log({

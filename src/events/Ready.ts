@@ -31,6 +31,6 @@ export default class Ready extends EventListener {
         await CommandManager.publish();
 
         // Operations that require the global config
-        MessageCache.startClearInterval();
+        MessageCache.startCronJobs();
     }
 }

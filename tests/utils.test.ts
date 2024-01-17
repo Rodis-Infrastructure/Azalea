@@ -17,7 +17,7 @@ describe("utils", () => {
         const strBoundary = TEST_CHAR.repeat(MAX_LENGTH);
 
         const strLong = TEST_CHAR.repeat(MAX_LENGTH + 100);
-        const strCropped = TEST_CHAR.repeat(MAX_LENGTH - 25) + "...(125 more characters)";
+        const strCropped = `${TEST_CHAR.repeat(MAX_LENGTH - 25)}...(125 more characters)`;
 
         expect(elipsify(strShort, MAX_LENGTH)).toBe(strShort);
         expect(elipsify(strBoundary, MAX_LENGTH)).toBe(strBoundary);

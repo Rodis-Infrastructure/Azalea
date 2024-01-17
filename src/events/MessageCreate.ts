@@ -12,6 +12,6 @@ export default class MessageCreateEventListener extends EventListener {
         const message = await resolvePartialMessage(newMessage);
         if (!message) return;
 
-        await MessageCache.set(message);
+        MessageCache.set(message);
     }
 }

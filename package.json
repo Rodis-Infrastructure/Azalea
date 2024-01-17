@@ -1,11 +1,11 @@
 {
-  "name": "djs-template",
-  "description": "A template for a discord.js bot using bun and TypeScript.",
-  "homepage": "https://github.com/archasion/djs-template#readme",
+  "name": "azalea",
+  "description": "A Discord moderation and utility bot",
+  "homepage": "https://github.com/archasion/azalea#readme",
   "version": "1.0.0",
   "type": "module",
   "module": "src/index.ts",
-  "repository": "github:archasion/djs-template",
+  "repository": "github:archasion/azalea",
   "author": {
     "name": "Archasion",
     "url": "https://github.com/archasion"
@@ -17,11 +17,14 @@
     "@prisma/client": "^5.7.1",
     "cron": "^3.1.6",
     "discord.js": "^14.14.1",
-    "lodash": "^4.17.21",
     "yaml": "^2.3.4"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.202",
-    "bun-types": "^1.0.13"
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "bun-types": "^1.0.13",
+    "eslint": "^8.56.0",
+    "lodash": "^4.17.21"
   }
 }

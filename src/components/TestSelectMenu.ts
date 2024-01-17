@@ -6,7 +6,7 @@ export default class TestSelectMenu extends Component {
         super("test-select-menu");
     }
 
-    async execute(interaction: StringSelectMenuInteraction): Promise<void> {
+    async execute(interaction: StringSelectMenuInteraction<"cached">): Promise<void> {
         const [selected] = interaction.values;
         await interaction.reply(selected);
     }

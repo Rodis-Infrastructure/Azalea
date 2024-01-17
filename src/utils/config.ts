@@ -11,7 +11,7 @@ export class ConfigManager {
     static globalConfig: GlobalConfig;
 
     // Initialize the config manager by loading all configs from the configs directory
-    static async loadGuildConfigs() {
+    static async loadGuildConfigs(): Promise<void> {
         const files = fs.readdirSync("configs")
             .filter(file => file !== "example.yml");
 
@@ -25,7 +25,7 @@ export class ConfigManager {
         }
     }
 
-    static loadGlobalConfig() {
+    static loadGlobalConfig(): void {
         ConfigManager.globalConfig = readYamlFile<GlobalConfig>("azalea.cfg.yml");
     }
 
@@ -47,33 +47,43 @@ export async function setConfigDefaults(guildId: Snowflake, data: unknown): Prom
         throw new Error("Failed to load config, unknown guild ID");
     });
 
-    const scopingDefaults: Scoping = {
+    const emptyScoping: Scoping = {
         include_channels: [],
         exclude_channels: [],
         include_roles: []
-    }
+    };
 
     const configDefaults: GuildConfig = {
         guild,
         logging: {
-            default_scoping: scopingDefaults,
+            default_scoping: emptyScoping,
             logs: []
         }
-    }
+    };
 
     const config: GuildConfig = _.defaultsDeep(data, configDefaults);
 
     for (const log of config.logging.logs) {
-        log.scoping = _.defaultsDeep(log.scoping, scopingDefaults);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (!log.scoping) {
+            log.scoping = config.logging.default_scoping;
+        } else {
+            log.scoping = _.defaultsDeep(log.scoping, emptyScoping);
+        }
     }
 
     return config;
 }
 
-export interface Scoping {
+export type Scoping = RoleScoping & ChannelScoping;
+
+interface RoleScoping {
+    include_roles: Snowflake[];
+}
+
+interface ChannelScoping {
     include_channels: Snowflake[];
     exclude_channels: Snowflake[];
-    include_roles: Snowflake[];
 }
 
 interface Log {
@@ -97,8 +107,8 @@ interface Database {
 }
 
 interface Messages {
-    insert_crud: string;
-    delete_crud: string;
+    insert_cron: string;
+    delete_cron: string;
 }
 
 export interface GlobalConfig {
@@ -106,26 +116,44 @@ export interface GlobalConfig {
 }
 
 export enum LoggingEvent {
+    // TODO
     MessageBulkDelete = "message_bulk_delete",
     MessageDelete = "message_delete",
     MessageUpdate = "message_update",
     MessageReactionAdd = "message_reaction_add",
+    // TODO
     InfractionCreate = "infraction_create",
+    // TODO
     InfractionDelete = "infraction_delete",
+    // TODO
     InfractionUpdate = "infraction_update",
     InteractionCreate = "interaction_create",
+    // TODO
     VoiceJoin = "voice_join",
+    // TODO
     VoiceLeave = "voice_leave",
+    // TODO
     VoiceMove = "voice_move",
+    // TODO
     ThreadCreate = "thread_create",
+    // TODO
     ThreadDelete = "thread_delete",
+    // TODO
     ThreadUpdate = "thread_update",
+    // TODO
     BanRequestApprove = "ban_request_approve",
+    // TODO
     BanRequestDeny = "ban_request_deny",
+    // TODO
     MuteRequestApprove = "mute_request_approve",
+    // TODO
     MuteRequestDeny = "mute_request_deny",
+    // TODO
     MessageReportCreate = "message_report_create",
+    // TODO
     MessageReportResolve = "message_report_resolve",
+    // TODO
     MediaStore = "media_store",
+    // TODO
     Ready = "ready"
 }

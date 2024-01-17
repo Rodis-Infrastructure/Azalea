@@ -24,11 +24,7 @@ async function getLoggingChannels(
 ): Promise<GuildTextBasedChannel[]> {
     const loggingChannelPromises = config.logging.logs
         .filter(log => log.events.includes(event))
-        .filter(log => {
-            // Use default scoping unless an override is configured
-            const scoping = log.scoping ?? config.logging.default_scoping;
-            return inScope(scoping, channel, member);
-        })
+        .filter(log => inScope(log.scoping, channel, member))
         .map(log => channel.guild.channels.fetch(log.channel_id).catch(() => null));
 
     const loggingChannels = await Promise.all(loggingChannelPromises);
@@ -36,7 +32,7 @@ async function getLoggingChannels(
     return loggingChannels.filter((loggingChannel): loggingChannel is GuildTextBasedChannel => {
         return loggingChannel !== null
             && !loggingChannel.isDMBased()
-            && loggingChannel.isTextBased()
+            && loggingChannel.isTextBased();
     });
 }
 
@@ -54,7 +50,7 @@ function inScope(
     if (channel.isThread() && channel.parent) {
         data.channelId = channel.parent.id;
         data.threadId = channel.id;
-        data.categoryId = channel.parent?.parentId;
+        data.categoryId = channel.parent.parentId;
     }
 
 

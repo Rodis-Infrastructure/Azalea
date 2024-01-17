@@ -1,10 +1,14 @@
 import {
     codeBlock,
-    Collection, Colors, EmbedBuilder,
+    Collection,
+    Colors,
+    EmbedBuilder,
     Guild,
     GuildMember,
-    GuildTextBasedChannel, hyperlink,
-    Message as DiscordMessage, messageLink,
+    GuildTextBasedChannel,
+    hyperlink,
+    Message as DiscordMessage,
+    messageLink,
     PartialMessage
 } from "discord.js";
 
@@ -32,7 +36,7 @@ export class MessageCache {
         return message;
     }
 
-    static async set(message: DiscordMessage<true>): Promise<void> {
+    static set(message: DiscordMessage<true>): void {
         const serializedMessage = prepareMessageForStorage(message);
         this.queue.set(message.id, serializedMessage);
     }
@@ -43,16 +47,34 @@ export class MessageCache {
         if (message) {
             message.deleted = true;
         } else {
-            message = await prisma.message.delete({
-                where: { message_id: id }
-            });
+            message = await prisma.message.delete({ where: { message_id: id } });
         }
 
         return message;
     }
 
+    static async deleteMany(ids: Snowflake[]): Promise<Message[]> {
+        const messages = MessageCache.queue.filter(message =>
+            ids.includes(message.message_id) && !message.deleted
+        );
+
+        const deletedMessages = messages.map(message => {
+            message.deleted = true;
+            return message;
+        });
+
+        // Update whatever wasn't cached in the database
+        const dbDeletedMessages = await prisma.$queryRaw<Message[]>`
+            DELETE
+            FROM messages
+            WHERE message_id IN (${ids.join(",")}) RETURNING *;
+        `;
+
+        return deletedMessages.concat(dbDeletedMessages);
+    }
+
     static async updateContent(id: Snowflake, newContent: string): Promise<void> {
-        let message = MessageCache.queue.get(id);
+        const message = MessageCache.queue.get(id);
 
         if (message) {
             message.content = newContent;
@@ -64,7 +86,7 @@ export class MessageCache {
         }
     }
 
-    // Clear the buffer and store the messages in the database
+    // Clear the cache and store the messages in the database
     static async clear(): Promise<void> {
         Logger.info("Storing cached messages...");
 
@@ -79,12 +101,13 @@ export class MessageCache {
         Logger.info(`Stored ${insertedCount} messages`);
     }
 
-    static startClearInterval(): void {
-        const crud = ConfigManager.globalConfig.database.messages.insert_crud;
+    // Start a cron job that will clear the cache and store the messages in the database
+    static startCronJobs(): void {
+        const cron = ConfigManager.globalConfig.database.messages.insert_cron;
 
-        new CronJob(crud, async () => {
+        new CronJob(cron, async () => {
             await MessageCache.clear();
-        });
+        }).start();
     }
 }
 
@@ -104,14 +127,14 @@ export function prepareMessageForStorage(message: DiscordMessage<true>): Message
         sticker_id: stickerId,
         reference_id: referenceId,
         deleted: false
-    }
+    };
 }
 
 export async function fetchPartialMessageData(guild: Guild, authorId: Snowflake, channelId: Snowflake): Promise<[GuildMember | null, GuildTextBasedChannel | null]> {
     let channel = await guild.channels.fetch(channelId).catch(() => null);
     const author = await guild.members.fetch(authorId).catch(() => null);
 
-    if (!channel?.isTextBased() || channel?.isDMBased()) {
+    if (!channel?.isTextBased() || channel.isDMBased()) {
         channel = null;
     }
 

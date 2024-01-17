@@ -31,7 +31,7 @@ export class InteractionExecuteError extends BaseError {
         const debugInfo = JSON.stringify({
             authorId: interaction.user.id,
             channelId: interaction.channelId,
-            guildId: interaction.guildId,
+            guildId: interaction.guildId
         }, null, 2);
 
         super(`Failed to execute interaction "${interactionName}"\n\n${debugInfo}`, {
@@ -42,16 +42,16 @@ export class InteractionExecuteError extends BaseError {
 }
 
 
-export function ensureError(error: any): Error {
+export function ensureError(error: unknown): Error {
     if (error instanceof Error) {
         return error;
     }
 
-    let stringifiedError: string;
+    let stringifiedError = "Unknown error";
 
     if (typeof error === "object") {
         stringifiedError = JSON.stringify(error);
-    } else {
+    } else if (error) {
         stringifiedError = error.toString();
     }
 
