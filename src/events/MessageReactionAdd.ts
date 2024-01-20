@@ -63,7 +63,7 @@ async function handleReactionAddLog(reaction: MessageReaction, message: Message<
     await log({
         event: LoggingEvent.MessageReactionAdd,
         channel: message.channel,
-        embeds,
+        message: { embeds },
         member,
         config
     });

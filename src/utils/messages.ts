@@ -64,13 +64,17 @@ export class MessageCache {
         });
 
         // Update whatever wasn't cached in the database
-        const dbDeletedMessages = await prisma.$queryRaw<Message[]>`
-            DELETE
-            FROM messages
-            WHERE message_id IN (${ids.join(",")}) RETURNING *;
-        `;
+        if (messages.size !== deletedMessages.length) {
+            const dbDeletedMessages = await prisma.$queryRaw<Message[]>`
+                DELETE
+                FROM message
+                WHERE message_id IN (${ids.join(",")}) RETURNING *;
+            `;
 
-        return deletedMessages.concat(dbDeletedMessages);
+            return deletedMessages.concat(dbDeletedMessages);
+        }
+
+        return deletedMessages;
     }
 
     static async updateContent(id: Snowflake, newContent: string): Promise<void> {

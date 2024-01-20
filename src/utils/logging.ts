@@ -1,4 +1,4 @@
-import { EmbedBuilder, GuildMember, GuildTextBasedChannel } from "discord.js";
+import { GuildMember, GuildTextBasedChannel, MessageCreateOptions, MessagePayload } from "discord.js";
 import { GuildConfig, LoggingEvent, Scoping } from "./config.ts";
 import { Snowflake } from "discord-api-types/v10";
 
@@ -6,21 +6,21 @@ export async function log(data: {
     event: LoggingEvent,
     config: GuildConfig,
     channel: GuildTextBasedChannel,
-    member: GuildMember,
-    embeds: EmbedBuilder[]
+    member: GuildMember | null,
+    message: string | MessagePayload | MessageCreateOptions
 }): Promise<void> {
-    const { event, config, channel, member, embeds } = data;
+    const { event, config, channel, member, message } = data;
     const loggingChannels = await getLoggingChannels(event, config, channel, member);
 
     // Send the content in parallel to all logging channels
-    await Promise.all(loggingChannels.map(loggingChannel => loggingChannel.send({ embeds })));
+    await Promise.all(loggingChannels.map(loggingChannel => loggingChannel.send(message)));
 }
 
 async function getLoggingChannels(
     event: LoggingEvent,
     config: GuildConfig,
     channel: GuildTextBasedChannel,
-    member: GuildMember
+    member: GuildMember | null
 ): Promise<GuildTextBasedChannel[]> {
     const loggingChannelPromises = config.logging.logs
         .filter(log => log.events.includes(event))
@@ -39,7 +39,7 @@ async function getLoggingChannels(
 function inScope(
     scoping: Scoping,
     channel: GuildTextBasedChannel,
-    member: GuildMember
+    member: GuildMember | null
 ): boolean {
     const data: ChannelData = {
         categoryId: channel.parentId,
@@ -53,8 +53,11 @@ function inScope(
         data.categoryId = channel.parent.parentId;
     }
 
+    const memberInScope = member
+        ? roleIsIncluded(scoping, member)
+        : true;
 
-    return roleIsIncluded(scoping, member)
+    return memberInScope
         && channelIsIncluded(scoping, data)
         && !channelIsExcluded(scoping, data);
 }

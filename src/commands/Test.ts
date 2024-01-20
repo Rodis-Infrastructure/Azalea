@@ -1,42 +1,18 @@
-import {
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle,
-    ChatInputCommandInteraction,
-    StringSelectMenuBuilder
-} from "discord.js";
-
+import { ChatInputCommandInteraction } from "discord.js";
 import Command from "../handlers/commands/Command.ts";
-import { options } from "../../data/examples/select-menu.json";
 
-export default class Test extends Command<ChatInputCommandInteraction> {
+export default class Test extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
         super({
-            name: "test",
-            description: "Test all interactions"
+            name: "purge",
+            description: "temp"
         });
     }
 
-    async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-        const button = new ButtonBuilder()
-            .setCustomId("test-button")
-            .setStyle(ButtonStyle.Primary)
-            .setLabel("Open Modal");
+    async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<void> {
+        if (!interaction.channel) return;
 
-        const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId("test-select-menu")
-            .setPlaceholder("Select option...")
-            .setOptions(options);
-
-        const selectMenuActionRow = new ActionRowBuilder<StringSelectMenuBuilder>()
-            .setComponents(selectMenu);
-
-        const buttonActionRow = new ActionRowBuilder<ButtonBuilder>()
-            .setComponents(button);
-
-        await interaction.reply({
-            content: "Interact with the components below to test them!",
-            components: [selectMenuActionRow, buttonActionRow]
-        });
+        const messages = await interaction.channel.messages.fetch({ limit: 100 });
+        await interaction.channel.bulkDelete(messages, true);
     }
 }

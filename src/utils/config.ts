@@ -116,7 +116,6 @@ export interface GlobalConfig {
 }
 
 export enum LoggingEvent {
-    // TODO
     MessageBulkDelete = "message_bulk_delete",
     MessageDelete = "message_delete",
     MessageUpdate = "message_update",

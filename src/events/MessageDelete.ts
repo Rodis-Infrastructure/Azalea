@@ -3,21 +3,28 @@ import {
     Colors,
     EmbedBuilder,
     Events,
+    GuildTextBasedChannel,
+    hyperlink,
     Message as DiscordMessage,
+    messageLink,
     PartialMessage,
+    StickerFormatType,
     userMention
 } from "discord.js";
 
 import {
-    prependReferenceLog,
-    fetchPartialMessageData, formatMessageContentForLog,
+    fetchPartialMessageData,
+    formatMessageContentForLog,
     MessageCache,
-    prepareMessageForStorage
+    prepareMessageForStorage,
+    prependReferenceLog
 } from "../utils/messages.ts";
 
-import { GuildConfig, ConfigManager, LoggingEvent } from "../utils/config.ts";
+import { ConfigManager, GuildConfig, LoggingEvent } from "../utils/config.ts";
+import { handleMessageBulkDeleteLog } from "./MessageBulkDelete.ts";
 import { log } from "../utils/logging.ts";
 import { Message } from "@prisma/client";
+import { client } from "../index.ts";
 
 import EventListener from "../handlers/events/EventListener.ts";
 
@@ -40,7 +47,15 @@ export default class MessageDeleteEventListener extends EventListener {
         const config = ConfigManager.getGuildConfig(message.guild_id);
         if (!config) return;
 
-        await handleMessageDeleteLog(message, config);
+        // Log messages that exceed the field character limit in a text file
+        if (message.content.length <= 1000) {
+            await handleMessageDeleteLog(message, config);
+        } else {
+            const sourceChannel = await client.channels.fetch(message.channel_id) as GuildTextBasedChannel | null;
+            if (!sourceChannel) return;
+
+            await handleMessageBulkDeleteLog([message], sourceChannel, config);
+        }
     }
 }
 
@@ -50,15 +65,43 @@ async function handleMessageDeleteLog(message: Message, config: GuildConfig): Pr
     // Member roles and the source channel are required to perform scope checks
     if (!author || !sourceChannel) return;
 
+    const messageURL = messageLink(message.channel_id, message.message_id, config.guild.id);
+    const maskedJumpURL = hyperlink("Jump to location", messageURL);
+
     const embed = new EmbedBuilder()
         .setColor(Colors.Red)
         .setAuthor({ name: "Message Deleted" })
+        .setDescription(maskedJumpURL)
         .setFields([
             { name: "Author", value: `${userMention(message.author_id)} (\`${message.author_id}\`)` },
-            { name: "Channel", value: `${channelMention(sourceChannel.id)} (\`#${sourceChannel.name}\`)` },
-            { name: "Content", value: formatMessageContentForLog(message.content) }
+            { name: "Channel", value: `${channelMention(sourceChannel.id)} (\`#${sourceChannel.name}\`)` }
         ])
         .setTimestamp(message.created_at);
+
+    // Messages with stickers don't have content
+    if (message.sticker_id) {
+        const sticker = await client.fetchSticker(message.sticker_id).catch(() => null);
+
+        if (sticker) {
+            let fieldValue = `\`${sticker.name}\``;
+
+            // Lottie stickers don't have a URL
+            if (sticker.format !== StickerFormatType.Lottie) {
+                const stickerURL = hyperlink("view", sticker.url);
+                fieldValue += ` (${stickerURL})`;
+            }
+
+            embed.addFields({
+                name: "Sticker",
+                value: fieldValue
+            });
+        }
+    } else {
+        embed.addFields({
+            name: "Content",
+            value: formatMessageContentForLog(message.content)
+        });
+    }
 
     const embeds = [embed];
 
@@ -69,8 +112,8 @@ async function handleMessageDeleteLog(message: Message, config: GuildConfig): Pr
     await log({
         event: LoggingEvent.MessageDelete,
         channel: sourceChannel,
+        message: { embeds },
         member: author,
-        config,
-        embeds
+        config
     });
 }
