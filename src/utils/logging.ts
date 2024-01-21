@@ -1,11 +1,18 @@
-import { AttachmentBuilder, GuildTextBasedChannel, MessageCreateOptions, MessagePayload } from "discord.js";
+import {
+    AttachmentBuilder,
+    GuildBasedChannel,
+    GuildTextBasedChannel,
+    MessageCreateOptions,
+    MessagePayload
+} from "discord.js";
+
 import { ChannelScoping, GuildConfig, LoggingEvent } from "./config.ts";
 import { Snowflake } from "discord-api-types/v10";
 
 export async function log(data: {
     event: LoggingEvent,
     config: GuildConfig,
-    channel: GuildTextBasedChannel,
+    channel: GuildBasedChannel,
     message: string | MessagePayload | MessageCreateOptions
 }): Promise<void> {
     const { event, config, channel, message } = data;
@@ -18,7 +25,7 @@ export async function log(data: {
 async function getLoggingChannels(
     event: LoggingEvent,
     config: GuildConfig,
-    channel: GuildTextBasedChannel
+    channel: GuildBasedChannel
 ): Promise<GuildTextBasedChannel[]> {
     const loggingChannelPromises = config.logging.logs
         .filter(log => log.events.includes(event))
@@ -34,7 +41,7 @@ async function getLoggingChannels(
     });
 }
 
-function inScope(scoping: ChannelScoping, channel: GuildTextBasedChannel): boolean {
+function inScope(scoping: ChannelScoping, channel: GuildBasedChannel): boolean {
     const data: ChannelData = {
         categoryId: channel.parentId,
         channelId: channel.id,

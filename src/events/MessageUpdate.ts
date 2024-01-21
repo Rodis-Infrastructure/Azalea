@@ -58,9 +58,9 @@ async function handleMessageUpdateLog(message: DiscordMessage<true>, config: Gui
         message.content.length > EMBED_FIELD_CHAR_LIMIT ||
         (reference?.content && reference.content.length > EMBED_FIELD_CHAR_LIMIT)
     ) {
-        logContent = await handleLongMessageUpdateLog(message, reference, oldContent);
+        logContent = await getLongMessageUpdateLogContent(message, reference, oldContent);
     } else {
-        logContent = await handleShortMessageUpdateLog(message, reference, oldContent);
+        logContent = await getShortMessageUpdateLogContent(message, reference, oldContent);
     }
 
     if (!logContent) return;
@@ -74,7 +74,7 @@ async function handleMessageUpdateLog(message: DiscordMessage<true>, config: Gui
 }
 
 // @returns The log message
-async function handleShortMessageUpdateLog(
+async function getShortMessageUpdateLogContent(
     message: DiscordMessage<true>,
     reference: Message | null,
     oldContent: string
@@ -102,7 +102,7 @@ async function handleShortMessageUpdateLog(
 }
 
 // @returns The log message
-async function handleLongMessageUpdateLog(
+async function getLongMessageUpdateLogContent(
     message: DiscordMessage<true>,
     reference: Message | null,
     oldContent: string

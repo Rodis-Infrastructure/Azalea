@@ -127,12 +127,9 @@ export enum LoggingEvent {
     // TODO
     InfractionUpdate = "infraction_update",
     InteractionCreate = "interaction_create",
-    // TODO
     VoiceJoin = "voice_join",
-    // TODO
     VoiceLeave = "voice_leave",
-    // TODO
-    VoiceMove = "voice_move",
+    VoiceSwitch = "voice_switch",
     // TODO
     ThreadCreate = "thread_create",
     // TODO

@@ -21,6 +21,7 @@ export const prisma = new PrismaClient();
 export const client = new Client({
     intents: [
         GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMembers,

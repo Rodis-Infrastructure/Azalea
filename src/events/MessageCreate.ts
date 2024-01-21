@@ -10,7 +10,7 @@ export default class MessageCreateEventListener extends EventListener {
 
     async execute(newMessage: PartialMessage | Message): Promise<void> {
         const message = await resolvePartialMessage(newMessage);
-        if (!message) return;
+        if (!message || message.author.bot) return;
 
         MessageCache.set(message);
     }

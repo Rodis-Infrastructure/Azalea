@@ -51,9 +51,9 @@ async function handleReactionAddLog(
     let logContent: MessageCreateOptions | null;
 
     if (message.content.length > EMBED_FIELD_CHAR_LIMIT) {
-        logContent = await getLongReactionAddLog(emoji, message, user);
+        logContent = await getLongReactionAddLogContent(emoji, message, user);
     } else {
-        logContent = await getShortReactionAddLog(emoji, message, user);
+        logContent = await getShortReactionAddLogContent(emoji, message, user);
     }
 
     if (!logContent) return;
@@ -66,7 +66,7 @@ async function handleReactionAddLog(
     });
 }
 
-async function getShortReactionAddLog(
+async function getShortReactionAddLogContent(
     emoji: GuildEmoji | ReactionEmoji,
     message: Message<true>,
     user: User
@@ -96,7 +96,7 @@ async function getShortReactionAddLog(
     return { embeds };
 }
 
-async function getLongReactionAddLog(
+async function getLongReactionAddLogContent(
     emoji: GuildEmoji | ReactionEmoji,
     message: Message<true>,
     user: User
