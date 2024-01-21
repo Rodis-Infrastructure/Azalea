@@ -124,11 +124,8 @@ export enum LoggingEvent {
     VoiceJoin = "voice_join",
     VoiceLeave = "voice_leave",
     VoiceSwitch = "voice_switch",
-    // TODO
     ThreadCreate = "thread_create",
-    // TODO
     ThreadDelete = "thread_delete",
-    // TODO
     ThreadUpdate = "thread_update",
     // TODO
     InfractionCreate = "infraction_create",

@@ -1,9 +1,11 @@
 import Logger, { AnsiColor } from "./logger.ts";
 import { MessageCache } from "./messages.ts";
+import { ObjectDiff } from "./types.ts";
 import { prisma } from "../index.ts";
 
 import fs from "fs";
 import YAML from "yaml";
+import _ from "lodash";
 
 export function pluralize(count: number, singular: string, plural?: string): string {
     plural ??= `${singular}s`;
@@ -55,4 +57,24 @@ async function terminateDbConnection(): Promise<void> {
         .then(() => {
             Logger.info("Successfully disconnected from database");
         });
+}
+
+export function getObjectDiff(oldObject: any, newObject: any): ObjectDiff {
+    if (typeof oldObject !== "object" || typeof newObject !== "object") {
+        throw new Error("Both arguments must be objects");
+    }
+
+    const difference: ObjectDiff = {};
+    const keys = Object.keys(oldObject);
+
+    for (const key of keys) {
+        if (!_.isEqual(oldObject[key], newObject[key])) {
+            difference[key] = {
+                old: oldObject[key],
+                new: newObject[key]
+            };
+        }
+    }
+
+    return difference;
 }
