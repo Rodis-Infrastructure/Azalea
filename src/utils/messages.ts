@@ -3,21 +3,20 @@ import {
     Collection,
     Colors,
     EmbedBuilder,
-    Guild,
-    GuildMember,
-    GuildTextBasedChannel,
     hyperlink,
     Message as DiscordMessage,
     messageLink,
-    PartialMessage
+    PartialMessage,
+    userMention
 } from "discord.js";
 
+import { EMPTY_MESSAGE_CONTENT } from "./constants.ts";
 import { Snowflake } from "discord-api-types/v10";
+import { ConfigManager } from "./config.ts";
 import { Message } from "@prisma/client";
+import { elipsify } from "./index.ts";
 import { prisma } from "../index.ts";
 import { CronJob } from "cron";
-import { ConfigManager } from "./config.ts";
-import { elipsify } from "./index.ts";
 
 import Logger from "./logger.ts";
 
@@ -53,7 +52,8 @@ export class MessageCache {
         return message;
     }
 
-    static async deleteMany(ids: Snowflake[]): Promise<Message[]> {
+    static async deleteMany(messageCollection: Collection<Snowflake, PartialMessage | DiscordMessage<true>>): Promise<Message[]> {
+        const ids = Array.from(messageCollection.keys());
         const messages = MessageCache.queue.filter(message =>
             ids.includes(message.message_id) && !message.deleted
         );
@@ -77,17 +77,27 @@ export class MessageCache {
         return deletedMessages;
     }
 
-    static async updateContent(id: Snowflake, newContent: string): Promise<void> {
+    // @returns The old content
+    static async updateContent(id: Snowflake, newContent: string): Promise<string> {
         const message = MessageCache.queue.get(id);
 
         if (message) {
+            const oldContent = message.content ?? EMPTY_MESSAGE_CONTENT;
             message.content = newContent;
-        } else {
-            await prisma.message.update({
-                where: { message_id: id },
-                data: { content: newContent }
-            });
+            return oldContent;
         }
+
+        const { old_content } = await prisma.$queryRaw<{ old_content: string | null }>`
+            UPDATE message
+            SET content = ${newContent}
+            WHERE message_id = ${id} RETURNING (
+                    SELECT content
+                    FROM message
+                    WHERE message_id = ${id}
+                ) AS old_content;
+        `;
+
+        return old_content ?? EMPTY_MESSAGE_CONTENT;
     }
 
     // Clear the cache and store the messages in the database
@@ -134,43 +144,37 @@ export function prepareMessageForStorage(message: DiscordMessage<true>): Message
     };
 }
 
-export async function fetchPartialMessageData(guild: Guild, authorId: Snowflake, channelId: Snowflake): Promise<[GuildMember | null, GuildTextBasedChannel | null]> {
-    let channel = await guild.channels.fetch(channelId).catch(() => null);
-    const author = await guild.members.fetch(authorId).catch(() => null);
-
-    if (!channel?.isTextBased() || channel.isDMBased()) {
-        channel = null;
-    }
-
-    return [author, channel];
-}
-
 // Prepend a reference embed to an embed array passed by reference
-export async function prependReferenceLog(referenceId: Snowflake, embeds: EmbedBuilder[]): Promise<void> {
-    const reference = await MessageCache.get(referenceId);
-    if (!reference) return;
+export async function prependReferenceLog(reference: Snowflake | Message, embeds: EmbedBuilder[]): Promise<void> {
+    // Fetch the reference if an ID is passed
+    if (typeof reference === "string") {
+        const cachedReference = await MessageCache.get(reference);
+        if (!cachedReference) return;
+
+        reference = cachedReference;
+    }
 
     const referenceURL = messageLink(reference.channel_id, reference.message_id, reference.guild_id);
     const maskedJumpURL = hyperlink("Jump to message", referenceURL);
 
     const embed = new EmbedBuilder()
-        .setColor(Colors.Grey)
+        .setColor(Colors.NotQuiteBlack)
         .setAuthor({ name: "Reference" })
         .setDescription(maskedJumpURL)
         .setFields([
             {
                 name: "Author",
-                value: `${reference.author_id} (\`${reference.author_id}\`)`
+                value: `${userMention(reference.author_id)} (\`${reference.author_id}\`)`
             },
             {
                 name: "Content",
-                value: reference.content
+                value: formatMessageContentForLog(reference.content)
             }
         ])
         .setTimestamp(reference.created_at);
 
     // Insert the reference embed at the beginning of the array
-    embeds.splice(0, 0, embed);
+    embeds.unshift(embed);
 }
 
 // Escape code blocks, truncate the content if it's too long, and wrap it in a code block
@@ -183,8 +187,7 @@ export function formatMessageContentForLog(content: string | null): string {
     return codeBlock(formatted);
 }
 
-// Ignores messages that were sent in DMs
-// This function shouldn't be used on deleted messages
+// Ignores messages that were sent in DMs. This function shouldn't be used on deleted messages
 export async function resolvePartialMessage(message: PartialMessage | DiscordMessage): Promise<DiscordMessage<true> | null> {
     const fetchedMessage = message.partial
         ? await message.fetch().catch(() => null)

@@ -84,7 +84,6 @@ async function handleInteractionCreateLog(interaction: Exclude<Interaction<"cach
 
     await log({
         event: LoggingEvent.InteractionCreate,
-        member: interaction.member,
         channel: interaction.channel,
         message: { embeds: [embed] },
         config

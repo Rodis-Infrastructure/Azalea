@@ -1,3 +1,7 @@
+import Logger, { AnsiColor } from "./logger.ts";
+import { MessageCache } from "./messages.ts";
+import { prisma } from "../index.ts";
+
 import fs from "fs";
 import YAML from "yaml";
 
@@ -17,4 +21,38 @@ export function elipsify(str: string, length: number): string {
     return str.length > length
         ? `${newStr}...(${str.length - newStr.length} more characters)`
         : str;
+}
+
+// Stores cached messages and terminates the database connection
+export async function handleProcessExit(event: string): Promise<void> {
+    Logger.log(event, "Starting cleaning operations...", {
+        color: AnsiColor.Red,
+        fullColor: true
+    });
+
+    try {
+        await MessageCache.clear();
+        await terminateDbConnection();
+    } catch (error) {
+        Logger.log(event, `Cleaning operations failed: ${error}`, {
+            color: AnsiColor.Red,
+            fullColor: true
+        });
+    } finally {
+        Logger.log(event, "Successfully completed cleaning operations", {
+            color: AnsiColor.Red,
+            fullColor: true
+        });
+    }
+
+    process.exit(0);
+}
+
+async function terminateDbConnection(): Promise<void> {
+    Logger.info("Terminating database connection...");
+
+    await prisma.$disconnect()
+        .then(() => {
+            Logger.info("Successfully disconnected from database");
+        });
 }

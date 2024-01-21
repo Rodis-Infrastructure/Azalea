@@ -1,8 +1,6 @@
 import {
-    AttachmentBuilder,
     Collection,
     Events,
-    GuildMember,
     GuildTextBasedChannel,
     Message as DiscordMessage,
     PartialMessage,
@@ -11,9 +9,10 @@ import {
 } from "discord.js";
 
 import { ConfigManager, GuildConfig, LoggingEvent } from "../utils/config.ts";
+import { log, mapLogEntriesToFile } from "../utils/logging.ts";
+import { EMPTY_MESSAGE_CONTENT, LOG_ENTRY_DATE_FORMAT } from "../utils/constants.ts";
 import { MessageCache } from "../utils/messages.ts";
 import { Snowflake } from "discord-api-types/v10";
-import { log } from "../utils/logging.ts";
 import { Message } from "@prisma/client";
 import { pluralize } from "../utils";
 import { client } from "../index.ts";
@@ -26,8 +25,7 @@ export default class MessageBulkDeleteEventListener extends EventListener {
     }
 
     async execute(deletedMessages: Collection<Snowflake, PartialMessage | DiscordMessage<true>>, channel: GuildTextBasedChannel): Promise<void> {
-        const messageIds = Array.from(deletedMessages.keys());
-        const messages = await MessageCache.deleteMany(messageIds);
+        const messages = await MessageCache.deleteMany(deletedMessages);
         const config = ConfigManager.getGuildConfig(channel.guild.id);
 
         if (!messages.length || !config) return;
@@ -37,39 +35,34 @@ export default class MessageBulkDeleteEventListener extends EventListener {
 }
 
 export async function handleMessageBulkDeleteLog(messages: Message[], channel: GuildTextBasedChannel, config: GuildConfig): Promise<void> {
-    let member: GuildMember | null = null;
-
-    const authorIdSet = new Set<Snowflake>();
+    const authorMentions: ReturnType<typeof userMention>[] = [];
     const entries: string[] = [];
 
     // Format message log entries
     for (const message of messages) {
-        authorIdSet.add(message.author_id);
+        const authorMention = userMention(message.author_id);
+        const messageEntry = await formatMessageLogEntry(message);
+        const subEntries = [messageEntry];
+
+        if (!authorMentions.includes(authorMention)) {
+            authorMentions.push(authorMention);
+        }
 
         if (message.reference_id) {
             const reference = await MessageCache.get(message.reference_id);
 
             if (reference) {
-                const entry = await formatMessageDeleteReferenceLogEntry(message, reference);
-                entries.push(entry);
-                continue;
+                const referenceEntry = await formatMessageLogEntry(reference);
+                subEntries.unshift(`REF: ${referenceEntry}`);
             }
         }
 
-        const entry = await formatMessageLogEntry(message);
-        entries.push(entry);
+        entries.push(subEntries.join("\n └── "));
     }
 
-    const authorIds = Array.from(authorIdSet.values());
-
-    if (authorIds.length === 1) {
-        member = await channel.guild.members.fetch(authorIds[0]);
-    }
-
-    const buffer = Buffer.from(entries.join("\n\n"));
-    const file = new AttachmentBuilder(buffer, { name: "messages.txt" });
-    const authorMentions = authorIds.map(id => userMention(id)).join(", ");
-    const logContent = `Deleted \`${messages.length}\` ${pluralize(messages.length, "message")} in ${channel} by ${authorMentions}`;
+    // E.g. Deleted `5` messages in #general by @user1, @user2
+    const logContent = `Deleted \`${messages.length}\` ${pluralize(messages.length, "message")} in ${channel} by ${authorMentions.join(", ")}`;
+    const file = mapLogEntriesToFile(entries);
 
     await log({
         event: LoggingEvent.MessageBulkDelete,
@@ -79,25 +72,16 @@ export async function handleMessageBulkDeleteLog(messages: Message[], channel: G
             files: [file]
         },
         channel,
-        config,
-        member
+        config
     });
 }
 
 // Returns an entry in the format: `[DD/MM/YYYY, HH:MM:SS] AUTHOR_ID — MESSAGE_CONTENT`
 export async function formatMessageLogEntry(message: Message): Promise<string> {
-    let content = message.content;
+    const timestamp = new Date(message.created_at).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
+    let content = message.content ?? EMPTY_MESSAGE_CONTENT;
 
-    const timestamp = new Date(message.created_at).toLocaleString(undefined, {
-        month: "2-digit",
-        day: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false
-    });
-
+    // If the message is a sticker, it cannot have message content
     if (message.sticker_id) {
         const sticker = await client.fetchSticker(message.sticker_id).catch(() => null);
 
@@ -109,13 +93,4 @@ export async function formatMessageLogEntry(message: Message): Promise<string> {
     }
 
     return `[${timestamp}] ${message.author_id} — ${content}`;
-}
-
-async function formatMessageDeleteReferenceLogEntry(message: Message, reference: Message): Promise<string> {
-    const [messageEntry, referenceEntry] = await Promise.all([
-        formatMessageLogEntry(message),
-        formatMessageLogEntry(reference)
-    ]);
-
-    return `REF: ${referenceEntry}\n └── ${messageEntry}`;
 }

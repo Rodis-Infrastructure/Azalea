@@ -9,7 +9,8 @@ export enum AnsiColor {
     Reset = "\x1b[0m",
     Green = "\x1b[32m",
     Cyan = "\x1b[36m",
-    Grey = "\x1b[90m"
+    Grey = "\x1b[90m",
+    Red = "\x1b[31m"
 }
 
 export default class Logger {

@@ -1,16 +1,15 @@
-import { GuildMember, GuildTextBasedChannel, MessageCreateOptions, MessagePayload } from "discord.js";
-import { GuildConfig, LoggingEvent, Scoping } from "./config.ts";
+import { AttachmentBuilder, GuildTextBasedChannel, MessageCreateOptions, MessagePayload } from "discord.js";
+import { ChannelScoping, GuildConfig, LoggingEvent } from "./config.ts";
 import { Snowflake } from "discord-api-types/v10";
 
 export async function log(data: {
     event: LoggingEvent,
     config: GuildConfig,
     channel: GuildTextBasedChannel,
-    member: GuildMember | null,
     message: string | MessagePayload | MessageCreateOptions
 }): Promise<void> {
-    const { event, config, channel, member, message } = data;
-    const loggingChannels = await getLoggingChannels(event, config, channel, member);
+    const { event, config, channel, message } = data;
+    const loggingChannels = await getLoggingChannels(event, config, channel);
 
     // Send the content in parallel to all logging channels
     await Promise.all(loggingChannels.map(loggingChannel => loggingChannel.send(message)));
@@ -19,12 +18,11 @@ export async function log(data: {
 async function getLoggingChannels(
     event: LoggingEvent,
     config: GuildConfig,
-    channel: GuildTextBasedChannel,
-    member: GuildMember | null
+    channel: GuildTextBasedChannel
 ): Promise<GuildTextBasedChannel[]> {
     const loggingChannelPromises = config.logging.logs
         .filter(log => log.events.includes(event))
-        .filter(log => inScope(log.scoping, channel, member))
+        .filter(log => inScope(log.scoping, channel))
         .map(log => channel.guild.channels.fetch(log.channel_id).catch(() => null));
 
     const loggingChannels = await Promise.all(loggingChannelPromises);
@@ -36,11 +34,7 @@ async function getLoggingChannels(
     });
 }
 
-function inScope(
-    scoping: Scoping,
-    channel: GuildTextBasedChannel,
-    member: GuildMember | null
-): boolean {
+function inScope(scoping: ChannelScoping, channel: GuildTextBasedChannel): boolean {
     const data: ChannelData = {
         categoryId: channel.parentId,
         channelId: channel.id,
@@ -53,16 +47,10 @@ function inScope(
         data.categoryId = channel.parent.parentId;
     }
 
-    const memberInScope = member
-        ? roleIsIncluded(scoping, member)
-        : true;
-
-    return memberInScope
-        && channelIsIncluded(scoping, data)
-        && !channelIsExcluded(scoping, data);
+    return channelIsIncluded(scoping, data) && !channelIsExcluded(scoping, data);
 }
 
-function channelIsIncluded(scoping: Scoping, channelData: ChannelData): boolean {
+function channelIsIncluded(scoping: ChannelScoping, channelData: ChannelData): boolean {
     const { channelId, threadId, categoryId } = channelData;
 
     return (scoping.include_channels.length === 0 && scoping.exclude_channels.length === 0)
@@ -71,7 +59,7 @@ function channelIsIncluded(scoping: Scoping, channelData: ChannelData): boolean 
         || (categoryId !== null && scoping.include_channels.includes(categoryId));
 }
 
-function channelIsExcluded(scoping: Scoping, channelData: ChannelData): boolean {
+function channelIsExcluded(scoping: ChannelScoping, channelData: ChannelData): boolean {
     const { channelId, threadId, categoryId } = channelData;
 
     return scoping.exclude_channels.includes(channelId)
@@ -79,9 +67,9 @@ function channelIsExcluded(scoping: Scoping, channelData: ChannelData): boolean 
         || (categoryId !== null && scoping.exclude_channels.includes(categoryId));
 }
 
-function roleIsIncluded(scoping: Scoping, member: GuildMember): boolean {
-    return scoping.include_roles.length === 0
-        || scoping.include_roles.some(roleId => member.roles.cache.has(roleId));
+export function mapLogEntriesToFile(entries: string[]): AttachmentBuilder {
+    const buffer = Buffer.from(entries.join("\n\n"), "utf-8");
+    return new AttachmentBuilder(buffer, { name: "data.txt" });
 }
 
 export interface ChannelData {

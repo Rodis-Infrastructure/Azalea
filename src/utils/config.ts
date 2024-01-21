@@ -77,11 +77,11 @@ export async function setConfigDefaults(guildId: Snowflake, data: unknown): Prom
 
 export type Scoping = RoleScoping & ChannelScoping;
 
-interface RoleScoping {
+export interface RoleScoping {
     include_roles: Snowflake[];
 }
 
-interface ChannelScoping {
+export interface ChannelScoping {
     include_channels: Snowflake[];
     exclude_channels: Snowflake[];
 }
@@ -89,11 +89,11 @@ interface ChannelScoping {
 interface Log {
     events: LoggingEvent[];
     channel_id: Snowflake;
-    scoping: Scoping;
+    scoping: ChannelScoping;
 }
 
 interface Logging {
-    default_scoping: Scoping;
+    default_scoping: ChannelScoping;
     logs: Log[];
 }
 

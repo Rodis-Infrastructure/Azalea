@@ -13,7 +13,6 @@ import {
 } from "discord.js";
 
 import {
-    fetchPartialMessageData,
     formatMessageContentForLog,
     MessageCache,
     prepareMessageForStorage,
@@ -22,6 +21,7 @@ import {
 
 import { ConfigManager, GuildConfig, LoggingEvent } from "../utils/config.ts";
 import { handleMessageBulkDeleteLog } from "./MessageBulkDelete.ts";
+import { EMBED_FIELD_CHAR_LIMIT } from "../utils/constants.ts";
 import { log } from "../utils/logging.ts";
 import { Message } from "@prisma/client";
 import { client } from "../index.ts";
@@ -34,39 +34,47 @@ export default class MessageDeleteEventListener extends EventListener {
     }
 
     async execute(deletedMessage: PartialMessage | DiscordMessage): Promise<void> {
-        let message: Message | null = null;
+        let message = await MessageCache.delete(deletedMessage.id);
 
-        if (deletedMessage.partial) {
-            message = await MessageCache.delete(deletedMessage.id);
-        } else if (deletedMessage.inGuild()) {
+        if (!message && !deletedMessage.partial && deletedMessage.inGuild()) {
             message = prepareMessageForStorage(deletedMessage);
         }
 
-        if (!message) return;
+        if (!message?.content) return;
 
         const config = ConfigManager.getGuildConfig(message.guild_id);
         if (!config) return;
 
-        // Log messages that exceed the field character limit in a text file
-        if (message.content.length <= 1000) {
-            await handleMessageDeleteLog(message, config);
-        } else {
-            const sourceChannel = await client.channels.fetch(message.channel_id) as GuildTextBasedChannel | null;
-            if (!sourceChannel) return;
-
-            await handleMessageBulkDeleteLog([message], sourceChannel, config);
-        }
+        await handleMessageDeleteLog(message, config).catch(() => null);
     }
 }
 
 async function handleMessageDeleteLog(message: Message, config: GuildConfig): Promise<void> {
-    const [author, sourceChannel] = await fetchPartialMessageData(config.guild, message.author_id, message.channel_id);
+    const channel = await client.channels.fetch(message.channel_id).catch(() => null) as GuildTextBasedChannel | null;
+    if (!channel) return;
 
-    // Member roles and the source channel are required to perform scope checks
-    if (!author || !sourceChannel) return;
+    const reference = message.reference_id
+        ? await MessageCache.get(message.reference_id)
+        : null;
 
+    if (
+        message.content!.length > EMBED_FIELD_CHAR_LIMIT ||
+        (reference?.content && reference.content.length > EMBED_FIELD_CHAR_LIMIT)
+    ) {
+        await handleMessageBulkDeleteLog([message], channel, config);
+        return;
+    }
+
+    await handleMessageShortDeleteLog(message, channel, config);
+}
+
+async function handleMessageShortDeleteLog(message: Message, channel: GuildTextBasedChannel, config: GuildConfig): Promise<void> {
     const messageURL = messageLink(message.channel_id, message.message_id, config.guild.id);
     const maskedJumpURL = hyperlink("Jump to location", messageURL);
+
+    const reference = message.reference_id
+        ? await MessageCache.get(message.reference_id)
+        : null;
 
     const embed = new EmbedBuilder()
         .setColor(Colors.Red)
@@ -74,7 +82,7 @@ async function handleMessageDeleteLog(message: Message, config: GuildConfig): Pr
         .setDescription(maskedJumpURL)
         .setFields([
             { name: "Author", value: `${userMention(message.author_id)} (\`${message.author_id}\`)` },
-            { name: "Channel", value: `${channelMention(sourceChannel.id)} (\`#${sourceChannel.name}\`)` }
+            { name: "Channel", value: `${channelMention(channel.id)} (\`#${channel.name}\`)` }
         ])
         .setTimestamp(message.created_at);
 
@@ -105,15 +113,14 @@ async function handleMessageDeleteLog(message: Message, config: GuildConfig): Pr
 
     const embeds = [embed];
 
-    if (message.reference_id) {
-        await prependReferenceLog(message.reference_id, embeds);
+    if (reference) {
+        await prependReferenceLog(reference, embeds);
     }
 
     await log({
         event: LoggingEvent.MessageDelete,
-        channel: sourceChannel,
         message: { embeds },
-        member: author,
+        channel,
         config
     });
 }
