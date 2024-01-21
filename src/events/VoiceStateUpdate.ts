@@ -71,7 +71,7 @@ function getVoiceJoinLogEmbed(newState: VoiceState): EmbedBuilder {
             },
             {
                 name: "Channel",
-                value: `${newState.channel}`
+                value: `${newState.channel} (\`#${newState.channel!.name}\`)`
             }
         ])
         .setTimestamp();
@@ -88,7 +88,7 @@ function getVoiceLeaveLogEmbed(oldState: VoiceState): EmbedBuilder {
             },
             {
                 name: "Channel",
-                value: `${oldState.channel}`
+                value: `${oldState.channel} (\`#${oldState.channel!.name}\`)`
             }
         ])
         .setTimestamp();
@@ -105,11 +105,11 @@ function getVoiceSwitchLogEmbed(oldState: VoiceState, newState: VoiceState): Emb
             },
             {
                 name: "Channel (Before)",
-                value: `${oldState.channel}`
+                value: `${oldState.channel} (\`#${oldState.channel!.name}\`)`
             },
             {
                 name: "Channel (After)",
-                value: `${newState.channel}`
+                value: `${newState.channel} (\`#${newState.channel!.name}\`)`
             }
         ])
         .setTimestamp();

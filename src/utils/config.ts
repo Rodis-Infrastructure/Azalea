@@ -120,12 +120,6 @@ export enum LoggingEvent {
     MessageDelete = "message_delete",
     MessageUpdate = "message_update",
     MessageReactionAdd = "message_reaction_add",
-    // TODO
-    InfractionCreate = "infraction_create",
-    // TODO
-    InfractionDelete = "infraction_delete",
-    // TODO
-    InfractionUpdate = "infraction_update",
     InteractionCreate = "interaction_create",
     VoiceJoin = "voice_join",
     VoiceLeave = "voice_leave",
@@ -136,6 +130,12 @@ export enum LoggingEvent {
     ThreadDelete = "thread_delete",
     // TODO
     ThreadUpdate = "thread_update",
+    // TODO
+    InfractionCreate = "infraction_create",
+    // TODO
+    InfractionDelete = "infraction_delete",
+    // TODO
+    InfractionUpdate = "infraction_update",
     // TODO
     BanRequestApprove = "ban_request_approve",
     // TODO
@@ -149,7 +149,5 @@ export enum LoggingEvent {
     // TODO
     MessageReportResolve = "message_report_resolve",
     // TODO
-    MediaStore = "media_store",
-    // TODO
-    Ready = "ready"
+    MediaStore = "media_store"
 }
