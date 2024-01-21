@@ -25,7 +25,7 @@ export function elipsify(str: string, length: number): string {
 
 // Stores cached messages and terminates the database connection
 export async function handleProcessExit(event: string): Promise<void> {
-    Logger.log(event, "Starting cleaning operations...", {
+    Logger.log(event, "Starting cleanup operations...", {
         color: AnsiColor.Red,
         fullColor: true
     });
@@ -34,12 +34,12 @@ export async function handleProcessExit(event: string): Promise<void> {
         await MessageCache.clear();
         await terminateDbConnection();
     } catch (error) {
-        Logger.log(event, `Cleaning operations failed: ${error}`, {
+        Logger.log(event, `Cleanup operations failed: ${error}`, {
             color: AnsiColor.Red,
             fullColor: true
         });
     } finally {
-        Logger.log(event, "Successfully completed cleaning operations", {
+        Logger.log(event, "Successfully completed cleanup operations", {
             color: AnsiColor.Red,
             fullColor: true
         });

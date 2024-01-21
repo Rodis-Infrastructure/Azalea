@@ -14,7 +14,7 @@ import { EMPTY_MESSAGE_CONTENT } from "./constants.ts";
 import { Snowflake } from "discord-api-types/v10";
 import { ConfigManager } from "./config.ts";
 import { Message } from "@prisma/client";
-import { elipsify } from "./index.ts";
+import { elipsify, pluralize } from "./index.ts";
 import { prisma } from "../index.ts";
 import { CronJob } from "cron";
 
@@ -112,7 +112,7 @@ export class MessageCache {
         const insertedCount = this.queue.size;
         this.queue.clear();
 
-        Logger.info(`Stored ${insertedCount} messages`);
+        Logger.info(`Stored ${insertedCount} ${pluralize(insertedCount, "message")}`);
     }
 
     // Start a cron job that will clear the cache and store the messages in the database
