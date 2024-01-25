@@ -1,5 +1,4 @@
 import {
-    channelMention,
     Colors,
     EmbedBuilder,
     Events,
@@ -8,8 +7,7 @@ import {
     Message as DiscordMessage,
     messageLink,
     PartialMessage,
-    StickerFormatType,
-    userMention
+    StickerFormatType
 } from "discord.js";
 
 import {
@@ -27,6 +25,7 @@ import { Message } from "@prisma/client";
 import { client } from "../index.ts";
 
 import EventListener from "../handlers/events/EventListener.ts";
+import { channelMentionWithName, userMentionWithId } from "../utils";
 
 export default class MessageDeleteEventListener extends EventListener {
     constructor() {
@@ -69,7 +68,7 @@ async function handleMessageDeleteLog(message: Message, config: GuildConfig): Pr
 }
 
 async function handleMessageShortDeleteLog(message: Message, channel: GuildTextBasedChannel, config: GuildConfig): Promise<void> {
-    const messageURL = messageLink(message.channel_id, message.message_id, config.guild.id);
+    const messageURL = messageLink(message.channel_id, message.id, config.guild.id);
     const maskedJumpURL = hyperlink("Jump to location", messageURL);
 
     const reference = message.reference_id
@@ -81,8 +80,8 @@ async function handleMessageShortDeleteLog(message: Message, channel: GuildTextB
         .setAuthor({ name: "Message Deleted" })
         .setDescription(maskedJumpURL)
         .setFields([
-            { name: "Author", value: `${userMention(message.author_id)} (\`${message.author_id}\`)` },
-            { name: "Channel", value: `${channelMention(channel.id)} (\`#${channel.name}\`)` }
+            { name: "Author", value: userMentionWithId(message.author_id) },
+            { name: "Channel", value: channelMentionWithName(channel) }
         ])
         .setTimestamp(message.created_at);
 

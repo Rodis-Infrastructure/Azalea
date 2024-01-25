@@ -12,7 +12,7 @@ import { Snowflake } from "discord-api-types/v10";
 export async function log(data: {
     event: LoggingEvent,
     config: GuildConfig,
-    channel: GuildBasedChannel,
+    channel: GuildBasedChannel | null,
     message: string | MessagePayload | MessageCreateOptions
 }): Promise<void> {
     const { event, config, channel, message } = data;
@@ -25,12 +25,12 @@ export async function log(data: {
 async function getLoggingChannels(
     event: LoggingEvent,
     config: GuildConfig,
-    channel: GuildBasedChannel
+    channel: GuildBasedChannel | null
 ): Promise<GuildTextBasedChannel[]> {
     const loggingChannelPromises = config.logging.logs
         .filter(log => log.events.includes(event))
-        .filter(log => inScope(log.scoping, channel))
-        .map(log => channel.guild.channels.fetch(log.channel_id).catch(() => null));
+        .filter(log => !channel || inScope(log.scoping, channel))
+        .map(log => config.guild.channels.fetch(log.channel_id).catch(() => null));
 
     const loggingChannels = await Promise.all(loggingChannelPromises);
 

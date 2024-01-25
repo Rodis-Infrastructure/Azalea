@@ -1,11 +1,14 @@
-import Logger, { AnsiColor } from "./logger.ts";
+import { Snowflake } from "discord-api-types/v10";
+import { GuildBasedChannel, ThreadChannel } from "discord.js";
 import { MessageCache } from "./messages.ts";
 import { ObjectDiff } from "./types.ts";
 import { prisma } from "../index.ts";
 
-import fs from "fs";
+import Logger, { AnsiColor } from "./logger.ts";
+
 import YAML from "yaml";
 import _ from "lodash";
+import fs from "fs";
 
 export function pluralize(count: number, singular: string, plural?: string): string {
     plural ??= `${singular}s`;
@@ -15,14 +18,6 @@ export function pluralize(count: number, singular: string, plural?: string): str
 export function readYamlFile<T>(path: string): T {
     const raw = fs.readFileSync(path, "utf-8");
     return YAML.parse(raw);
-}
-
-export function elipsify(str: string, length: number): string {
-    const maxLength = length - 25;
-    const newStr = str.slice(0, maxLength);
-    return str.length > length
-        ? `${newStr}...(${str.length - newStr.length} more characters)`
-        : str;
 }
 
 // Stores cached messages and terminates the database connection
@@ -59,6 +54,7 @@ async function terminateDbConnection(): Promise<void> {
         });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getObjectDiff(oldObject: any, newObject: any): ObjectDiff {
     if (typeof oldObject !== "object" || typeof newObject !== "object") {
         throw new Error("Both arguments must be objects");
@@ -77,4 +73,30 @@ export function getObjectDiff(oldObject: any, newObject: any): ObjectDiff {
     }
 
     return difference;
+}
+
+export function userMentionWithId(id: Snowflake): `<@${Snowflake}> (\`${Snowflake}\`)` {
+    return `<@${id}> (\`${id}\`)`;
+}
+
+export function channelMentionWithName(channel: GuildBasedChannel | ThreadChannel): `<#${Snowflake}> (\`#${string}\`)` {
+    return `<#${channel.id}> (\`#${channel.name}\`)`;
+}
+
+// @returns {string} The string representation of the given number of milliseconds (e.g. 300000 = "5 minutes")
+export function msToString(ms: number): string {
+    const units = [
+        { unit: "day", value: 24 * 60 * 60 * 1000 },
+        { unit: "hour", value: 60 * 60 * 1000 },
+        { unit: "minute", value: 60 * 1000 }
+    ];
+
+    return units
+        .map(({ unit, value }) => {
+            const count = Math.floor(ms / value);
+            ms %= value;
+            return count && `${count} ${pluralize(count, unit)}`;
+        })
+        .filter(Boolean)
+        .join(" ") || "< 1 minute";
 }

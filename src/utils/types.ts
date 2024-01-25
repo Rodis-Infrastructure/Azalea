@@ -5,3 +5,19 @@ interface ObjectPropDiff {
     old: unknown;
     new: unknown;
 }
+
+export enum Action {
+    Ban = "Ban",
+    Unban = "Unban",
+    Kick = "Kick",
+    Mute = "Mute",
+    Unmute = "Unmute",
+    Note = "Note",
+}
+
+export enum Flag {
+    // Infractions carried out using pre-set actions
+    Quick = "Quick",
+    // Infractions carried out by bots
+    Automatic = "Automatic",
+}

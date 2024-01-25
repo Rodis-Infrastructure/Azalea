@@ -6,15 +6,14 @@ import {
     hyperlink,
     Message as DiscordMessage,
     messageLink,
-    PartialMessage,
-    userMention
+    PartialMessage
 } from "discord.js";
 
 import { EMPTY_MESSAGE_CONTENT } from "./constants.ts";
 import { Snowflake } from "discord-api-types/v10";
 import { ConfigManager } from "./config.ts";
 import { Message } from "@prisma/client";
-import { elipsify, pluralize } from "./index.ts";
+import { pluralize, userMentionWithId } from "./index.ts";
 import { prisma } from "../index.ts";
 import { CronJob } from "cron";
 
@@ -27,9 +26,7 @@ export class MessageCache {
         let message = this.queue.get(id) ?? null;
 
         if (!message) {
-            message = await prisma.message.findUnique({
-                where: { message_id: id }
-            });
+            message = await prisma.message.findUnique({ where: { id } });
         }
 
         return message;
@@ -46,7 +43,10 @@ export class MessageCache {
         if (message) {
             message.deleted = true;
         } else {
-            message = await prisma.message.delete({ where: { message_id: id } });
+            message = await prisma.message.update({
+                data: { deleted: true },
+                where: { id }
+            });
         }
 
         return message;
@@ -55,7 +55,7 @@ export class MessageCache {
     static async deleteMany(messageCollection: Collection<Snowflake, PartialMessage | DiscordMessage<true>>): Promise<Message[]> {
         const ids = Array.from(messageCollection.keys());
         const messages = MessageCache.queue.filter(message =>
-            ids.includes(message.message_id) && !message.deleted
+            ids.includes(message.id) && !message.deleted
         );
 
         const deletedMessages = messages.map(message => {
@@ -66,9 +66,10 @@ export class MessageCache {
         // Update whatever wasn't cached in the database
         if (messages.size !== deletedMessages.length) {
             const dbDeletedMessages = await prisma.$queryRaw<Message[]>`
-                DELETE
-                FROM message
-                WHERE message_id IN (${ids.join(",")}) RETURNING *;
+                UPDATE message
+                SET deleted = true
+                WHERE id IN (${ids.join(",")}) 
+                RETURNING *;
             `;
 
             return deletedMessages.concat(dbDeletedMessages);
@@ -90,10 +91,10 @@ export class MessageCache {
         const { old_content } = await prisma.$queryRaw<{ old_content: string | null }>`
             UPDATE message
             SET content = ${newContent}
-            WHERE message_id = ${id} RETURNING (
+            WHERE id = ${id} RETURNING (
                     SELECT content
                     FROM message
-                    WHERE message_id = ${id}
+                    WHERE id = ${id}
                 ) AS old_content;
         `;
 
@@ -131,7 +132,7 @@ export function prepareMessageForStorage(message: DiscordMessage<true>): Message
     const referenceId = message.reference?.messageId ?? null;
 
     return {
-        message_id: message.id,
+        id: message.id,
         channel_id: message.channelId,
         author_id: message.author.id,
         guild_id: message.guildId,
@@ -154,7 +155,7 @@ export async function prependReferenceLog(reference: Snowflake | Message, embeds
         reference = cachedReference;
     }
 
-    const referenceURL = messageLink(reference.channel_id, reference.message_id, reference.guild_id);
+    const referenceURL = messageLink(reference.channel_id, reference.id, reference.guild_id);
     const maskedJumpURL = hyperlink("Jump to message", referenceURL);
 
     const embed = new EmbedBuilder()
@@ -164,7 +165,7 @@ export async function prependReferenceLog(reference: Snowflake | Message, embeds
         .setFields([
             {
                 name: "Author",
-                value: `${userMention(reference.author_id)} (\`${reference.author_id}\`)`
+                value: userMentionWithId(reference.author_id)
             },
             {
                 name: "Content",
@@ -179,12 +180,7 @@ export async function prependReferenceLog(reference: Snowflake | Message, embeds
 
 // Escape code blocks, truncate the content if it's too long, and wrap it in a code block
 export function formatMessageContentForLog(content: string | null): string {
-    if (!content) return "No message content";
-
-    let formatted = content.replaceAll("```", "\\`\\`\\`");
-    formatted = elipsify(formatted, 1000);
-
-    return codeBlock(formatted);
+    return content ? codeBlock(content) : "No message content";
 }
 
 // Ignores messages that were sent in DMs. This function shouldn't be used on deleted messages

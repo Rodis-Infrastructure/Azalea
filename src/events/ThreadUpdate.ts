@@ -1,7 +1,7 @@
-import { EmbedBuilder, Events, ThreadChannel, userMention } from "discord.js";
+import { channelMentionWithName, getObjectDiff, userMentionWithId } from "../utils";
 import { ConfigManager, GuildConfig, LoggingEvent } from "../utils/config.ts";
+import { EmbedBuilder, Events, ThreadChannel } from "discord.js";
 import { log } from "../utils/logging.ts";
-import { getObjectDiff } from "../utils";
 
 import EventListener from "../handlers/events/EventListener.ts";
 
@@ -36,15 +36,15 @@ async function handleThreadUpdateLog(oldThread: ThreadChannel, newThread: Thread
         .setFields([
             {
                 name: "Owner",
-                value: `${userMention(newThread.ownerId)} (\`${newThread.ownerId}\`)`,
+                value: userMentionWithId(newThread.ownerId)
             },
             {
                 name: "Parent Channel",
-                value: `${newThread.parent} (\`#${newThread.parent.name}\`)`,
+                value: channelMentionWithName(newThread.parent)
             },
             {
                 name: "Thread",
-                value: `${newThread} (\`#${newThread.name}\`)`,
+                value: channelMentionWithName(newThread)
             },
             {
                 name: "Changes",

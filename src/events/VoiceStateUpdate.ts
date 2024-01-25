@@ -1,4 +1,5 @@
-import { Colors, EmbedBuilder, Events, userMention, VoiceBasedChannel, VoiceState } from "discord.js";
+import { Colors, EmbedBuilder, Events, VoiceBasedChannel, VoiceState } from "discord.js";
+import { channelMentionWithName, userMentionWithId } from "../utils";
 import { ConfigManager, GuildConfig, LoggingEvent } from "../utils/config.ts";
 import { log } from "../utils/logging.ts";
 
@@ -67,11 +68,11 @@ function getVoiceJoinLogEmbed(newState: VoiceState): EmbedBuilder {
         .setFields([
             {
                 name: "User",
-                value: `${userMention(newState.id)} (\`${newState.id}\`)`
+                value: userMentionWithId(newState.id)
             },
             {
                 name: "Channel",
-                value: `${newState.channel} (\`#${newState.channel!.name}\`)`
+                value: channelMentionWithName(newState.channel!)
             }
         ])
         .setTimestamp();
@@ -84,11 +85,11 @@ function getVoiceLeaveLogEmbed(oldState: VoiceState): EmbedBuilder {
         .setFields([
             {
                 name: "User",
-                value: `${userMention(oldState.id)} (\`${oldState.id}\`)`
+                value: userMentionWithId(oldState.id)
             },
             {
                 name: "Channel",
-                value: `${oldState.channel} (\`#${oldState.channel!.name}\`)`
+                value: channelMentionWithName(oldState.channel!)
             }
         ])
         .setTimestamp();
@@ -101,15 +102,15 @@ function getVoiceSwitchLogEmbed(oldState: VoiceState, newState: VoiceState): Emb
         .setFields([
             {
                 name: "User",
-                value: `${userMention(newState.id)} (\`${newState.id}\`)`
+                value: userMentionWithId(newState.id)
             },
             {
                 name: "Channel (Before)",
-                value: `${oldState.channel} (\`#${oldState.channel!.name}\`)`
+                value: channelMentionWithName(oldState.channel!)
             },
             {
                 name: "Channel (After)",
-                value: `${newState.channel} (\`#${newState.channel!.name}\`)`
+                value: channelMentionWithName(newState.channel!)
             }
         ])
         .setTimestamp();

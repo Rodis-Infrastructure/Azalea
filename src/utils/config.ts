@@ -130,7 +130,7 @@ export enum LoggingEvent {
     // TODO
     InfractionCreate = "infraction_create",
     // TODO
-    InfractionDelete = "infraction_delete",
+    InfractionArchive = "infraction_archive",
     // TODO
     InfractionUpdate = "infraction_update",
     // TODO

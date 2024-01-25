@@ -8,7 +8,7 @@ datasource db {
 }
 
 model Message {
-  message_id   String   @id
+  id           String   @id
   author_id    String
   channel_id   String
   guild_id     String
@@ -20,4 +20,21 @@ model Message {
   reference_id String?
   category_id  String?
   deleted      Boolean  @default(false)
+}
+
+model Infraction {
+  id                Int       @id @default(autoincrement())
+  guild_id          String
+  action            String
+  executor_id       String
+  target_id         String
+  created_at        DateTime  @default(now())
+  flag              String?
+  request_author_id String?
+  reason            String?
+  expires_at        DateTime?
+  updated_at        DateTime?
+  updated_by        String?
+  archived_at       DateTime?
+  archived_by       String?
 }

@@ -1,8 +1,9 @@
-import { Colors, EmbedBuilder, Events, ThreadChannel, userMention } from "discord.js";
+import { Colors, EmbedBuilder, Events, ThreadChannel } from "discord.js";
 import { ConfigManager, GuildConfig, LoggingEvent } from "../utils/config.ts";
 import { log } from "../utils/logging.ts";
 
 import EventListener from "../handlers/events/EventListener.ts";
+import { channelMentionWithName, userMentionWithId } from "../utils";
 
 export default class ThreadCreateEventListener extends EventListener {
     constructor() {
@@ -26,15 +27,15 @@ async function handleThreadCreateLog(thread: ThreadChannel, config: GuildConfig)
         .setFields([
             {
                 name: "Owner",
-                value: `${userMention(thread.ownerId)} (\`${thread.ownerId}\`)`,
+                value: userMentionWithId(thread.ownerId)
             },
             {
                 name: "Parent Channel",
-                value: `${thread.parent} (\`#${thread.parent.name}\`)`,
+                value: channelMentionWithName(thread.parent)
             },
             {
                 name: "Thread",
-                value: `${thread} (\`#${thread.name}\`)`,
+                value: channelMentionWithName(thread)
             }
         ])
         .setTimestamp();
