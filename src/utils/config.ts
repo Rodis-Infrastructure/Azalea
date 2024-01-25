@@ -1,6 +1,6 @@
 import { Snowflake } from "discord-api-types/v10";
 import { readYamlFile } from "./index.ts";
-import { Collection, Guild } from "discord.js";
+import { Collection, Guild, GuildBasedChannel } from "discord.js";
 import { client } from "../index.ts";
 
 import _ from "lodash";
@@ -47,16 +47,16 @@ export async function setConfigDefaults(guildId: Snowflake, data: unknown): Prom
         throw new Error("Failed to load config, unknown guild ID");
     });
 
-    const emptyScoping: Scoping = {
+    const channelScopingDefaults: ChannelScoping = {
         include_channels: [],
-        exclude_channels: [],
-        include_roles: []
+        exclude_channels: []
     };
 
     const configDefaults: GuildConfig = {
         guild,
+        ephemeral_scoping: channelScopingDefaults,
         logging: {
-            default_scoping: emptyScoping,
+            default_scoping: channelScopingDefaults,
             logs: []
         }
     };
@@ -68,22 +68,55 @@ export async function setConfigDefaults(guildId: Snowflake, data: unknown): Prom
         if (!log.scoping) {
             log.scoping = config.logging.default_scoping;
         } else {
-            log.scoping = _.defaultsDeep(log.scoping, emptyScoping);
+            log.scoping = _.defaultsDeep(log.scoping, channelScopingDefaults);
         }
     }
 
     return config;
 }
 
-export type Scoping = RoleScoping & ChannelScoping;
+export function inScope(scoping: ChannelScoping, channel: GuildBasedChannel): boolean {
+    const data: ChannelScopingParams = {
+        categoryId: channel.parentId,
+        channelId: channel.id,
+        threadId: null
+    };
 
-export interface RoleScoping {
-    include_roles: Snowflake[];
+    if (channel.isThread() && channel.parent) {
+        data.channelId = channel.parent.id;
+        data.threadId = channel.id;
+        data.categoryId = channel.parent.parentId;
+    }
+
+    return channelIsIncluded(scoping, data) && !channelIsExcluded(scoping, data);
+}
+
+function channelIsIncluded(scoping: ChannelScoping, channelData: ChannelScopingParams): boolean {
+    const { channelId, threadId, categoryId } = channelData;
+
+    return scoping.include_channels.length === 0
+        || scoping.include_channels.includes(channelId)
+        || (threadId !== null && scoping.include_channels.includes(threadId))
+        || (categoryId !== null && scoping.include_channels.includes(categoryId));
+}
+
+function channelIsExcluded(scoping: ChannelScoping, channelData: ChannelScopingParams): boolean {
+    const { channelId, threadId, categoryId } = channelData;
+
+    return scoping.exclude_channels.includes(channelId)
+        || (threadId !== null && scoping.exclude_channels.includes(threadId))
+        || (categoryId !== null && scoping.exclude_channels.includes(categoryId));
 }
 
 export interface ChannelScoping {
     include_channels: Snowflake[];
     exclude_channels: Snowflake[];
+}
+
+interface ChannelScopingParams {
+    channelId: Snowflake;
+    threadId: Snowflake | null;
+    categoryId: Snowflake | null;
 }
 
 interface Log {
@@ -99,6 +132,7 @@ interface Logging {
 
 export interface GuildConfig {
     logging: Logging;
+    ephemeral_scoping: ChannelScoping;
     guild: Guild;
 }
 

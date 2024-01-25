@@ -84,7 +84,7 @@ export function channelMentionWithName(channel: GuildBasedChannel | ThreadChanne
 }
 
 // @returns {string} The string representation of the given number of milliseconds (e.g. 300000 = "5 minutes")
-export function msToString(ms: number): string {
+export function humanizeTimestamp(ms: number): string {
     const units = [
         { unit: "day", value: 24 * 60 * 60 * 1000 },
         { unit: "hour", value: 60 * 60 * 1000 },

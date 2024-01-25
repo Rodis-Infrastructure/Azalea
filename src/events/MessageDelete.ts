@@ -33,6 +33,8 @@ export default class MessageDeleteEventListener extends EventListener {
     }
 
     async execute(deletedMessage: PartialMessage | DiscordMessage): Promise<void> {
+        if (deletedMessage.author?.bot) return;
+
         let message = await MessageCache.delete(deletedMessage.id);
 
         if (!message && !deletedMessage.partial && deletedMessage.inGuild()) {

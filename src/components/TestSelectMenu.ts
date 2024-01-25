@@ -1,4 +1,6 @@
 import { StringSelectMenuInteraction } from "discord.js";
+import { InteractionReplyData } from "../utils/types.ts";
+
 import Component from "../handlers/components/Component.ts";
 
 export default class TestSelectMenu extends Component {
@@ -6,8 +8,7 @@ export default class TestSelectMenu extends Component {
         super("test-select-menu");
     }
 
-    async execute(interaction: StringSelectMenuInteraction<"cached">): Promise<void> {
-        const [selected] = interaction.values;
-        await interaction.reply(selected);
+    execute(interaction: StringSelectMenuInteraction<"cached">): InteractionReplyData {
+        return interaction.values[0];
     }
 }

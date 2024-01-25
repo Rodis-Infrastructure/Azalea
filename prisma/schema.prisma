@@ -28,10 +28,10 @@ model Infraction {
   action            String
   executor_id       String
   target_id         String
+  reason            String
   created_at        DateTime  @default(now())
   flag              String?
   request_author_id String?
-  reason            String?
   expires_at        DateTime?
   updated_at        DateTime?
   updated_by        String?

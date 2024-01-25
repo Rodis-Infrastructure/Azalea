@@ -1,11 +1,12 @@
 import { AutocompleteInteraction, Colors, EmbedBuilder, Events, Interaction } from "discord.js";
-import { ConfigManager, GuildConfig, LoggingEvent } from "../utils/config.ts";
+import { ConfigManager, GuildConfig, inScope, LoggingEvent } from "../utils/config.ts";
 import { ComponentManager } from "../handlers/components/ComponentManager.ts";
-import { ensureError, InteractionExecuteError } from "../utils/errors.ts";
 import { CommandManager } from "../handlers/commands/CommandManager.ts";
+import { InteractionReplyData } from "../utils/types.ts";
+import { log } from "../utils/logging.ts";
 
 import EventListener from "../handlers/events/EventListener.ts";
-import { log } from "../utils/logging.ts";
+import Sentry from "@sentry/node";
 
 export default class InteractionCreate extends EventListener {
     constructor() {
@@ -37,27 +38,62 @@ export default class InteractionCreate extends EventListener {
         }
 
         try {
-            if (interaction.isCommand()) {
-                await CommandManager.handle(interaction);
-                return;
-            }
-
-            if (interaction.isMessageComponent() || interaction.isModalSubmit()) {
-                await ComponentManager.handle(interaction);
-                return;
-            }
-        } catch (_error) {
-            const cause = ensureError(_error);
+            await handleInteraction(interaction, config);
+        } catch (error) {
+            Sentry.captureException(error, {
+                user: {
+                    id: interaction.user.id,
+                    username: interaction.user.username
+                },
+                extra: {
+                    channel: interaction.channel?.id,
+                    guild: interaction.guild.id,
+                    command: interaction.isCommand() ? interaction.commandName : interaction.customId
+                }
+            });
 
             await interaction.reply({
                 content: "An error occurred while executing this interaction.",
                 ephemeral: true
             }).catch(() => null);
-
-            throw new InteractionExecuteError(interaction, cause);
+        } finally {
+            await handleInteractionCreateLog(interaction, config);
         }
+    }
+}
 
-        await handleInteractionCreateLog(interaction, config);
+async function handleInteraction(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
+    const ephemeralReply = interaction.channel
+        ? inScope(config.ephemeral_scoping, interaction.channel)
+        : true;
+
+    let response: InteractionReplyData | null;
+
+    if (interaction.isCommand()) {
+        const command = CommandManager.getCommand(interaction.commandName);
+        response = await command?.execute(interaction) ?? null;
+    } else {
+        const component = ComponentManager.getComponent(interaction.customId);
+        response = await component?.execute(interaction) ?? null;
+    }
+
+    if (!response) return;
+
+    const defaultReplyOptions = {
+        ephemeral: ephemeralReply,
+        allowedMentions: { parse: [] }
+    };
+
+    if (typeof response === "string") {
+        await interaction.reply({
+            ...defaultReplyOptions,
+            content: response
+        });
+    } else {
+        await interaction.reply({
+            ...defaultReplyOptions,
+            ...response
+        });
     }
 }
 

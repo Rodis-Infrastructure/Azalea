@@ -6,8 +6,9 @@ import {
     MessagePayload
 } from "discord.js";
 
-import { ChannelScoping, GuildConfig, LoggingEvent } from "./config.ts";
-import { Snowflake } from "discord-api-types/v10";
+import { GuildConfig, inScope, LoggingEvent } from "./config.ts";
+
+import Sentry from "@sentry/node";
 
 export async function log(data: {
     event: LoggingEvent,
@@ -16,10 +17,21 @@ export async function log(data: {
     message: string | MessagePayload | MessageCreateOptions
 }): Promise<void> {
     const { event, config, channel, message } = data;
-    const loggingChannels = await getLoggingChannels(event, config, channel);
 
-    // Send the content in parallel to all logging channels
-    await Promise.all(loggingChannels.map(loggingChannel => loggingChannel.send(message)));
+    try {
+        const loggingChannels = await getLoggingChannels(event, config, channel);
+
+        // Send the content in parallel to all logging channels
+        await Promise.all(loggingChannels.map(loggingChannel => loggingChannel.send(message)));
+    } catch (error) {
+        Sentry.captureException(error, {
+            data: {
+                event,
+                channel: channel?.id,
+                message
+            }
+        });
+    }
 }
 
 async function getLoggingChannels(
@@ -30,7 +42,7 @@ async function getLoggingChannels(
     const loggingChannelPromises = config.logging.logs
         .filter(log => log.events.includes(event))
         .filter(log => !channel || inScope(log.scoping, channel))
-        .map(log => config.guild.channels.fetch(log.channel_id).catch(() => null));
+        .map(log => config.guild.channels.fetch(log.channel_id));
 
     const loggingChannels = await Promise.all(loggingChannelPromises);
 
@@ -41,46 +53,7 @@ async function getLoggingChannels(
     });
 }
 
-function inScope(scoping: ChannelScoping, channel: GuildBasedChannel): boolean {
-    const data: ChannelData = {
-        categoryId: channel.parentId,
-        channelId: channel.id,
-        threadId: null
-    };
-
-    if (channel.isThread() && channel.parent) {
-        data.channelId = channel.parent.id;
-        data.threadId = channel.id;
-        data.categoryId = channel.parent.parentId;
-    }
-
-    return channelIsIncluded(scoping, data) && !channelIsExcluded(scoping, data);
-}
-
-function channelIsIncluded(scoping: ChannelScoping, channelData: ChannelData): boolean {
-    const { channelId, threadId, categoryId } = channelData;
-
-    return (scoping.include_channels.length === 0 && scoping.exclude_channels.length === 0)
-        || scoping.include_channels.includes(channelId)
-        || (threadId !== null && scoping.include_channels.includes(threadId))
-        || (categoryId !== null && scoping.include_channels.includes(categoryId));
-}
-
-function channelIsExcluded(scoping: ChannelScoping, channelData: ChannelData): boolean {
-    const { channelId, threadId, categoryId } = channelData;
-
-    return scoping.exclude_channels.includes(channelId)
-        || (threadId !== null && scoping.exclude_channels.includes(threadId))
-        || (categoryId !== null && scoping.exclude_channels.includes(categoryId));
-}
-
 export function mapLogEntriesToFile(entries: string[]): AttachmentBuilder {
     const buffer = Buffer.from(entries.join("\n\n"), "utf-8");
     return new AttachmentBuilder(buffer, { name: "data.txt" });
-}
-
-export interface ChannelData {
-    channelId: Snowflake;
-    threadId: Snowflake | null;
-    categoryId: Snowflake | null;
 }

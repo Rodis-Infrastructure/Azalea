@@ -1,4 +1,6 @@
 import { Colors, EmbedBuilder, ModalSubmitInteraction } from "discord.js";
+import { InteractionReplyData } from "../utils/types.ts";
+
 import Component from "../handlers/components/Component.ts";
 
 export default class TestModal extends Component {
@@ -6,7 +8,7 @@ export default class TestModal extends Component {
         super("test-modal");
     }
 
-    async execute(interaction: ModalSubmitInteraction<"cached">): Promise<void> {
+    execute(interaction: ModalSubmitInteraction<"cached">): InteractionReplyData {
         // Get value from input field
         const phrase = interaction.components[0].components[0].value;
 
@@ -18,6 +20,6 @@ export default class TestModal extends Component {
                 iconURL: interaction.user.displayAvatarURL()
             });
 
-        await interaction.reply({ embeds: [embed] });
+        return { embeds: [embed] };
     }
 }

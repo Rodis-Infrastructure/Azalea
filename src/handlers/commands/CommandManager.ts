@@ -16,7 +16,7 @@ export class CommandManager {
     // Create instances of all commands and store them in a map
     static async register(): Promise<void> {
         try {
-            const dirpath = path.resolve(__dirname, "../../commands");
+            const dirpath = path.resolve(import.meta.dir, "../../commands");
             const filenames = fs.readdirSync(dirpath);
 
             for (const filename of filenames) {
@@ -57,13 +57,7 @@ export class CommandManager {
         Logger.info(`Published ${publishedCommands.size} ${pluralize(publishedCommands.size, "command")}`);
     }
 
-    static async handle(interaction: CommandInteraction<"cached">): Promise<void> {
-        const command = this.instances.get(interaction.commandName);
-
-        if (!command) {
-            throw new Error(`Command "${interaction.commandName}" not found`);
-        }
-
-        await command.execute(interaction);
+    static getCommand(commandName: string): Command<CommandInteraction> | null {
+        return this.instances.get(commandName) ?? null;
     }
 }

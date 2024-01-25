@@ -1,29 +1,28 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
+import { EMBED_FIELD_CHAR_LIMIT, EMPTY_INFRACTION_REASON } from "../utils/constants.ts";
 import { handleInfractionCreate } from "../utils/infractions.ts";
 import { Action, InteractionReplyData } from "../utils/types.ts";
-import { EMBED_FIELD_CHAR_LIMIT } from "../utils/constants.ts";
 import { ConfigManager } from "../utils/config.ts";
 
 import Command from "../handlers/commands/Command.ts";
 
-export default class Note extends Command<ChatInputCommandInteraction<"cached">> {
+export default class Unban extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
         super({
-            name: "note",
-            description: "Add a note to a user's infraction history",
+            name: "unban",
+            description: "Unban a user from the server",
             options: [
                 {
                     name: "user",
-                    description: "The user to add a note to",
+                    description: "The user to unban",
                     type: ApplicationCommandOptionType.User,
                     required: true
                 },
                 {
-                    name: "note",
-                    description: "The content of the note",
+                    name: "reason",
+                    description: "The reason for unbanning the user",
                     type: ApplicationCommandOptionType.String,
-                    maxLength: EMBED_FIELD_CHAR_LIMIT,
-                    required: true
+                    maxLength: EMBED_FIELD_CHAR_LIMIT
                 }
             ]
         });
@@ -31,26 +30,28 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
 
     async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-        const note = interaction.options.getString("note", true);
-        const member = interaction.options.getMember("user");
+        const reason = interaction.options.getString("reason") ?? EMPTY_INFRACTION_REASON;
+        const member = interaction.options.getMember("member");
 
-        if (member && member.roles.highest.position >= interaction.member.roles.highest.position) {
-            return `You can't add a note to someone with the same or higher role than you`;
+        if (member) {
+            return "This user is not banned";
         }
 
-        const user = member?.user ?? interaction.options.getUser("user", true);
+        const user = interaction.options.getUser("user", true);
+        await interaction.guild.members.unban(user, reason);
+
         const infraction = await handleInfractionCreate({
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,
-            action: Action.Note,
+            action: Action.Ban,
             target_id: user.id,
-            reason: note
+            reason
         }, config);
 
         if (!infraction) {
             return "An error occurred while storing the infraction";
         }
 
-        return `Successfully added a note to ${user}'s infraction history - \`#${infraction.id}\` (\`${note}\`)`;
+        return `Successfully unbanned ${user} - \`#${infraction.id}\` (\`${reason}\`)`;
     }
 }

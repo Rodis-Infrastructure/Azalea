@@ -1,14 +1,14 @@
+import { AbstractInstanceType } from "../../utils/types.ts";
+import { pluralize } from "../../utils";
+import { client } from "../../index.ts";
+
 import EventListener from "./EventListener.ts";
+import Logger from "../../utils/logger.ts";
 import path from "path";
 import fs from "fs";
 
-import { client } from "../../index.ts";
-import { AbstractInstanceType } from "../../utils/types.ts";
-import Logger from "../../utils/logger.ts";
-import { pluralize } from "../../utils";
-
 export async function loadListeners(): Promise<void> {
-    const dirpath = path.resolve(__dirname, "../../events");
+    const dirpath = path.resolve(import.meta.dir, "../../events");
     const filenames = fs.readdirSync(dirpath);
 
     for (const filename of filenames) {

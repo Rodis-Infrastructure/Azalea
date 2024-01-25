@@ -1,17 +1,23 @@
-import { msToString, userMentionWithId } from "./index.ts";
-import { EMPTY_INFRACTION_REASON } from "./constants.ts";
+import { humanizeTimestamp, userMentionWithId } from "./index.ts";
 import { GuildConfig, LoggingEvent } from "./config.ts";
+import { Infraction, Prisma } from "@prisma/client";
 import { Colors, EmbedBuilder } from "discord.js";
 import { Snowflake } from "discord-api-types/v10";
-import { Infraction } from "@prisma/client";
 import { prisma } from "../index.ts";
 import { log } from "./logging.ts";
 
-export async function handleInfractionCreate(
-    data: Omit<Infraction, "updated_by" | "updated_at" | "archived_by" | "archived_at" | "id" | "created_at">,
-    config: GuildConfig
-): Promise<Infraction> {
-    const infraction = await prisma.infraction.create({ data });
+import Sentry from "@sentry/node";
+
+export async function handleInfractionCreate(data: Prisma.InfractionCreateInput, config: GuildConfig): Promise<Infraction | null> {
+    let infraction: Infraction;
+
+    try {
+        infraction = await prisma.infraction.create({ data });
+    } catch (error) {
+        Sentry.captureException(error, { extra: { data } });
+        return null;
+    }
+
     const title = [infraction.flag, infraction.action]
         .filter(Boolean)
         .join(" ");
@@ -31,7 +37,7 @@ export async function handleInfractionCreate(
             },
             {
                 name: "Reason",
-                value: infraction.reason ?? EMPTY_INFRACTION_REASON
+                value: infraction.reason
             }
         ])
         .setFooter({ text: `#${infraction.id}` })
@@ -40,7 +46,7 @@ export async function handleInfractionCreate(
     // Since the infraction is new, we can assume that the expiration date is in the future.
     if (infraction.expires_at) {
         const dateDiff = infraction.expires_at.getTime() - Date.now();
-        const staticDuration = msToString(dateDiff);
+        const staticDuration = humanizeTimestamp(dateDiff);
 
         embed.spliceFields(2, 0, {
             name: "Duration",
@@ -58,20 +64,29 @@ export async function handleInfractionCreate(
     return infraction;
 }
 
-export async function handleInfractionArchive(id: number, archivedBy: Snowflake, config: GuildConfig): Promise<void> {
-    const infraction = await prisma.infraction.update({
-        where: { id },
-        data: {
-            archived_at: new Date(),
-            archived_by: archivedBy
-        }
-    });
+export async function handleInfractionArchive(data: { id: number, archived_by: Snowflake }, config: GuildConfig): Promise<void> {
+    const { id, archived_by } = data;
+
+    let infraction: Infraction;
+
+    try {
+        infraction = await prisma.infraction.update({
+            where: { id },
+            data: {
+                archived_at: new Date(),
+                archived_by
+            }
+        });
+    } catch (error) {
+        Sentry.captureException(error, { extra: { data } });
+        return;
+    }
 
     const embed = new EmbedBuilder()
         .setColor(Colors.Red)
         .setAuthor({ name: "Infraction Archived" })
         .setTitle(`${infraction.flag} ${infraction.action}`)
-        .setFields({ name: "Archived By", value: userMentionWithId(archivedBy) })
+        .setFields({ name: "Archived By", value: userMentionWithId(archived_by) })
         .setFooter({ text: `#${infraction.id}` })
         .setTimestamp();
 
@@ -83,20 +98,29 @@ export async function handleInfractionArchive(id: number, archivedBy: Snowflake,
     });
 }
 
-export async function handleInfractionUnarchive(id: number, unarchivedBy: Snowflake, config: GuildConfig): Promise<void> {
-    const infraction = await prisma.infraction.update({
-        where: { id },
-        data: {
-            archived_at: null,
-            archived_by: null
-        }
-    });
+export async function handleInfractionUnarchive(data: { id: number, unarchived_by: Snowflake }, config: GuildConfig): Promise<void> {
+    const { id, unarchived_by } = data;
+
+    let infraction: Infraction;
+
+    try {
+        infraction = await prisma.infraction.update({
+            where: { id },
+            data: {
+                archived_at: null,
+                archived_by: null
+            }
+        });
+    } catch (error) {
+        Sentry.captureException(error, { extra: { data } });
+        return;
+    }
 
     const embed = new EmbedBuilder()
         .setColor(Colors.Green)
         .setAuthor({ name: "Infraction Unarchived" })
         .setTitle(`${infraction.flag} ${infraction.action}`)
-        .setFields({ name: "Unarchived By", value: userMentionWithId(unarchivedBy) })
+        .setFields({ name: "Unarchived By", value: userMentionWithId(unarchived_by) })
         .setFooter({ text: `#${infraction.id}` })
         .setTimestamp();
 
@@ -109,19 +133,30 @@ export async function handleInfractionUnarchive(id: number, unarchivedBy: Snowfl
 }
 
 export async function handleInfractionReasonChange(
-    id: number,
-    newReason: string,
-    updatedBy: Snowflake,
+    data: {
+        id: number,
+        reason: string,
+        updated_by: Snowflake
+    },
     config: GuildConfig
 ): Promise<void> {
-    const infraction = await prisma.infraction.update({
-        where: { id },
-        data: {
-            updated_at: new Date(),
-            updated_by: updatedBy,
-            reason: newReason
-        }
-    });
+    const { id, reason, updated_by } = data;
+
+    let infraction: Infraction;
+
+    try {
+        infraction = await prisma.infraction.update({
+            where: { id },
+            data: {
+                updated_at: new Date(),
+                updated_by,
+                reason
+            }
+        });
+    } catch (error) {
+        Sentry.captureException(error, { extra: { data } });
+        return;
+    }
 
     const embed = new EmbedBuilder()
         .setColor(Colors.Green)
@@ -130,11 +165,11 @@ export async function handleInfractionReasonChange(
         .setFields([
             {
                 name: "Updated By",
-                value: userMentionWithId(updatedBy)
+                value: userMentionWithId(updated_by)
             },
             {
                 name: "New Reason",
-                value: newReason
+                value: reason
             }
         ])
         .setFooter({ text: `#${infraction.id}` })
@@ -149,22 +184,36 @@ export async function handleInfractionReasonChange(
 }
 
 export async function handleInfractionExpirationChange(
-    id: number,
-    newExpirationDate: Date,
-    updatedBy: Snowflake,
-    config: GuildConfig
+    data: {
+        id: number,
+        expires_at: Date,
+        updated_by: Snowflake
+    },
+    config: GuildConfig,
+    logChange = true
 ): Promise<void> {
-    const infraction = await prisma.infraction.update({
-        where: { id },
-        data: {
-            updated_at: new Date(),
-            updated_by: updatedBy,
-            expires_at: newExpirationDate
-        }
-    });
+    const { id, expires_at, updated_by } = data;
 
-    const dateDiff = newExpirationDate.getTime() - Date.now();
-    const staticDuration = msToString(dateDiff);
+    let infraction: Infraction;
+
+    try {
+        infraction = await prisma.infraction.update({
+            where: { id },
+            data: {
+                updated_at: new Date(),
+                updated_by,
+                expires_at
+            }
+        });
+    } catch (error) {
+        Sentry.captureException(error, { extra: { data } });
+        return;
+    }
+
+    if (!logChange) return;
+
+    const dateDiff = expires_at.getTime() - Date.now();
+    const staticDuration = humanizeTimestamp(dateDiff);
 
     const embed = new EmbedBuilder()
         .setColor(Colors.Green)
@@ -173,7 +222,7 @@ export async function handleInfractionExpirationChange(
         .setFields([
             {
                 name: "Updated By",
-                value: userMentionWithId(updatedBy)
+                value: userMentionWithId(updated_by)
             },
             {
                 name: "New Duration",

@@ -1,20 +1,17 @@
-import { loadListeners } from "./handlers/events/loader.ts";
 import { Client, GatewayIntentBits, Partials } from "discord.js";
+import { loadListeners } from "./handlers/events/loader.ts";
+import { EXIT_EVENTS } from "./utils/constants.ts";
 import { PrismaClient } from "@prisma/client";
 import { handleProcessExit } from "./utils";
-import { EXIT_EVENTS } from "./utils/constants.ts";
-import { ProfilingIntegration } from "@sentry/profiling-node";
 
 import Sentry from "@sentry/node";
 
 // Initialize Sentry
 Sentry.init({
     dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV,
     profilesSampleRate: 1,
-    tracesSampleRate: 1,
-    integrations: [
-        new ProfilingIntegration()
-    ]
+    tracesSampleRate: 1
 });
 
 // Handle process exit
@@ -48,13 +45,20 @@ export const client = new Client({
 });
 
 async function main(): Promise<void> {
+    const transaction = Sentry.startInactiveSpan({
+        name: "Initialize bot",
+        op: "init"
+    })!;
+
     await loadListeners();
     await client.login(process.env.DISCORD_TOKEN);
+
+    transaction.end();
 }
 
 // Perform closing operations on error
 main()
     .catch(error => {
-        console.error(error);
+        Sentry.captureException(error);
         process.exit(0);
     });

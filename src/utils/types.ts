@@ -1,3 +1,5 @@
+import { InteractionReplyOptions } from "discord.js";
+
 export type AbstractInstanceType<T> = T extends { prototype: infer U } ? U : never;
 export type ObjectDiff = Record<string | number | symbol, ObjectPropDiff>;
 
@@ -21,3 +23,5 @@ export enum Flag {
     // Infractions carried out by bots
     Automatic = "Automatic",
 }
+
+export type InteractionReplyData = InteractionReplyOptions | string | null;

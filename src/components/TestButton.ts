@@ -1,12 +1,13 @@
 import { ActionRowBuilder, ButtonInteraction, ModalBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import Component from "../handlers/components/Component.ts";
+import { InteractionReplyData } from "../utils/types.ts";
 
 export default class TestButton extends Component {
     constructor() {
         super("test-button");
     }
 
-    async execute(interaction: ButtonInteraction<"cached">): Promise<void> {
+    async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
         const input = new TextInputBuilder()
             .setCustomId("test-input")
             .setLabel("Phrase")
@@ -24,5 +25,7 @@ export default class TestButton extends Component {
             .setComponents(actionRow);
 
         await interaction.showModal(modal);
+
+        return null;
     }
 }

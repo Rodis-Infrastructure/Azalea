@@ -6,6 +6,8 @@ import Component, { ComponentInteraction } from "./Component.ts";
 import Logger from "../../utils/logger.ts";
 import path from "path";
 import fs from "fs";
+import Command from "../commands/Command.ts";
+import { CommandInteraction } from "discord.js";
 
 export class ComponentManager {
     // Class instances of components mapped by their customId
@@ -14,7 +16,7 @@ export class ComponentManager {
     // Create instances of all components and store them in a map
     static async register(): Promise<void> {
         try {
-            const dirpath = path.resolve(__dirname, "../../components");
+            const dirpath = path.resolve(import.meta.dir, "../../components");
             const filenames = fs.readdirSync(dirpath);
 
             for (const filename of filenames) {
@@ -38,13 +40,7 @@ export class ComponentManager {
         Logger.info(`Registered ${this.instances.size} ${pluralize(this.instances.size, "component")}`);
     }
 
-    static async handle(interaction: ComponentInteraction<"cached">): Promise<void> {
-        const component = this.instances.get(interaction.customId);
-
-        if (!component) {
-            throw new Error(`Component "${interaction.customId}" not found`);
-        }
-
-        await component.execute(interaction);
+    static getComponent(customId: string): Component | null {
+        return this.instances.get(customId) ?? null;
     }
 }
