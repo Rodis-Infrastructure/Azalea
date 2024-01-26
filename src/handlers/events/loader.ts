@@ -9,7 +9,7 @@ import fs from "fs";
 
 export async function loadListeners(): Promise<void> {
     const dirpath = path.resolve(import.meta.dir, "../../events");
-    const filenames = fs.readdirSync(dirpath);
+    const filenames = fs.readdirSync(dirpath).filter(file => file !== "Ready.ts");
 
     for (const filename of filenames) {
         const filepath = path.resolve(dirpath, filename);
@@ -29,4 +29,16 @@ export async function loadListeners(): Promise<void> {
     }
 
     Logger.info(`Loaded ${filenames.length} ${pluralize(filenames.length, "event listener")}`);
+}
+
+export async function loadReadyListener(): Promise<void> {
+    const dirpath = path.resolve(import.meta.dir, "../../events");
+    const readyListenerModule = await import(path.resolve(dirpath, "Ready.ts")).catch(() => null);
+
+    if (!readyListenerModule) return;
+
+    const readyListenerClass = readyListenerModule.default;
+    const readyListener: AbstractInstanceType<typeof EventListener> = new readyListenerClass();
+
+    client.once(readyListener.event, (...args) => readyListener.execute(...args));
 }

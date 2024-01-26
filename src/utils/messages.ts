@@ -20,10 +20,11 @@ import { CronJob } from "cron";
 import Logger from "./logger.ts";
 
 export class MessageCache {
-    private static queue = new Collection<Snowflake, Message>();
+    private static dbQueue = new Collection<Snowflake, Message>();
+    static purgeQueue: PurgeOptions[] = [];
 
     static async get(id: Snowflake): Promise<Message | null> {
-        let message = this.queue.get(id) ?? null;
+        let message = this.dbQueue.get(id) ?? null;
 
         if (!message) {
             message = await prisma.message.findUnique({ where: { id } });
@@ -32,13 +33,39 @@ export class MessageCache {
         return message;
     }
 
+    static async getByUser(userId: Snowflake, channelId: Snowflake, limit: number): Promise<Message[]> {
+        const cachedMessages = this.dbQueue.filter(message =>
+            message.author_id === userId &&
+            message.channel_id === channelId &&
+            !message.deleted
+        );
+
+        const messages = Array.from(cachedMessages.values());
+
+        if (messages.length < limit) {
+            const stored = await prisma.$queryRaw<Message[]>`
+                SELECT *
+                FROM message
+                WHERE author_id = ${userId}
+                  AND channel_id = ${channelId}
+                  AND deleted = false
+                ORDER BY created_at DESC
+                    LIMIT ${limit - messages.length};
+            `;
+
+            return messages.concat(stored);
+        }
+
+        return messages;
+    }
+
     static set(message: DiscordMessage<true>): void {
         const serializedMessage = prepareMessageForStorage(message);
-        this.queue.set(message.id, serializedMessage);
+        this.dbQueue.set(message.id, serializedMessage);
     }
 
     static async delete(id: Snowflake): Promise<Message | null> {
-        let message = MessageCache.queue.get(id);
+        let message = this.dbQueue.get(id);
 
         if (message) {
             message.deleted = true;
@@ -54,7 +81,7 @@ export class MessageCache {
 
     static async deleteMany(messageCollection: Collection<Snowflake, PartialMessage | DiscordMessage<true>>): Promise<Message[]> {
         const ids = Array.from(messageCollection.keys());
-        const messages = MessageCache.queue.filter(message =>
+        const messages = this.dbQueue.filter(message =>
             ids.includes(message.id) && !message.deleted
         );
 
@@ -80,7 +107,7 @@ export class MessageCache {
 
     // @returns The old content
     static async updateContent(id: Snowflake, newContent: string): Promise<string> {
-        const message = MessageCache.queue.get(id);
+        const message = this.dbQueue.get(id);
 
         if (message) {
             const oldContent = message.content ?? EMPTY_MESSAGE_CONTENT;
@@ -105,13 +132,14 @@ export class MessageCache {
     static async clear(): Promise<void> {
         Logger.info("Storing cached messages...");
 
-        const insertPromises = MessageCache.queue.map(message =>
+        const insertPromises = this.dbQueue.map(message =>
             prisma.message.create({ data: message }).catch(() => null)
         );
 
         await Promise.all(insertPromises);
-        const insertedCount = this.queue.size;
-        this.queue.clear();
+        const insertedCount = this.dbQueue.size;
+
+        this.dbQueue.clear();
 
         Logger.info(`Stored ${insertedCount} ${pluralize(insertedCount, "message")}`);
     }
@@ -121,7 +149,7 @@ export class MessageCache {
         const cron = ConfigManager.globalConfig.database.messages.insert_cron;
 
         new CronJob(cron, async () => {
-            await MessageCache.clear();
+            await this.clear();
         }).start();
     }
 }
@@ -192,4 +220,9 @@ export async function resolvePartialMessage(message: PartialMessage | DiscordMes
     if (!fetchedMessage?.inGuild()) return null;
 
     return fetchedMessage;
+}
+
+interface PurgeOptions {
+    channelId: Snowflake;
+    messages: Message[];
 }

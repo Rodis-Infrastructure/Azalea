@@ -161,6 +161,7 @@ export enum LoggingEvent {
     ThreadCreate = "thread_create",
     ThreadDelete = "thread_delete",
     ThreadUpdate = "thread_update",
+    MediaStore = "media_store",
     // TODO
     InfractionCreate = "infraction_create",
     // TODO
@@ -178,7 +179,5 @@ export enum LoggingEvent {
     // TODO
     MessageReportCreate = "message_report_create",
     // TODO
-    MessageReportResolve = "message_report_resolve",
-    // TODO
-    MediaStore = "media_store"
+    MessageReportResolve = "message_report_resolve"
 }

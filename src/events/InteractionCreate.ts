@@ -38,7 +38,7 @@ export default class InteractionCreate extends EventListener {
         }
 
         try {
-            await handleInteraction(interaction, config);
+            await this.handleInteraction(interaction, config);
         } catch (error) {
             Sentry.captureException(error, {
                 user: {
@@ -57,87 +57,95 @@ export default class InteractionCreate extends EventListener {
                 ephemeral: true
             }).catch(() => null);
         } finally {
-            await handleInteractionCreateLog(interaction, config);
+            await this.handleLog(interaction, config);
         }
     }
-}
 
-async function handleInteraction(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
-    const ephemeralReply = interaction.channel
-        ? inScope(config.ephemeral_scoping, interaction.channel)
-        : true;
+    async handleInteraction(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
+        const ephemeralReply = interaction.channel
+            ? inScope(config.ephemeral_scoping, interaction.channel)
+            : true;
 
-    let response: InteractionReplyData | null;
+        let response: InteractionReplyData | null;
 
-    if (interaction.isCommand()) {
-        const command = CommandManager.getCommand(interaction.commandName);
-        response = await command?.execute(interaction) ?? null;
-    } else {
-        const component = ComponentManager.getComponent(interaction.customId);
-        response = await component?.execute(interaction) ?? null;
+        if (interaction.isCommand()) {
+            const command = CommandManager.getCommand(interaction.commandName);
+            response = await command?.execute(interaction) ?? null;
+        } else {
+            const component = ComponentManager.getComponent(interaction.customId);
+            response = await component?.execute(interaction) ?? null;
+        }
+
+        if (!response) {
+            await interaction.reply({
+                content: "Failed to fetch the interaction's response.",
+                ephemeral: true
+            });
+
+            return;
+        }
+
+        const defaultReplyOptions = {
+            ephemeral: ephemeralReply,
+            allowedMentions: { parse: [] }
+        };
+
+        if (typeof response === "string") {
+            await interaction.reply({
+                ...defaultReplyOptions,
+                content: response
+            });
+        } else {
+            await interaction.reply({
+                ...defaultReplyOptions,
+                ...response
+            });
+        }
     }
 
-    if (!response) return;
+    async handleLog(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
+        if (!interaction.channel) return;
 
-    const defaultReplyOptions = {
-        ephemeral: ephemeralReply,
-        allowedMentions: { parse: [] }
-    };
+        const interactionName = this.parseInteraction(interaction);
+        const embed = new EmbedBuilder()
+            .setColor(Colors.Grey)
+            .setAuthor({ name: "Interaction Used" })
+            .setFields([
+                {
+                    name: "Executor",
+                    value: `${interaction.user} (\`${interaction.user.id}\`)`,
+                    inline: true
+                },
+                {
+                    name: "Interaction",
+                    value: `\`${interactionName}\``,
+                    inline: true
+                }
+            ])
+            .setTimestamp();
 
-    if (typeof response === "string") {
-        await interaction.reply({
-            ...defaultReplyOptions,
-            content: response
-        });
-    } else {
-        await interaction.reply({
-            ...defaultReplyOptions,
-            ...response
+        await log({
+            event: LoggingEvent.InteractionCreate,
+            channel: interaction.channel,
+            message: { embeds: [embed] },
+            config
         });
     }
-}
 
-async function handleInteractionCreateLog(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
-    if (!interaction.channel) return;
+    // @returns The interaction's name or custom ID
+    parseInteraction(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>): string {
+        if (interaction.isChatInputCommand()) {
+            const subcommand = interaction.options.getSubcommand(false);
 
-    const interactionName = resolveInteractionName(interaction);
-    const embed = new EmbedBuilder()
-        .setColor(Colors.Grey)
-        .setAuthor({ name: "Interaction Used" })
-        .setFields([
-            {
-                name: "Executor",
-                value: `${interaction.user} (\`${interaction.user.id}\`)`,
-                inline: true
-            },
-            {
-                name: "Interaction",
-                value: `\`${interactionName}\``,
-                inline: true
+            if (subcommand) {
+                return `${interaction.commandName} ${subcommand}`;
             }
-        ])
-        .setTimestamp();
-
-    await log({
-        event: LoggingEvent.InteractionCreate,
-        channel: interaction.channel,
-        message: { embeds: [embed] },
-        config
-    });
-}
-
-function resolveInteractionName(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>): string {
-    if (interaction.isChatInputCommand()) {
-        const subcommand = interaction.options.getSubcommand(false);
-
-        if (subcommand) {
-            return `${interaction.commandName} ${subcommand}`;
         }
-    }
 
-    if (interaction.isCommand()) {
-        return interaction.commandName;
-    }
+        if (interaction.isCommand()) {
+            return interaction.commandName;
+        }
 
-    return interaction.customId;
+        return interaction.customId;
+    }
 }

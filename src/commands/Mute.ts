@@ -8,7 +8,7 @@ import Command from "../handlers/commands/Command.ts";
 import ms from "ms";
 
 // Constants
-const WEEK = 1000 * 60 * 60 * 24 * 7;
+const ONE_WEEK = 1000 * 60 * 60 * 24 * 7;
 const DURATION_FORMAT = /^(\d+ *(days?|h(ou)?rs?|min(utes?)?|[mhd]) *)+$/gmi;
 
 export default class Mute extends Command<ChatInputCommandInteraction<"cached">> {
@@ -63,7 +63,7 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
 
         let parsedDuration = ms(duration);
 
-        if (parsedDuration > WEEK) parsedDuration = WEEK;
+        if (parsedDuration > ONE_WEEK) parsedDuration = ONE_WEEK;
         if (parsedDuration <= 0) return "Invalid duration. Please use a duration greater than `0`";
 
         await member.timeout(parsedDuration, reason);

@@ -2,6 +2,7 @@ import {
     AttachmentBuilder,
     GuildBasedChannel,
     GuildTextBasedChannel,
+    Message,
     MessageCreateOptions,
     MessagePayload
 } from "discord.js";
@@ -10,28 +11,30 @@ import { GuildConfig, inScope, LoggingEvent } from "./config.ts";
 
 import Sentry from "@sentry/node";
 
+// @returns The messages sent
 export async function log(data: {
     event: LoggingEvent,
     config: GuildConfig,
     channel: GuildBasedChannel | null,
     message: string | MessagePayload | MessageCreateOptions
-}): Promise<void> {
+}): Promise<Message<true>[] | null> {
     const { event, config, channel, message } = data;
 
     try {
-        const loggingChannels = await getLoggingChannels(event, config, channel);
+        const channels = await getLoggingChannels(event, config, channel);
 
         // Send the content in parallel to all logging channels
-        await Promise.all(loggingChannels.map(loggingChannel => loggingChannel.send(message)));
+        return Promise.all(channels.map(c => c.send(message)));
     } catch (error) {
         Sentry.captureException(error, {
-            data: {
+            extra: {
                 event,
-                channel: channel?.id,
-                message
+                channel: channel?.id
             }
         });
     }
+
+    return null;
 }
 
 async function getLoggingChannels(

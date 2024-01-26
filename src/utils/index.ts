@@ -24,7 +24,7 @@ export function readYamlFile<T>(path: string): T {
 export async function handleProcessExit(event: string): Promise<void> {
     Logger.log(event, "Starting cleanup operations...", {
         color: AnsiColor.Red,
-        fullColor: true
+        full: true
     });
 
     try {
@@ -33,12 +33,12 @@ export async function handleProcessExit(event: string): Promise<void> {
     } catch (error) {
         Logger.log(event, `Cleanup operations failed: ${error}`, {
             color: AnsiColor.Red,
-            fullColor: true
+            full: true
         });
     } finally {
         Logger.log(event, "Successfully completed cleanup operations", {
             color: AnsiColor.Red,
-            fullColor: true
+            full: true
         });
     }
 
@@ -99,4 +99,13 @@ export function humanizeTimestamp(ms: number): string {
         })
         .filter(Boolean)
         .join(" ") || "< 1 minute";
+}
+
+export function elipsify(str: string, length: number): string {
+    // Accounts for the length of the ellipsis
+    const croppedStr = str.slice(0, length - 25);
+
+    return str.length > length
+        ? `${croppedStr}...(${str.length - croppedStr.length} more characters)`
+        : str;
 }

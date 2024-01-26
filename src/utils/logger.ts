@@ -1,8 +1,8 @@
-interface LoggerOptions {
+interface ColorOptions {
     // ANSI color code
     color?: AnsiColor;
     // Whether to color the full log or just the level
-    fullColor?: boolean;
+    full?: boolean;
 }
 
 export enum AnsiColor {
@@ -14,13 +14,13 @@ export enum AnsiColor {
 }
 
 export default class Logger {
-    static log(level: string, message: string, options?: LoggerOptions): void {
+    static log(level: string, message: string, options?: ColorOptions): void {
         const timestamp = new Date().toISOString();
         const timestampString = `${AnsiColor.Grey}[${timestamp}]${AnsiColor.Reset}`;
 
-        if (options?.color && !options.fullColor) {
+        if (options?.color && !options.full) {
             console.log(`${timestampString} ${options.color}[${level}]${AnsiColor.Reset} ${message}`);
-        } else if (options?.color && options.fullColor) {
+        } else if (options?.color && options.full) {
             console.log(`${timestampString} ${options.color}[${level}] ${message}${AnsiColor.Reset}`);
         } else {
             console.log(`\x1b[32m${timestampString}${AnsiColor.Reset} [${level}] ${message}`);

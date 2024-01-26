@@ -30,11 +30,28 @@ export default class MessageBulkDeleteEventListener extends EventListener {
 
         if (!messages.length || !config) return;
 
+        const purgeIndex = MessageCache.purgeQueue.findIndex(purged =>
+            purged.messages.some(message =>
+                messages.some(m => m.id === message.id)
+            )
+        );
+
+        // Logging is handled by the purge command
+        if (purgeIndex !== -1) {
+            return;
+        } else {
+            delete MessageCache.purgeQueue[purgeIndex];
+        }
+
         await handleMessageBulkDeleteLog(messages, channel, config);
     }
 }
 
-export async function handleMessageBulkDeleteLog(messages: Message[], channel: GuildTextBasedChannel, config: GuildConfig): Promise<void> {
+export async function handleMessageBulkDeleteLog(
+    messages: Message[],
+    channel: GuildTextBasedChannel,
+    config: GuildConfig
+): Promise<DiscordMessage<true>[] | null> {
     const authorMentions: ReturnType<typeof userMention>[] = [];
     const entries: string[] = [];
 
@@ -64,7 +81,7 @@ export async function handleMessageBulkDeleteLog(messages: Message[], channel: G
     const logContent = `Deleted \`${messages.length}\` ${pluralize(messages.length, "message")} in ${channel} by ${authorMentions.join(", ")}`;
     const file = mapLogEntriesToFile(entries);
 
-    await log({
+    return log({
         event: LoggingEvent.MessageBulkDelete,
         message: {
             allowedMentions: { parse: [] },

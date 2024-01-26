@@ -37,87 +37,87 @@ export default class MessageReactionAddEventListener extends EventListener {
 
         // Only log the first reaction
         if (reaction.count === 1) {
-            await handleReactionAddLog(reaction.emoji, message, user, config);
+            await this.handleLog(reaction.emoji, message, user, config);
         }
     }
-}
 
-async function handleReactionAddLog(
-    emoji: GuildEmoji | ReactionEmoji,
-    message: Message<true>,
-    user: User,
-    config: GuildConfig
-): Promise<void> {
-    let logContent: MessageCreateOptions | null;
+    async handleLog(
+        emoji: GuildEmoji | ReactionEmoji,
+        message: Message<true>,
+        user: User,
+        config: GuildConfig
+    ): Promise<void> {
+        let logContent: MessageCreateOptions | null;
 
-    if (message.content.length > EMBED_FIELD_CHAR_LIMIT) {
-        logContent = await getLongReactionAddLogContent(emoji, message, user);
-    } else {
-        logContent = await getShortReactionAddLogContent(emoji, message, user);
+        if (message.content.length > EMBED_FIELD_CHAR_LIMIT) {
+            logContent = await this.getLongLogContent(emoji, message, user);
+        } else {
+            logContent = await this.getShortLogContent(emoji, message, user);
+        }
+
+        if (!logContent) return;
+
+        await log({
+            event: LoggingEvent.MessageReactionAdd,
+            channel: message.channel,
+            message: logContent,
+            config
+        });
     }
 
-    if (!logContent) return;
+    async getShortLogContent(
+        emoji: GuildEmoji | ReactionEmoji,
+        message: Message<true>,
+        user: User
+    ): Promise<MessageCreateOptions | null> {
+        const embed = new EmbedBuilder()
+            .setColor(0x9C84EF) // Light purple
+            .setAuthor({ name: "Reaction Added" })
+            .setFields([
+                {
+                    name: "Reaction Author",
+                    value: `${user} (\`${user.id}\`)`
+                },
+                {
+                    name: "Channel",
+                    value: `${message.channel} (\`#${message.channel.name}\`)`
+                },
+                {
+                    name: "Emoji",
+                    value: this.parseEmoji(emoji)
+                }
+            ])
+            .setTimestamp();
 
-    await log({
-        event: LoggingEvent.MessageReactionAdd,
-        channel: message.channel,
-        message: logContent,
-        config
-    });
-}
+        const embeds = [embed];
+        await prependReferenceLog(message.id, embeds);
 
-async function getShortReactionAddLogContent(
-    emoji: GuildEmoji | ReactionEmoji,
-    message: Message<true>,
-    user: User
-): Promise<MessageCreateOptions | null> {
-    const embed = new EmbedBuilder()
-        .setColor(0x9C84EF) // Light purple
-        .setAuthor({ name: "Reaction Added" })
-        .setFields([
-            {
-                name: "Reaction Author",
-                value: `${user} (\`${user.id}\`)`
-            },
-            {
-                name: "Channel",
-                value: `${message.channel} (\`#${message.channel.name}\`)`
-            },
-            {
-                name: "Emoji",
-                value: resolveEmojiName(emoji)
-            }
-        ])
-        .setTimestamp();
-
-    const embeds = [embed];
-    await prependReferenceLog(message.id, embeds);
-
-    return { embeds };
-}
-
-async function getLongReactionAddLogContent(
-    emoji: GuildEmoji | ReactionEmoji,
-    message: Message<true>,
-    user: User
-): Promise<MessageCreateOptions | null> {
-    const serializedMessage = prepareMessageForStorage(message);
-    const entry = await formatMessageLogEntry(serializedMessage);
-    const file = mapLogEntriesToFile([entry]);
-
-    return {
-        content: `Reaction ${resolveEmojiName(emoji)} added to message in ${message.channel} by ${user}`,
-        allowedMentions: { parse: [] },
-        files: [file]
-    };
-}
-
-// @returns The emoji ID and URL if the emoji is a custom emoji, otherwise the emoji name
-function resolveEmojiName(emoji: GuildEmoji | ReactionEmoji): string {
-    if (emoji.id) {
-        const maskedEmojiURL = hyperlink("view", `<${emoji.imageURL()}>`);
-        return `\`<:${emoji.name}:${emoji.id}>\` (${maskedEmojiURL})`;
+        return { embeds };
     }
 
-    return emoji.toString();
+    async getLongLogContent(
+        emoji: GuildEmoji | ReactionEmoji,
+        message: Message<true>,
+        user: User
+    ): Promise<MessageCreateOptions | null> {
+        const serializedMessage = prepareMessageForStorage(message);
+        const entry = await formatMessageLogEntry(serializedMessage);
+        const file = mapLogEntriesToFile([entry]);
+
+        return {
+            content: `Reaction ${this.parseEmoji(emoji)} added to message in ${message.channel} by ${user}`,
+            allowedMentions: { parse: [] },
+            files: [file]
+        };
+    }
+
+    // @returns The emoji ID and URL if the emoji is a custom emoji, otherwise the emoji name
+    parseEmoji(emoji: GuildEmoji | ReactionEmoji): string {
+        if (emoji.id) {
+            const maskedEmojiURL = hyperlink("view", `<${emoji.imageURL()}>`);
+            return `\`<:${emoji.name}:${emoji.id}>\` (${maskedEmojiURL})`;
+        }
+
+        return emoji.toString();
+    }
 }

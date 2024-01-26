@@ -37,6 +37,11 @@ export default class MessageDeleteEventListener extends EventListener {
 
         let message = await MessageCache.delete(deletedMessage.id);
 
+        const isPurged = MessageCache.purgeQueue.some(purged => purged.messages[0].id === deletedMessage.id);
+
+        // Handled by the purge command
+        if (isPurged) return;
+
         if (!message && !deletedMessage.partial && deletedMessage.inGuild()) {
             message = prepareMessageForStorage(deletedMessage);
         }
@@ -46,30 +51,34 @@ export default class MessageDeleteEventListener extends EventListener {
         const config = ConfigManager.getGuildConfig(message.guild_id);
         if (!config) return;
 
-        await handleMessageDeleteLog(message, config).catch(() => null);
+        await this.handleLog(message, config).catch(() => null);
+    }
+
+    async handleLog(message: Message, config: GuildConfig): Promise<void> {
+        const channel = await client.channels.fetch(message.channel_id).catch(() => null) as GuildTextBasedChannel | null;
+        if (!channel) return;
+
+        const reference = message.reference_id
+            ? await MessageCache.get(message.reference_id)
+            : null;
+
+        if (
+            message.content!.length > EMBED_FIELD_CHAR_LIMIT ||
+            (reference?.content && reference.content.length > EMBED_FIELD_CHAR_LIMIT)
+        ) {
+            await handleMessageBulkDeleteLog([message], channel, config);
+            return;
+        }
+
+        await handleShortMessageDeleteLog(message, channel, config);
     }
 }
 
-async function handleMessageDeleteLog(message: Message, config: GuildConfig): Promise<void> {
-    const channel = await client.channels.fetch(message.channel_id).catch(() => null) as GuildTextBasedChannel | null;
-    if (!channel) return;
-
-    const reference = message.reference_id
-        ? await MessageCache.get(message.reference_id)
-        : null;
-
-    if (
-        message.content!.length > EMBED_FIELD_CHAR_LIMIT ||
-        (reference?.content && reference.content.length > EMBED_FIELD_CHAR_LIMIT)
-    ) {
-        await handleMessageBulkDeleteLog([message], channel, config);
-        return;
-    }
-
-    await handleMessageShortDeleteLog(message, channel, config);
-}
-
-async function handleMessageShortDeleteLog(message: Message, channel: GuildTextBasedChannel, config: GuildConfig): Promise<void> {
+export async function handleShortMessageDeleteLog(
+    message: Message,
+    channel: GuildTextBasedChannel,
+    config: GuildConfig
+): Promise<DiscordMessage<true>[] | null> {
     const messageURL = messageLink(message.channel_id, message.id, config.guild.id);
     const maskedJumpURL = hyperlink("Jump to location", messageURL);
 
@@ -118,7 +127,7 @@ async function handleMessageShortDeleteLog(message: Message, channel: GuildTextB
         await prependReferenceLog(reference, embeds);
     }
 
-    await log({
+    return log({
         event: LoggingEvent.MessageDelete,
         message: { embeds },
         channel,

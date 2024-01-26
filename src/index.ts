@@ -1,5 +1,5 @@
 import { Client, GatewayIntentBits, Partials } from "discord.js";
-import { loadListeners } from "./handlers/events/loader.ts";
+import { loadListeners, loadReadyListener } from "./handlers/events/loader.ts";
 import { EXIT_EVENTS } from "./utils/constants.ts";
 import { PrismaClient } from "@prisma/client";
 import { handleProcessExit } from "./utils";
@@ -28,8 +28,12 @@ if (!process.env.DISCORD_TOKEN) {
 // Database client
 export const prisma = new PrismaClient();
 
-// Discord client
-export const client = new Client({
+/*
+ * ### Discord Client
+ *
+ * Since `client.login()` is called first, we can safely assume that the client is logged in
+ */
+export const client: Client<true> = new Client({
     intents: [
         GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.GuildVoiceStates,
@@ -45,15 +49,9 @@ export const client = new Client({
 });
 
 async function main(): Promise<void> {
-    const transaction = Sentry.startInactiveSpan({
-        name: "Initialize bot",
-        op: "init"
-    })!;
-
-    await loadListeners();
+    await loadReadyListener();
     await client.login(process.env.DISCORD_TOKEN);
-
-    transaction.end();
+    await loadListeners();
 }
 
 // Perform closing operations on error
