@@ -43,7 +43,7 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
         const member = interaction.options.getMember("member");
 
         if (member && member.roles.highest.position >= interaction.member.roles.highest.position) {
-            return "You can't kick someone with the same or higher role than you";
+            return "You can't ban someone with the same or higher role than you";
         }
 
         const user = member?.user ?? interaction.options.getUser("user", true);

@@ -9,7 +9,7 @@ import { MessageCache, prepareMessageForStorage } from "../utils/messages.ts";
 import { handleMessageBulkDeleteLog } from "../events/MessageBulkDelete.ts";
 import { handleShortMessageDeleteLog } from "../events/MessageDelete.ts";
 import { InteractionReplyData } from "../utils/types.ts";
-import { ConfigManager } from "../utils/config.ts";
+import { ConfigManager, GuildConfig } from "../utils/config.ts";
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
 import { pluralize } from "../utils";
@@ -99,19 +99,12 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
             return Promise.resolve("No messages were purged.");
         }
 
-        let logs: DiscordMessage<true>[];
-
-        if (messages.length === 1) {
-            logs = await handleShortMessageDeleteLog(messages[0], interaction.channel, config) ?? [];
-        } else {
-            logs = await handleMessageBulkDeleteLog(messages, interaction.channel, config) ?? [];
-        }
-
-        const logURLs = logs.map(log => log.url);
+        const logURLs = await handlePurgeLog(messages, interaction.channel, config);
 
         return `${response}: ${logURLs.join(" ")}`;
     }
 
+    // @returns The purged messages
     async purgeAll(channel: GuildTextBasedChannel, amount: number): Promise<Message[]> {
         const messages = await channel.messages.fetch({ limit: amount });
         const serializedMessages = messages.map(message => prepareMessageForStorage(message));
@@ -129,7 +122,21 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
     }
 }
 
-async function purgeUser(targetId: Snowflake, channel: GuildTextBasedChannel, amount: number): Promise<Message[]> {
+// @returns The message URLs of the logs
+export async function handlePurgeLog(messages: Message[], channel: GuildTextBasedChannel, config: GuildConfig): Promise<string[]> {
+    let logs: DiscordMessage<true>[];
+
+    if (messages.length === 1) {
+        logs = await handleShortMessageDeleteLog(messages[0], channel, config) ?? [];
+    } else {
+        logs = await handleMessageBulkDeleteLog(messages, channel, config) ?? [];
+    }
+
+    return logs.map(log => log.url);
+}
+
+// @returns The purged messages
+export async function purgeUser(targetId: Snowflake, channel: GuildTextBasedChannel, amount: number): Promise<Message[]> {
     const messages = await MessageCache.getByUser(targetId, channel.id, amount);
     const messageIds = messages.map(message => message.id);
 

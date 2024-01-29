@@ -19,30 +19,31 @@ export class ConfigManager {
             const [guildId] = file.split(".");
 
             const parsedConfig = readYamlFile(`configs/${file}`);
-            const config = await setConfigDefaults(guildId, parsedConfig);
+            const config = await setGuildConfigDefaults(guildId, parsedConfig);
 
-            ConfigManager.addGuildConfig(guildId, config);
+            validateGuildConfig(config);
+            this.addGuildConfig(guildId, config);
         }
     }
 
     static loadGlobalConfig(): void {
-        ConfigManager.globalConfig = readYamlFile<GlobalConfig>("azalea.cfg.yml");
+        this.globalConfig = readYamlFile<GlobalConfig>("azalea.cfg.yml");
     }
 
     static addGuildConfig(guildId: Snowflake, config: GuildConfig): GuildConfig {
-        return ConfigManager.guildConfigs.set(guildId, config).first()!;
+        return this.guildConfigs.set(guildId, config).first()!;
     }
 
     static getGuildConfig(guildId: Snowflake, exists: true): GuildConfig;
     static getGuildConfig(guildId: Snowflake, exists?: false): GuildConfig | undefined;
     static getGuildConfig(guildId: Snowflake, exists?: boolean): GuildConfig | undefined {
         return exists
-            ? ConfigManager.guildConfigs.get(guildId)!
-            : ConfigManager.guildConfigs.get(guildId);
+            ? this.guildConfigs.get(guildId)!
+            : this.guildConfigs.get(guildId);
     }
 }
 
-export async function setConfigDefaults(guildId: Snowflake, data: unknown): Promise<GuildConfig> {
+async function setGuildConfigDefaults(guildId: Snowflake, data: unknown): Promise<GuildConfig> {
     const guild = await client.guilds.fetch(guildId).catch(() => {
         throw new Error("Failed to load config, unknown guild ID");
     });
@@ -54,6 +55,7 @@ export async function setConfigDefaults(guildId: Snowflake, data: unknown): Prom
 
     const configDefaults: GuildConfig = {
         guild,
+        default_purge_amount: 100,
         ephemeral_scoping: channelScopingDefaults,
         logging: {
             default_scoping: channelScopingDefaults,
@@ -73,6 +75,16 @@ export async function setConfigDefaults(guildId: Snowflake, data: unknown): Prom
     }
 
     return config;
+}
+
+function validateGuildConfig(config: GuildConfig): void {
+    if (config.default_purge_amount < 1 || config.default_purge_amount > 100) {
+        throw new Error("Invalid default purge amount, the value must be between 1 and 100 (inclusive)");
+    }
+
+    if (!Number.isInteger(config.default_purge_amount)) {
+        throw new Error("Invalid default purge amount, the value must be an integer");
+    }
 }
 
 export function inScope(scoping: ChannelScoping, channel: GuildBasedChannel): boolean {
@@ -133,6 +145,8 @@ interface Logging {
 export interface GuildConfig {
     logging: Logging;
     ephemeral_scoping: ChannelScoping;
+    // Value must be between 1 and 100 (inclusive) - Default: 100
+    default_purge_amount: number;
     guild: Guild;
 }
 
