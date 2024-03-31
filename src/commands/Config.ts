@@ -1,9 +1,9 @@
 import { ApplicationCommandOptionType, AttachmentBuilder, ChatInputCommandInteraction } from "discord.js";
-import { InteractionReplyData } from "../utils/types.ts";
-import { ConfigManager } from "../utils/config.ts";
+import { InteractionReplyData } from "@utils/types";
 import { Snowflake } from "discord-api-types/v10";
 
-import Command from "../handlers/commands/Command.ts";
+import ConfigManager from "@managers/config/ConfigManager";
+import Command from "@managers/commands/Command";
 import YAML from "yaml";
 
 export default class Config extends Command<ChatInputCommandInteraction<"cached">> {

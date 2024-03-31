@@ -15,17 +15,18 @@ import {
     MessageCache,
     prepareMessageForStorage,
     prependReferenceLog
-} from "../utils/messages.ts";
+} from "@utils/messages";
 
-import { ConfigManager, GuildConfig, LoggingEvent } from "../utils/config.ts";
-import { handleMessageBulkDeleteLog } from "./MessageBulkDelete.ts";
-import { EMBED_FIELD_CHAR_LIMIT } from "../utils/constants.ts";
-import { log } from "../utils/logging.ts";
+import { channelMentionWithName, userMentionWithId } from "@/utils";
+import { handleMessageBulkDeleteLog } from "./MessageBulkDelete";
+import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
+import { log } from "@utils/logging";
 import { Message } from "@prisma/client";
-import { client } from "../index.ts";
+import { client } from "./..";
 
-import EventListener from "../handlers/events/EventListener.ts";
-import { channelMentionWithName, userMentionWithId } from "../utils";
+import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import ConfigManager from "@managers/config/ConfigManager";
+import EventListener from "@managers/events/EventListener";
 
 export default class MessageDeleteEventListener extends EventListener {
     constructor() {
@@ -36,25 +37,26 @@ export default class MessageDeleteEventListener extends EventListener {
         if (deletedMessage.author?.bot) return;
 
         let message = await MessageCache.delete(deletedMessage.id);
-
         const isPurged = MessageCache.purgeQueue.some(purged => purged.messages[0].id === deletedMessage.id);
 
         // Handled by the purge command
         if (isPurged) return;
 
+        // Serialize the message passed by the event
+        // If there is sufficient data
         if (!message && !deletedMessage.partial && deletedMessage.inGuild()) {
             message = prepareMessageForStorage(deletedMessage);
         }
 
-        if (!message?.content) return;
+        if (!message) return;
 
         const config = ConfigManager.getGuildConfig(message.guild_id);
         if (!config) return;
 
-        await this.handleLog(message, config).catch(() => null);
+        this.handleMessageDeleteLog(message, config).catch(() => null);
     }
 
-    async handleLog(message: Message, config: GuildConfig): Promise<void> {
+    async handleMessageDeleteLog(message: Message, config: GuildConfig): Promise<void> {
         const channel = await client.channels.fetch(message.channel_id).catch(() => null) as GuildTextBasedChannel | null;
         if (!channel) return;
 
@@ -62,6 +64,8 @@ export default class MessageDeleteEventListener extends EventListener {
             ? await MessageCache.get(message.reference_id)
             : null;
 
+        // Ensure the message doesn't exceed the character limit
+        // Prior to trying to log it in an embed
         if (
             message.content!.length > EMBED_FIELD_CHAR_LIMIT ||
             (reference?.content && reference.content.length > EMBED_FIELD_CHAR_LIMIT)
@@ -74,6 +78,13 @@ export default class MessageDeleteEventListener extends EventListener {
     }
 }
 
+/**
+ * Handles logging messages that do not exceed the embed character limit
+ *
+ * @param message - The message to log
+ * @param channel - The channel the message was deleted in
+ * @param config - The guild's configuration
+ */
 export async function handleShortMessageDeleteLog(
     message: Message,
     channel: GuildTextBasedChannel,
@@ -96,7 +107,6 @@ export async function handleShortMessageDeleteLog(
         ])
         .setTimestamp(message.created_at);
 
-    // Messages with stickers don't have content
     if (message.sticker_id) {
         const sticker = await client.fetchSticker(message.sticker_id).catch(() => null);
 
@@ -114,7 +124,9 @@ export async function handleShortMessageDeleteLog(
                 value: fieldValue
             });
         }
-    } else {
+    }
+
+    if (message.content) {
         embed.addFields({
             name: "Content",
             value: formatMessageContentForLog(message.content)

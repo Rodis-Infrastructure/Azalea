@@ -1,16 +1,28 @@
-import { humanizeTimestamp, userMentionWithId } from "./index.ts";
-import { GuildConfig, LoggingEvent } from "./config.ts";
+import { humanizeTimestamp, userMentionWithId } from "./index";
 import { Infraction, Prisma } from "@prisma/client";
 import { Colors, EmbedBuilder } from "discord.js";
 import { Snowflake } from "discord-api-types/v10";
-import { prisma } from "../index.ts";
-import { log } from "./logging.ts";
+import { prisma } from "./..";
+import { log } from "./logging";
 
+import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
 import Sentry from "@sentry/node";
 
+/**
+ * Handles the creation of a new infraction by:
+ *
+ * - Storing the infraction in the database.
+ * - Logging the infraction in the appropriate channel.
+ *
+ * @param data - The infraction data to store in the database.
+ * @param config - The guild configuration.
+ * @returns The newly created infraction, or null if an error occurred.
+ */
 export async function handleInfractionCreate(data: Prisma.InfractionCreateInput, config: GuildConfig): Promise<Infraction | null> {
     let infraction: Infraction;
 
+    // Attempt to store the infraction in the database.
+    // If an error occurs, pass it to sentry and terminate the function.
     try {
         infraction = await prisma.infraction.create({ data });
     } catch (error) {
@@ -18,53 +30,51 @@ export async function handleInfractionCreate(data: Prisma.InfractionCreateInput,
         return null;
     }
 
-    const title = [infraction.flag, infraction.action]
+    const embedTitle = [infraction.flag, infraction.action]
         .filter(Boolean)
         .join(" ");
 
     const embed = new EmbedBuilder()
         .setColor(Colors.NotQuiteBlack)
         .setAuthor({ name: "Infraction Created" })
-        .setTitle(title)
+        .setTitle(embedTitle)
         .setFields([
-            {
-                name: "Executor",
-                value: userMentionWithId(infraction.executor_id)
-            },
-            {
-                name: "Target",
-                value: userMentionWithId(infraction.target_id)
-            },
-            {
-                name: "Reason",
-                value: infraction.reason
-            }
+            { name: "Executor", value: userMentionWithId(infraction.executor_id) },
+            { name: "Target", value: userMentionWithId(infraction.target_id) },
+            { name: "Reason", value: infraction.reason }
         ])
         .setFooter({ text: `#${infraction.id}` })
         .setTimestamp();
 
-    // Since the infraction is new, we can assume that the expiration date is in the future.
+    // Append the expiration date to the embed if it exists.
     if (infraction.expires_at) {
+        // Since the infraction is new, we can assume that the expiration date is in the future.
         const dateDiff = infraction.expires_at.getTime() - Date.now();
         const staticDuration = humanizeTimestamp(dateDiff);
 
+        // Insert the duration field at the third position in the embed (after the target field)
         embed.spliceFields(2, 0, {
             name: "Duration",
             value: staticDuration
         });
     }
 
-    await log({
+    // Log the infraction in the appropriate channel.
+    log({
         event: LoggingEvent.InfractionCreate,
         message: { embeds: [embed] },
         channel: null,
         config
     });
 
+    // Return the newly created infraction.
     return infraction;
 }
 
-export async function handleInfractionArchive(data: { id: number, archived_by: Snowflake }, config: GuildConfig): Promise<void> {
+export async function handleInfractionArchive(data: {
+    id: number,
+    archived_by: Snowflake
+}, config: GuildConfig): Promise<void> {
     const { id, archived_by } = data;
 
     let infraction: Infraction;
@@ -98,7 +108,10 @@ export async function handleInfractionArchive(data: { id: number, archived_by: S
     });
 }
 
-export async function handleInfractionUnarchive(data: { id: number, unarchived_by: Snowflake }, config: GuildConfig): Promise<void> {
+export async function handleInfractionUnarchive(data: {
+    id: number,
+    unarchived_by: Snowflake
+}, config: GuildConfig): Promise<void> {
     const { id, unarchived_by } = data;
 
     let infraction: Infraction;

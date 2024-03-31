@@ -5,16 +5,17 @@ import {
     GuildTextBasedChannel
 } from "discord.js";
 
-import { MessageCache, prepareMessageForStorage } from "../utils/messages.ts";
-import { handleMessageBulkDeleteLog } from "../events/MessageBulkDelete.ts";
-import { handleShortMessageDeleteLog } from "../events/MessageDelete.ts";
-import { InteractionReplyData } from "../utils/types.ts";
-import { ConfigManager, GuildConfig } from "../utils/config.ts";
+import { MessageCache, prepareMessageForStorage } from "@utils/messages";
+import { handleMessageBulkDeleteLog } from "@/events/MessageBulkDelete";
+import { handleShortMessageDeleteLog } from "@/events/MessageDelete";
+import { InteractionReplyData } from "@utils/types";
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
-import { pluralize } from "../utils";
+import { pluralize } from "@/utils";
 
-import Command from "../handlers/commands/Command.ts";
+import ConfigManager from "@managers/config/ConfigManager";
+import GuildConfig from "@managers/config/GuildConfig";
+import Command from "@managers/commands/Command";
 
 export default class Purge extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -61,33 +62,42 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
 
     async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-        const subcommand = interaction.options.getSubcommand() as PurgeSubcommand;
+        const subcommand = interaction.options.getSubcommand(true) as PurgeSubcommand;
         const amount = interaction.options.getInteger("amount") ?? 100;
 
+        // Check if the bot can access the channel
+        // This is necessary for purging messages
         if (!interaction.channel) {
             return Promise.resolve("Failed to get the channel.");
         }
 
+        // The purged messages
         let messages: Message[];
+        // The response to send
         let response: string;
 
         switch (subcommand) {
+            // Purge messages from a user
             case PurgeSubcommand.User: {
                 const targetMember = interaction.options.getMember("user");
 
+                // Compare roles to ensure the executor has permission to ban the target
                 if (targetMember && targetMember.roles.highest.position >= interaction.member.roles.highest.position) {
                     return Promise.resolve("You cannot purge messages from a user with a higher role than you.");
                 }
 
                 const target = targetMember ?? interaction.options.getUser("user", true);
 
+                // Purge the user's messages
                 messages = await purgeUser(target.id, interaction.channel, amount);
                 response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")} by ${target}`;
 
                 break;
             }
 
+            // Purge all recent messages in the channel
             case PurgeSubcommand.All: {
+                // Purge the channel's recent messages
                 messages = await this.purgeAll(interaction.channel, amount);
                 response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")}`;
 
@@ -95,59 +105,90 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
             }
         }
 
+        // If no messages were purged, don't respond with an amount
         if (!messages.length) {
             return Promise.resolve("No messages were purged.");
         }
 
+        // Link to the log for ease of access
         const logURLs = await handlePurgeLog(messages, interaction.channel, config);
 
         return `${response}: ${logURLs.join(" ")}`;
     }
 
-    // @returns The purged messages
+    /**
+     * Purges messages sent by anyone in a channel
+     *
+     * @param channel - The channel to purge messages from
+     * @param amount - The maximum amount of messages to purge
+     * @returns The purged messages
+     */
     async purgeAll(channel: GuildTextBasedChannel, amount: number): Promise<Message[]> {
+        // Fetch recently sent messages in the channel
         const messages = await channel.messages.fetch({ limit: amount });
+        // Serialize the messages for storage
         const serializedMessages = messages.map(message => prepareMessageForStorage(message));
 
         if (!messages.size) return [];
 
+        // Append the messages to the purge queue for logging
         MessageCache.purgeQueue.push({
             channelId: channel.id,
             messages: serializedMessages
         });
 
-        // Bulk deletion must occur after the messages are cached
+        // Purge the messages
         await channel.bulkDelete(messages);
         return serializedMessages;
     }
 }
 
-// @returns The message URLs of the logs
+/**
+ * Handles logging for message purging
+ *
+ * @param messages - The messages that were purged
+ * @param channel - The channel the messages were purged from
+ * @param config - The guild's configuration
+ * @returns The URLs to the logs
+ */
 export async function handlePurgeLog(messages: Message[], channel: GuildTextBasedChannel, config: GuildConfig): Promise<string[]> {
     let logs: DiscordMessage<true>[];
 
+    // If only one message was purged, log it as a single message
+    // Otherwise, log them in a text file
     if (messages.length === 1) {
         logs = await handleShortMessageDeleteLog(messages[0], channel, config) ?? [];
     } else {
         logs = await handleMessageBulkDeleteLog(messages, channel, config) ?? [];
     }
 
+    // Link to the logs for ease of access
     return logs.map(log => log.url);
 }
 
-// @returns The purged messages
+/**
+ * Purges messages from a user in a channel
+ *
+ * @param targetId - The ID of the user to purge messages from
+ * @param channel - The channel to purge messages from
+ * @param amount - The maximum amount of messages to purge
+ * @returns The purged messages
+ */
 export async function purgeUser(targetId: Snowflake, channel: GuildTextBasedChannel, amount: number): Promise<Message[]> {
+    // Get the user's messages from cache or the database
     const messages = await MessageCache.getByUser(targetId, channel.id, amount);
+    // Map the messages by their IDs
     const messageIds = messages.map(message => message.id);
 
     if (!messages.length) return [];
 
+    // Append the messages to the purge queue for logging
     MessageCache.purgeQueue.push({
         channelId: channel.id,
         messages: messages
     });
 
-    // Bulk deletion must occur after the messages are cached
+    // Purge the messages
     await channel.bulkDelete(messageIds);
     return messages;
 }

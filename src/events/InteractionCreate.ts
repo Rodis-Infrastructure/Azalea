@@ -1,11 +1,12 @@
 import { AutocompleteInteraction, Colors, EmbedBuilder, Events, Interaction } from "discord.js";
-import { ConfigManager, GuildConfig, inScope, LoggingEvent } from "../utils/config.ts";
-import { ComponentManager } from "../handlers/components/ComponentManager.ts";
-import { CommandManager } from "../handlers/commands/CommandManager.ts";
-import { InteractionReplyData } from "../utils/types.ts";
-import { log } from "../utils/logging.ts";
+import { InteractionReplyData } from "@utils/types";
+import { log } from "@utils/logging";
 
-import EventListener from "../handlers/events/EventListener.ts";
+import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import ComponentManager from "@managers/components/ComponentManager";
+import CommandManager from "@managers/commands/CommandManager";
+import EventListener from "@managers/events/EventListener";
+import ConfigManager from "@managers/config/ConfigManager";
 import Sentry from "@sentry/node";
 
 export default class InteractionCreate extends EventListener {
@@ -57,23 +58,21 @@ export default class InteractionCreate extends EventListener {
                 ephemeral: true
             }).catch(() => null);
         } finally {
-            await this.handleLog(interaction, config);
+            this.handleInteractionCreateLog(interaction, config);
         }
     }
 
     async handleInteraction(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
         const ephemeralReply = interaction.channel
-            ? inScope(config.ephemeral_scoping, interaction.channel)
+            ? config.inLoggingScope(interaction.channel)
             : true;
 
         let response: InteractionReplyData | null;
 
         if (interaction.isCommand()) {
-            const command = CommandManager.getCommand(interaction.commandName);
-            response = await command?.execute(interaction) ?? null;
+            response = await CommandManager.handleCommand(interaction);
         } else {
-            const component = ComponentManager.getComponent(interaction.customId);
-            response = await component?.execute(interaction) ?? null;
+            response = await ComponentManager.handle(interaction);
         }
 
         if (!response) {
@@ -103,10 +102,10 @@ export default class InteractionCreate extends EventListener {
         }
     }
 
-    async handleLog(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
+    handleInteractionCreateLog(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): void {
         if (!interaction.channel) return;
 
-        const interactionName = this.parseInteraction(interaction);
+        const interactionName = this.parseInteractionName(interaction);
         const embed = new EmbedBuilder()
             .setColor(Colors.Grey)
             .setAuthor({ name: "Interaction Used" })
@@ -124,7 +123,7 @@ export default class InteractionCreate extends EventListener {
             ])
             .setTimestamp();
 
-        await log({
+        log({
             event: LoggingEvent.InteractionCreate,
             channel: interaction.channel,
             message: { embeds: [embed] },
@@ -132,8 +131,8 @@ export default class InteractionCreate extends EventListener {
         });
     }
 
-    // @returns The interaction's name or custom ID
-    parseInteraction(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>): string {
+    /** @returns The interaction's name or custom ID */
+    parseInteractionName(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>): string {
         if (interaction.isChatInputCommand()) {
             const subcommand = interaction.options.getSubcommand(false);
 

@@ -7,6 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Request {
+  id              String   @id
+  author_id       String
+  target_id       String
+  guild_id        String
+  reason          String
+  punishment_type String
+  status          String   @default("pending")
+  created_at      DateTime @default(now())
+  duration        Int?
+}
+
 model Message {
   id           String   @id
   author_id    String

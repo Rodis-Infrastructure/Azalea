@@ -1,7 +1,9 @@
+import { MessageCache, resolvePartialMessage } from "@utils/messages";
+import { handleModerationRequest } from "@utils/requests";
 import { Events, Message, PartialMessage } from "discord.js";
 
-import EventListener from "../handlers/events/EventListener.ts";
-import { resolvePartialMessage, MessageCache } from "../utils/messages.ts";
+import ConfigManager from "@managers/config/ConfigManager";
+import EventListener from "@managers/events/EventListener";
 
 export default class MessageCreateEventListener extends EventListener {
     constructor() {
@@ -13,5 +15,11 @@ export default class MessageCreateEventListener extends EventListener {
         if (!message || message.author.bot) return;
 
         MessageCache.set(message);
+
+        const config = ConfigManager.getGuildConfig(message.guild.id);
+        if (!config) return;
+
+        // Source channel conditions are handled within the function
+        await handleModerationRequest(message, config);
     }
 }

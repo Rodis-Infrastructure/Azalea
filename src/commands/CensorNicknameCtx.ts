@@ -1,9 +1,9 @@
 import { ApplicationCommandType, UserContextMenuCommandInteraction } from "discord.js";
-import { handleCensorNickname } from "./CensorNickname.ts";
-import { InteractionReplyData } from "../utils/types.ts";
-import { ConfigManager } from "../utils/config.ts";
+import { handleCensorNickname } from "./CensorNickname";
+import { InteractionReplyData } from "@utils/types";
 
-import Command from "../handlers/commands/Command.ts";
+import ConfigManager from "@managers/config/ConfigManager";
+import Command from "@managers/commands/Command";
 
 export default class CensorNicknameCtx extends Command<UserContextMenuCommandInteraction<"cached">> {
     constructor() {

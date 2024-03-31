@@ -1,10 +1,10 @@
-import Command from "../handlers/commands/Command.ts";
-
 import { ApplicationCommandType, MessageContextMenuCommandInteraction } from "discord.js";
-import { InteractionReplyData } from "../utils/types.ts";
-import { handlePurgeLog, purgeUser } from "./Purge.ts";
-import { ConfigManager } from "../utils/config.ts";
-import { pluralize } from "../utils";
+import { InteractionReplyData } from "@utils/types";
+import { handlePurgeLog, purgeUser } from "./Purge";
+import { pluralize } from "@/utils";
+
+import ConfigManager from "@managers/config/ConfigManager";
+import Command from "@managers/commands/Command";
 
 export default class PurgeCtx extends Command<MessageContextMenuCommandInteraction<"cached">> {
     constructor() {
@@ -29,7 +29,7 @@ export default class PurgeCtx extends Command<MessageContextMenuCommandInteracti
         const messages = await purgeUser(
             interaction.targetMessage.author.id,
             interaction.channel,
-            config.default_purge_amount
+            config.data.default_purge_amount
         );
 
         if (!messages.length) {

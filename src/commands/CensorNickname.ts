@@ -6,13 +6,14 @@ import {
     GuildMember
 } from "discord.js";
 
-import { ConfigManager, GuildConfig, LoggingEvent } from "../utils/config.ts";
-import { InteractionReplyData } from "../utils/types.ts";
+import { InteractionReplyData } from "@utils/types";
 import { Snowflake } from "discord-api-types/v10";
-import { userMentionWithId } from "../utils";
-import { log } from "../utils/logging.ts";
+import { userMentionWithId } from "@/utils";
+import { log } from "@utils/logging";
 
-import Command from "../handlers/commands/Command.ts";
+import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import ConfigManager from "@managers/config/ConfigManager";
+import Command from "@managers/commands/Command";
 
 export default class CensorNickname extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -50,6 +51,10 @@ export async function handleCensorNickname(executorId: Snowflake, target: GuildM
         return "You can't censor the nickname of someone who has roles";
     }
 
+    if (!target.manageable) {
+        return "I do not have permission to censor this user's nickname";
+    }
+
     // Random 5-digit number
     const rand = Math.floor(Math.random() * 90000) + 10000;
     const oldNickname = target.displayName;
@@ -80,7 +85,7 @@ export async function handleCensorNickname(executorId: Snowflake, target: GuildM
         ])
         .setTimestamp();
 
-    await log({
+    log({
         event: LoggingEvent.InfractionCreate,
         message: { embeds: [embed] },
         channel: null,

@@ -1,10 +1,11 @@
 import { ApplicationCommandType, Attachment, MessageContextMenuCommandInteraction } from "discord.js";
-import { ConfigManager, LoggingEvent } from "../utils/config.ts";
-import { InteractionReplyData } from "../utils/types.ts";
-import { log } from "../utils/logging.ts";
-import { pluralize } from "../utils";
+import { LoggingEvent } from "@managers/config/GuildConfig";
+import { InteractionReplyData } from "@utils/types";
+import { log } from "@utils/logging";
+import { pluralize } from "@/utils";
 
-import Command from "../handlers/commands/Command.ts";
+import ConfigManager from "@managers/config/ConfigManager";
+import Command from "@managers/commands/Command";
 
 export default class StoreMediaCtx extends Command<MessageContextMenuCommandInteraction<"cached">> {
     constructor() {
@@ -38,7 +39,6 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
         }
 
         const logURLs = loggedMessages.map(message => message.url);
-
         return `Stored \`${files.length}\` ${pluralize(files.length, "attachment")} from ${interaction.targetMessage.member} - ${logURLs.join(" ")}`;
     }
 }

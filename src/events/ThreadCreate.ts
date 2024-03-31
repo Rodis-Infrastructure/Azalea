@@ -1,49 +1,50 @@
 import { Colors, EmbedBuilder, Events, ThreadChannel } from "discord.js";
-import { ConfigManager, GuildConfig, LoggingEvent } from "../utils/config.ts";
-import { log } from "../utils/logging.ts";
+import { channelMentionWithName, userMentionWithId } from "@/utils";
+import { log } from "@utils/logging";
 
-import EventListener from "../handlers/events/EventListener.ts";
-import { channelMentionWithName, userMentionWithId } from "../utils";
+import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import ConfigManager from "@managers/config/ConfigManager";
+import EventListener from "@managers/events/EventListener";
 
 export default class ThreadCreateEventListener extends EventListener {
     constructor() {
         super(Events.ThreadCreate);
     }
 
-    async execute(thread: ThreadChannel): Promise<void> {
+    execute(thread: ThreadChannel): void {
         const config = ConfigManager.getGuildConfig(thread.guildId);
         if (!config) return;
 
-        await handleThreadCreateLog(thread, config);
+        this.handleThreadCreateLog(thread, config);
     }
-}
 
-async function handleThreadCreateLog(thread: ThreadChannel, config: GuildConfig): Promise<void> {
-    if (!thread.ownerId || !thread.parent) return;
+    handleThreadCreateLog(thread: ThreadChannel, config: GuildConfig): void {
+        if (!thread.ownerId || !thread.parent) return;
 
-    const embed = new EmbedBuilder()
-        .setColor(Colors.Green)
-        .setAuthor({ name: "Thread Created" })
-        .setFields([
-            {
-                name: "Owner",
-                value: userMentionWithId(thread.ownerId)
-            },
-            {
-                name: "Parent Channel",
-                value: channelMentionWithName(thread.parent)
-            },
-            {
-                name: "Thread",
-                value: channelMentionWithName(thread)
-            }
-        ])
-        .setTimestamp();
+        const embed = new EmbedBuilder()
+            .setColor(Colors.Green)
+            .setAuthor({ name: "Thread Created" })
+            .setFields([
+                {
+                    name: "Owner",
+                    value: userMentionWithId(thread.ownerId)
+                },
+                {
+                    name: "Parent Channel",
+                    value: channelMentionWithName(thread.parent)
+                },
+                {
+                    name: "Thread",
+                    value: channelMentionWithName(thread)
+                }
+            ])
+            .setTimestamp();
 
-    await log({
-        event: LoggingEvent.ThreadCreate,
-        message: { embeds: [embed] },
-        channel: thread.parent,
-        config
-    });
+        log({
+            event: LoggingEvent.ThreadCreate,
+            message: { embeds: [embed] },
+            channel: thread.parent,
+            config
+        });
+    }
 }

@@ -1,10 +1,10 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
-import { EMBED_FIELD_CHAR_LIMIT, EMPTY_INFRACTION_REASON } from "../utils/constants.ts";
-import { handleInfractionCreate } from "../utils/infractions.ts";
-import { Action, InteractionReplyData } from "../utils/types.ts";
-import { ConfigManager } from "../utils/config.ts";
+import { EMBED_FIELD_CHAR_LIMIT, EMPTY_INFRACTION_REASON } from "@utils/constants";
+import { handleInfractionCreate } from "@utils/infractions";
+import { Action, InteractionReplyData } from "@utils/types";
 
-import Command from "../handlers/commands/Command.ts";
+import ConfigManager from "@managers/config/ConfigManager";
+import Command from "@managers/commands/Command";
 
 export default class Unban extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -31,19 +31,24 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
     async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const reason = interaction.options.getString("reason") ?? EMPTY_INFRACTION_REASON;
-        const member = interaction.options.getMember("member");
+        const user = interaction.options.getUser("user", true);
 
-        if (member) {
+        // Check if the user is banned by fetching their ban
+        // If they are banned, the method will return their ban data
+        // Otherwise, it will return null
+        const ban = await interaction.guild.bans.fetch(user.id).catch(() => null);
+
+        if (!ban) {
             return "This user is not banned";
         }
 
-        const user = interaction.options.getUser("user", true);
+        // Unban the user
         await interaction.guild.members.unban(user, reason);
 
         const infraction = await handleInfractionCreate({
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,
-            action: Action.Ban,
+            action: Action.Unban,
             target_id: user.id,
             reason
         }, config);

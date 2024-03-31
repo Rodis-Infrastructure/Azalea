@@ -1,10 +1,10 @@
 import { Snowflake } from "discord-api-types/v10";
 import { GuildBasedChannel, ThreadChannel } from "discord.js";
-import { MessageCache } from "./messages.ts";
-import { ObjectDiff } from "./types.ts";
-import { prisma } from "../index.ts";
+import { MessageCache } from "./messages";
+import { ObjectDiff } from "./types";
+import { prisma } from "./..";
 
-import Logger, { AnsiColor } from "./logger.ts";
+import Logger, { AnsiColor } from "./logger";
 
 import YAML from "yaml";
 import _ from "lodash";
@@ -56,6 +56,7 @@ async function terminateDbConnection(): Promise<void> {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getObjectDiff(oldObject: any, newObject: any): ObjectDiff {
+    // Make sure both parameters are objects
     if (typeof oldObject !== "object" || typeof newObject !== "object") {
         throw new Error("Both arguments must be objects");
     }
@@ -64,7 +65,9 @@ export function getObjectDiff(oldObject: any, newObject: any): ObjectDiff {
     const keys = Object.keys(oldObject);
 
     for (const key of keys) {
+        // Compare the values of the keys in the old and new objects
         if (!_.isEqual(oldObject[key], newObject[key])) {
+            // Store old and new values in the difference object
             difference[key] = {
                 old: oldObject[key],
                 new: newObject[key]

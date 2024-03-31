@@ -1,13 +1,11 @@
 {
   "compilerOptions": {
-	"lib": [
-	  "ESNext"
-	],
-	"module": "esnext",
-	"target": "esnext",
+	"lib": ["ESNext"],
+	"module": "ESNext",
+	"target": "ESNext",
+	"baseUrl": ".",
 	"moduleResolution": "bundler",
 	"moduleDetection": "force",
-	"allowImportingTsExtensions": true,
 	"noEmit": true,
 	"composite": true,
 	"strict": true,
@@ -15,15 +13,16 @@
 	"skipLibCheck": true,
 	"allowSyntheticDefaultImports": true,
 	"forceConsistentCasingInFileNames": true,
-	"allowJs": true,
-	"types": [
-	  "bun-types"
-	  // add Bun global
-	]
+	"types": ["bun-types"],
+	"paths": {
+	  "@/*": ["src/*"],
+	  "@utils/*": ["src/utils/*"],
+	  "@managers/*": ["src/managers/*"],
+	}
   },
   "include": [
 	"./data/**/*.json",
 	"./src/**/*",
-	"./tests/**/*",
+	"./tests/**/*"
   ]
 }

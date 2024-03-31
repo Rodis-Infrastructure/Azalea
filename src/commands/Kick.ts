@@ -1,10 +1,10 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
-import { handleInfractionCreate } from "../utils/infractions.ts";
-import { Action, InteractionReplyData } from "../utils/types.ts";
-import { EMBED_FIELD_CHAR_LIMIT, EMPTY_INFRACTION_REASON } from "../utils/constants.ts";
-import { ConfigManager } from "../utils/config.ts";
+import { handleInfractionCreate } from "@utils/infractions";
+import { Action, InteractionReplyData } from "@utils/types";
+import { EMBED_FIELD_CHAR_LIMIT, EMPTY_INFRACTION_REASON } from "@utils/constants";
 
-import Command from "../handlers/commands/Command.ts";
+import ConfigManager from "@managers/config/ConfigManager";
+import Command from "@managers/commands/Command";
 
 export default class Kick extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -33,14 +33,22 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
         const reason = interaction.options.getString("reason") ?? EMPTY_INFRACTION_REASON;
         const member = interaction.options.getMember("member");
 
+        // Check if the member is in the server
+        // Users that are not in the server cannot be kicked
         if (!member) {
             return "You can't kick someone who isn't in the server";
         }
 
+        // Compare roles to ensure the executor has permission to kick the target
         if (member.roles.highest.position >= interaction.member.roles.highest.position) {
             return "You can't kick someone with the same or higher role than you";
         }
 
+        if (!member.kickable) {
+            return "I do not have permission to kick this user";
+        }
+
+        // Kick the user
         await member.kick(reason);
 
         const infraction = await handleInfractionCreate({

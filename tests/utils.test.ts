@@ -1,4 +1,4 @@
-import { humanizeTimestamp, pluralize } from "../src/utils";
+import { humanizeTimestamp, pluralize } from "@/utils";
 import { describe, expect, test } from "bun:test";
 
 describe("utils", () => {

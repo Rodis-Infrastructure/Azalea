@@ -1,5 +1,4 @@
 import {
-    codeBlock,
     Collection,
     Colors,
     EmbedBuilder,
@@ -9,18 +8,20 @@ import {
     PartialMessage
 } from "discord.js";
 
-import { EMPTY_MESSAGE_CONTENT } from "./constants.ts";
+import { EMBED_FIELD_CHAR_LIMIT, EMPTY_MESSAGE_CONTENT } from "./constants";
 import { Snowflake } from "discord-api-types/v10";
-import { ConfigManager } from "./config.ts";
 import { Message } from "@prisma/client";
-import { pluralize, userMentionWithId } from "./index.ts";
-import { prisma } from "../index.ts";
+import { elipsify, pluralize, userMentionWithId } from "./index";
+import { prisma } from "./..";
 import { CronJob } from "cron";
 
-import Logger from "./logger.ts";
+import Logger from "./logger";
+import ConfigManager from "@managers/config/ConfigManager";
 
 export class MessageCache {
+    // Cache for messages that haven't been stored in the database yet
     private static dbQueue = new Collection<Snowflake, Message>();
+    // Queue for messages that need to be purged
     static purgeQueue: PurgeOptions[] = [];
 
     static async get(id: Snowflake): Promise<Message | null> {
@@ -33,7 +34,15 @@ export class MessageCache {
         return message;
     }
 
+    /**
+     * Get a user's messages from cache or the database
+     *
+     * @param userId - The target user's ID
+     * @param channelId - The source channel's ID
+     * @param limit - The maximum number of messages to return
+     */
     static async getByUser(userId: Snowflake, channelId: Snowflake, limit: number): Promise<Message[]> {
+        // Get cached non-deleted messages by the specified user in the specified channel
         const cachedMessages = this.dbQueue.filter(message =>
             message.author_id === userId &&
             message.channel_id === channelId &&
@@ -42,6 +51,7 @@ export class MessageCache {
 
         const messages = Array.from(cachedMessages.values());
 
+        // Fetch remaining messages from the database if an insufficient amount was cached
         if (messages.length < limit) {
             const stored = await prisma.$queryRaw<Message[]>`
                 SELECT *
@@ -53,6 +63,7 @@ export class MessageCache {
                     LIMIT ${limit - messages.length};
             `;
 
+            // Combined cached and stored messages
             return messages.concat(stored);
         }
 
@@ -64,27 +75,42 @@ export class MessageCache {
         this.dbQueue.set(message.id, serializedMessage);
     }
 
+    /**
+     * Update the deletion state of a message
+     * @param id - ID of the message to delete
+     */
     static async delete(id: Snowflake): Promise<Message | null> {
-        let message = this.dbQueue.get(id);
+        // Try to get the message form cache
+        let message = this.dbQueue.get(id) ?? null;
 
+        // Modify the cache if the message is cached
+        // Otherwise, update the message in the database
         if (message) {
             message.deleted = true;
         } else {
             message = await prisma.message.update({
                 data: { deleted: true },
                 where: { id }
-            });
+            }).catch(() => null);
         }
 
         return message;
     }
 
+    /**
+     * Update the deletion state of multiple messages in bulk
+     *
+     * @param messageCollection - The messages to delete
+     */
     static async deleteMany(messageCollection: Collection<Snowflake, PartialMessage | DiscordMessage<true>>): Promise<Message[]> {
         const ids = Array.from(messageCollection.keys());
+
+        // Try to get the messages from cache
         const messages = this.dbQueue.filter(message =>
             ids.includes(message.id) && !message.deleted
         );
 
+        // Update the deletion state of the cached messages
         const deletedMessages = messages.map(message => {
             message.deleted = true;
             return message;
@@ -99,22 +125,32 @@ export class MessageCache {
                 RETURNING *;
             `;
 
+            // Merge the cached and stored messages
             return deletedMessages.concat(dbDeletedMessages);
         }
 
         return deletedMessages;
     }
 
-    // @returns The old content
+    /**
+     * Update the content of a message in cache and/or the database
+     *
+     * @param id - ID of the message to update
+     * @param newContent - The new content of the message
+     */
     static async updateContent(id: Snowflake, newContent: string): Promise<string> {
+        // Try to get the message from cache
         const message = this.dbQueue.get(id);
 
+        // Modify the cache if the message is cached
         if (message) {
             const oldContent = message.content ?? EMPTY_MESSAGE_CONTENT;
             message.content = newContent;
+
             return oldContent;
         }
 
+        // Update the message in the database
         const { old_content } = await prisma.$queryRaw<{ old_content: string | null }>`
             UPDATE message
             SET content = ${newContent}
@@ -128,10 +164,11 @@ export class MessageCache {
         return old_content ?? EMPTY_MESSAGE_CONTENT;
     }
 
-    // Clear the cache and store the messages in the database
+    /** Clear the cache and store the messages in the database */
     static async clear(): Promise<void> {
         Logger.info("Storing cached messages...");
 
+        // Insert all cached messages into the database
         const insertPromises = this.dbQueue.map(message =>
             prisma.message.create({ data: message }).catch(() => null)
         );
@@ -139,6 +176,7 @@ export class MessageCache {
         await Promise.all(insertPromises);
         const insertedCount = this.dbQueue.size;
 
+        // Empty the cache
         this.dbQueue.clear();
 
         Logger.info(`Stored ${insertedCount} ${pluralize(insertedCount, "message")}`);
@@ -208,7 +246,7 @@ export async function prependReferenceLog(reference: Snowflake | Message, embeds
 
 // Escape code blocks, truncate the content if it's too long, and wrap it in a code block
 export function formatMessageContentForLog(content: string | null): string {
-    return content ? codeBlock(content) : "No message content";
+    return elipsify(content ?? EMPTY_MESSAGE_CONTENT, EMBED_FIELD_CHAR_LIMIT);
 }
 
 // Ignores messages that were sent in DMs. This function shouldn't be used on deleted messages
@@ -220,6 +258,14 @@ export async function resolvePartialMessage(message: PartialMessage | DiscordMes
     if (!fetchedMessage?.inGuild()) return null;
 
     return fetchedMessage;
+}
+
+export async function temporaryReply(message: DiscordMessage, content: string, ttl: number): Promise<void> {
+    const reply = await message.reply(content);
+
+    setTimeout(async () => {
+        await reply.delete().catch(() => null);
+    }, ttl);
 }
 
 interface PurgeOptions {

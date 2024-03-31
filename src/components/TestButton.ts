@@ -1,6 +1,7 @@
 import { ActionRowBuilder, ButtonInteraction, ModalBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
-import Component from "../handlers/components/Component.ts";
-import { InteractionReplyData } from "../utils/types.ts";
+import { InteractionReplyData } from "@utils/types";
+
+import Component from "@managers/components/Component";
 
 export default class TestButton extends Component {
     constructor() {

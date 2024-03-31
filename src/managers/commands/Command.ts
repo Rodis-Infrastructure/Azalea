@@ -1,0 +1,33 @@
+import { ApplicationCommandData, AutocompleteInteraction, CommandInteraction, Snowflake } from "discord.js";
+import { DEFAULT_COMMAND_PERMISSIONS, DEFAULT_DM_PERMISSION } from "@utils/constants";
+import { InteractionReplyData } from "@utils/types";
+
+/** The base class for all commands. */
+export default abstract class Command<T extends CommandInteraction> {
+    /**
+     * @param data The data for the command.
+     * @param guildIds The IDs of the guilds to publish the command in. Leave empty to publish the command globally.
+     * @protected
+     */
+    protected constructor(public data: ApplicationCommandData, public guildIds?: Snowflake[]) {}
+
+    /**
+     * Handles the command interaction.
+     * @param interaction The interaction to handle.
+     */
+    abstract execute(interaction: T): InteractionReplyData | Promise<InteractionReplyData>;
+
+    /**
+     * Handles the associated autocomplete interaction.
+     * @param interaction The interaction to handle.
+     */
+    autocomplete?(interaction: AutocompleteInteraction): Promise<void> | void;
+
+    build(): ApplicationCommandData {
+        return {
+            defaultMemberPermissions: DEFAULT_COMMAND_PERMISSIONS,
+            dmPermission: DEFAULT_DM_PERMISSION,
+            ...this.data
+        };
+    }
+}

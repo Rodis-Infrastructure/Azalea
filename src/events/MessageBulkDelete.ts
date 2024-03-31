@@ -8,16 +8,17 @@ import {
     userMention
 } from "discord.js";
 
-import { ConfigManager, GuildConfig, LoggingEvent } from "../utils/config.ts";
-import { log, mapLogEntriesToFile } from "../utils/logging.ts";
-import { EMPTY_MESSAGE_CONTENT, LOG_ENTRY_DATE_FORMAT } from "../utils/constants.ts";
-import { MessageCache } from "../utils/messages.ts";
+import { log, mapLogEntriesToFile } from "@utils/logging";
+import { EMPTY_MESSAGE_CONTENT, LOG_ENTRY_DATE_FORMAT } from "@utils/constants";
+import { MessageCache } from "@utils/messages";
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
-import { pluralize } from "../utils";
-import { client } from "../index.ts";
+import { pluralize } from "@/utils";
+import { client } from "./..";
 
-import EventListener from "../handlers/events/EventListener.ts";
+import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import ConfigManager from "@managers/config/ConfigManager";
+import EventListener from "@managers/events/EventListener";
 
 export default class MessageBulkDeleteEventListener extends EventListener {
     constructor() {
@@ -43,7 +44,7 @@ export default class MessageBulkDeleteEventListener extends EventListener {
             delete MessageCache.purgeQueue[purgeIndex];
         }
 
-        await handleMessageBulkDeleteLog(messages, channel, config);
+        handleMessageBulkDeleteLog(messages, channel, config);
     }
 }
 

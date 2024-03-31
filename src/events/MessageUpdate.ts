@@ -14,15 +14,17 @@ import {
     MessageCache,
     resolvePartialMessage,
     prepareMessageForStorage
-} from "../utils/messages.ts";
+} from "@utils/messages";
 
-import { GuildConfig, ConfigManager, LoggingEvent } from "../utils/config.ts";
-import { EMBED_FIELD_CHAR_LIMIT } from "../utils/constants.ts";
-import { formatMessageLogEntry } from "./MessageBulkDelete.ts";
-import { log, mapLogEntriesToFile } from "../utils/logging.ts";
+import { formatMessageLogEntry } from "./MessageBulkDelete";
+import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
+import { log, mapLogEntriesToFile } from "@utils/logging";
+import { handleModerationRequest } from "@utils/requests";
 import { Message } from "@prisma/client";
 
-import EventListener from "../handlers/events/EventListener.ts";
+import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import ConfigManager from "@managers/config/ConfigManager";
+import EventListener from "@managers/events/EventListener";
 
 export default class MessageUpdateEventListener extends EventListener {
     constructor() {
@@ -32,17 +34,18 @@ export default class MessageUpdateEventListener extends EventListener {
     async execute(_oldMessage: never, newMessage: PartialMessage | DiscordMessage): Promise<void> {
         const message = await resolvePartialMessage(newMessage);
 
-        // Continue if the message can't be fetched or if there is no content
+        // Terminate if the message can't be fetched or if there is no content
         // e.g. message is a sticker
         if (!message || !message.content || message.author.bot) return;
 
         const config = ConfigManager.getGuildConfig(message.guildId);
         if (!config) return;
 
-        await this.handleLog(message, config).catch(() => null);
+        this.handleMessageUpdateLog(message, config).catch(() => null);
+        await handleModerationRequest(message, config).catch(() => null);
     }
 
-    async handleLog(message: DiscordMessage<true>, config: GuildConfig): Promise<void> {
+    async handleMessageUpdateLog(message: DiscordMessage<true>, config: GuildConfig): Promise<void> {
         const reference = message.reference?.messageId
             ? await MessageCache.get(message.reference.messageId)
             : null;
@@ -64,7 +67,7 @@ export default class MessageUpdateEventListener extends EventListener {
 
         if (!logContent) return;
 
-        await log({
+        log({
             event: LoggingEvent.MessageUpdate,
             message: logContent,
             channel: message.channel,
@@ -72,7 +75,7 @@ export default class MessageUpdateEventListener extends EventListener {
         });
     }
 
-    // @returns The log message
+    /** @returns The log message */
     async getShortLogContent(
         message: DiscordMessage<true>,
         reference: Message | null,
@@ -100,7 +103,7 @@ export default class MessageUpdateEventListener extends EventListener {
         return { embeds };
     }
 
-    // @returns The log message
+    /** @returns The log message */
     async getLongLogContent(
         message: DiscordMessage<true>,
         reference: Message | null,

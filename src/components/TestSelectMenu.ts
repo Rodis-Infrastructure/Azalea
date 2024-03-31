@@ -1,7 +1,7 @@
 import { StringSelectMenuInteraction } from "discord.js";
-import { InteractionReplyData } from "../utils/types.ts";
+import { InteractionReplyData } from "@utils/types";
 
-import Component from "../handlers/components/Component.ts";
+import Component from "@managers/components/Component";
 
 export default class TestSelectMenu extends Component {
     constructor() {

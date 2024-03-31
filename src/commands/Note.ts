@@ -1,10 +1,10 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
-import { handleInfractionCreate } from "../utils/infractions.ts";
-import { Action, InteractionReplyData } from "../utils/types.ts";
-import { EMBED_FIELD_CHAR_LIMIT } from "../utils/constants.ts";
-import { ConfigManager } from "../utils/config.ts";
+import { handleInfractionCreate } from "@utils/infractions";
+import { Action, InteractionReplyData } from "@utils/types";
+import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 
-import Command from "../handlers/commands/Command.ts";
+import ConfigManager from "@managers/config/ConfigManager";
+import Command from "@managers/commands/Command";
 
 export default class Note extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -34,8 +34,9 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
         const note = interaction.options.getString("note", true);
         const member = interaction.options.getMember("user");
 
+        // Compare roles to ensure the executor has permission to add a note to the target
         if (member && member.roles.highest.position >= interaction.member.roles.highest.position) {
-            return `You can't add a note to someone with the same or higher role than you`;
+            return "You can't add a note to someone with the same or higher role than you";
         }
 
         const user = member?.user ?? interaction.options.getUser("user", true);

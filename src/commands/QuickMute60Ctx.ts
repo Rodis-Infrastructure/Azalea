@@ -1,11 +1,11 @@
 import { ApplicationCommandType, MessageContextMenuCommandInteraction } from "discord.js";
-import { InteractionReplyData } from "../utils/types.ts";
-import { handleQuickMute } from "./QuickMute30Ctx.ts";
+import { InteractionReplyData } from "@utils/types";
+import { handleQuickMute } from "./QuickMute30Ctx";
 
-import Command from "../handlers/commands/Command.ts";
+import Command from "@managers/commands/Command";
 
 // Constants
-const ONE_HOUR = 1000 * 60 * 60;
+export const ONE_HOUR = 1000 * 60 * 60;
 
 export default class QuickMute60Ctx extends Command<MessageContextMenuCommandInteraction<"cached">> {
     constructor() {
@@ -16,6 +16,11 @@ export default class QuickMute60Ctx extends Command<MessageContextMenuCommandInt
     }
 
     execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
-        return handleQuickMute(interaction, ONE_HOUR);
+        // Perform a 1-hour quick mute
+        return handleQuickMute({
+            executor: interaction.member,
+            targetMessage: interaction.targetMessage,
+            duration: ONE_HOUR
+        });
     }
 }

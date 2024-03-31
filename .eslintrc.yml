@@ -11,6 +11,7 @@ extends:
   - eslint:recommended
   - plugin:@typescript-eslint/eslint-recommended
   - plugin:@typescript-eslint/recommended
+  - plugin:@dword-design/import-alias/recommended
 
 globals:
   Atomics: readonly
@@ -36,6 +37,13 @@ rules:
   '@typescript-eslint/indent':
     - error
     - 4
+
+  '@dword-design/import-alias/prefer-alias':
+    - error
+    - alias:
+        '@utils': ./src/utils
+        '@managers': ./src/managers
+        '@': ./src
 
   # ESLint rules
   no-unused-vars: off
