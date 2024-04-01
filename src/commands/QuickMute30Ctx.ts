@@ -37,8 +37,6 @@ export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInt
     }
 }
 
-// TODO - Purge messages on quick mute
-
 /**
  * Handles the quick mute commands
  *
@@ -117,5 +115,10 @@ export async function handleQuickMute(data: {
         return "An error occurred while storing the infraction";
     }
 
-    return `Successfully set ${member} on a timeout that will end \`${relativeTimestamp}\` - \`#${infraction.id}\` (\`${reason}\`)`;
+    // Ensure a public log of the action is made
+    if (config.inLoggingScope(channel)) {
+        config.sendNotification(`${executor} set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` (\`${reason}\`)`, false);
+    }
+
+    return `Successfully set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` (\`${reason}\`)`;
 }

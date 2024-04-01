@@ -300,13 +300,9 @@ export enum LoggingEvent {
     InfractionArchive = "infraction_archive",
     // TODO Implement infraction update logs
     InfractionUpdate = "infraction_update",
-    // TODO Implement ban request approve logs
     BanRequestApprove = "ban_request_approve",
-    // TODO Implement ban request deny logs
     BanRequestDeny = "ban_request_deny",
-    // TODO Implement mute request approve logs
     MuteRequestApprove = "mute_request_approve",
-    // TODO Implement mute request deny logs
     MuteRequestDeny = "mute_request_deny",
     // TODO Implement message report create logs
     MessageReportCreate = "message_report_create",

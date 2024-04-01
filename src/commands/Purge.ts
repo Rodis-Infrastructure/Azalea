@@ -16,6 +16,7 @@ import { pluralize } from "@/utils";
 import ConfigManager from "@managers/config/ConfigManager";
 import GuildConfig from "@managers/config/GuildConfig";
 import Command from "@managers/commands/Command";
+import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 
 export default class Purge extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -156,7 +157,7 @@ export async function handlePurgeLog(messages: Message[], channel: GuildTextBase
 
     // If only one message was purged, log it as a single message
     // Otherwise, log them in a text file
-    if (messages.length === 1) {
+    if (messages.length === 1 && (!messages[0].content || messages[0].content.length <= EMBED_FIELD_CHAR_LIMIT)) {
         logs = await handleShortMessageDeleteLog(messages[0], channel, config) ?? [];
     } else {
         logs = await handleMessageBulkDeleteLog(messages, channel, config) ?? [];

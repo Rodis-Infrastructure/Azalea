@@ -57,6 +57,11 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
             return "An error occurred while storing the infraction";
         }
 
+        // Ensure a public log of the action is made
+        if (interaction.channel && config.inLoggingScope(interaction.channel)) {
+            config.sendNotification(`${interaction.user} unbanned ${user} - \`#${infraction.id}\` (\`${reason}\`)`, false);
+        }
+
         return `Successfully unbanned ${user} - \`#${infraction.id}\` (\`${reason}\`)`;
     }
 }

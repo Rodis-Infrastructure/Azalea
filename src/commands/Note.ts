@@ -52,6 +52,11 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
             return "An error occurred while storing the infraction";
         }
 
+        // Ensure a public log of the action is made
+        if (interaction.channel && config.inLoggingScope(interaction.channel)) {
+            config.sendNotification(`${interaction.user} added a note to ${user} - \`#${infraction.id}\` (\`${note}\`)`, false);
+        }
+
         return `Successfully added a note to ${user}'s infraction history - \`#${infraction.id}\` (\`${note}\`)`;
     }
 }

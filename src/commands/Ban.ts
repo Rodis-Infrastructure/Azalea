@@ -78,6 +78,11 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             return "An error occurred while storing the infraction";
         }
 
+        // Ensure a public log of the action is made
+        if (interaction.channel && config.inLoggingScope(interaction.channel)) {
+            config.sendNotification(`${interaction.user} banned ${user} - \`#${infraction.id}\` (\`${reason}\`)`, false);
+        }
+
         return `Successfully banned ${user} - \`#${infraction.id}\` (\`${reason}\`)`;
     }
 }

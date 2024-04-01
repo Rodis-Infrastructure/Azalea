@@ -1,0 +1,15 @@
+services:
+  bot:
+    build:
+      context: .
+      args:
+        DISCORD_TOKEN:
+        SENTRY_DSN:
+        DATABASE_URL:
+    restart: always
+    container_name: azalea
+    volumes:
+      - prisma:/usr/src/app/prisma
+
+volumes:
+  prisma:

@@ -15,9 +15,9 @@
 	"forceConsistentCasingInFileNames": true,
 	"types": ["bun-types"],
 	"paths": {
-	  "@/*": ["src/*"],
-	  "@utils/*": ["src/utils/*"],
-	  "@managers/*": ["src/managers/*"],
+	  "@/*": ["./src/*"],
+	  "@utils/*": ["./src/utils/*"],
+	  "@managers/*": ["./src/managers/*"]
 	}
   },
   "include": [

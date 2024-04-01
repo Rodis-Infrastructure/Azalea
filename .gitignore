@@ -8,11 +8,8 @@ node_modules/
 
 # dotenv environment variable files
 
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+*.env*
+!.env.example
 
 # vuepress v2.x temp and cache directory
 

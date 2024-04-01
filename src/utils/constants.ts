@@ -7,6 +7,7 @@ export const LOG_ENTRY_DATE_FORMAT: Intl.DateTimeFormatOptions = {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
+    timeZone: "UTC",
     hour12: false
 };
 

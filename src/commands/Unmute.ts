@@ -71,6 +71,11 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
             updated_by: interaction.user.id
         }, config, false);
 
+        // Ensure a public log of the action is made
+        if (interaction.channel && config.inLoggingScope(interaction.channel)) {
+            config.sendNotification(`${interaction.user} unmuted ${member} - \`#${infraction.id}\` (\`${reason}\`)`, false);
+        }
+
         return `Successfully unmuted ${member} - \`#${infraction.id}\` (\`${reason}\`)`;
     }
 }

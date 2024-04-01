@@ -1,4 +1,4 @@
-import { CLIENT_INTENTS, CLIENT_PARTIALS, EXIT_EVENTS } from "./utils/constants";
+import { CLIENT_INTENTS, CLIENT_PARTIALS, EXIT_EVENTS } from "@utils/constants";
 import { PrismaClient } from "@prisma/client";
 import { handleProcessExit } from "./utils";
 import { Client } from "discord.js";

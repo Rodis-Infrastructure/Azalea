@@ -1,12 +1,14 @@
-import { GuildMember, hyperlink, Message, messageLink, userMention } from "discord.js";
+import { Colors, EmbedBuilder, GuildMember, hyperlink, Message, messageLink, userMention } from "discord.js";
 import { DEFAULT_MUTE_DURATION } from "./constants";
 import { RequestValidationError } from "./errors";
 import { Snowflake } from "discord-api-types/v10";
-import { temporaryReply } from "./messages";
-import { client, prisma } from "./..";
+import { formatMessageContentForLog, temporaryReply } from "./messages";
+import { userMentionWithId } from "@utils/index";
 import { TypedRegEx } from "typed-regex";
+import { client, prisma } from "./..";
+import { log } from "@utils/logging";
 
-import GuildConfig, { ModerationRequestType, Permission } from "@managers/config/GuildConfig";
+import GuildConfig, { LoggingEvent, ModerationRequestType, Permission } from "@managers/config/GuildConfig";
 import Sentry from "@sentry/node";
 import ms from "ms";
 
@@ -241,7 +243,8 @@ export async function approveRequest(requestId: Snowflake, reviewerId: Snowflake
             target_id: true,
             duration: true,
             reason: true,
-            guild_id: true
+            guild_id: true,
+            author_id: true
         }
     }).catch(() => null);
 
@@ -257,6 +260,29 @@ export async function approveRequest(requestId: Snowflake, reviewerId: Snowflake
         return;
     }
 
+    const handleModerationLog = (event: LoggingEvent, action: string): void => {
+        const embed = new EmbedBuilder()
+            .setColor(Colors.Green)
+            .setAuthor({ name: "Moderation Request Approved" })
+            .setTitle(action)
+            .setFields([
+                { name: "Reviewer", value: userMentionWithId(reviewerId) },
+                { name: "Request Author", value: userMentionWithId(request.author_id) },
+                { name: "Target", value: userMentionWithId(request.target_id) },
+                { name: "Request Content", value: formatMessageContentForLog(request.reason) }
+            ])
+            .setTimestamp();
+
+        log({
+            event,
+            config,
+            channel: null,
+            message: {
+                embeds: [embed]
+            }
+        });
+    };
+
     switch (request.punishment_type) {
         case ModerationRequestType.Mute: {
             const target = await guild.members.fetch(request.target_id).catch(() => null);
@@ -267,6 +293,7 @@ export async function approveRequest(requestId: Snowflake, reviewerId: Snowflake
             }
 
             await target.timeout(request.duration, request.reason);
+            handleModerationLog(LoggingEvent.MuteRequestApprove, "Muted");
             break;
         }
 
@@ -279,6 +306,7 @@ export async function approveRequest(requestId: Snowflake, reviewerId: Snowflake
             }
 
             await guild.members.ban(target, { reason: request.reason });
+            handleModerationLog(LoggingEvent.BanRequestApprove, "Banned");
             break;
         }
     }
@@ -299,7 +327,8 @@ export async function denyRequest(message: Message<true>, reviewerId: Snowflake,
             id: true,
             author_id: true,
             guild_id: true,
-            target_id: true
+            target_id: true,
+            punishment_type: true
         }
     }).catch(() => null);
 
@@ -313,7 +342,42 @@ export async function denyRequest(message: Message<true>, reviewerId: Snowflake,
     const targetMention = userMention(request.target_id);
     const requestLink = hyperlink("Your request", message.url);
 
+    const handleModerationRequestDenyLog = (event: LoggingEvent, action: string): void => {
+        const embed = new EmbedBuilder()
+            .setColor(Colors.Red)
+            .setAuthor({ name: "Moderation Request Denied" })
+            .setTitle(action)
+            .setFields([
+                { name: "Reviewer", value: userMentionWithId(reviewerId) },
+                { name: "Request Author", value: userMentionWithId(request.author_id) },
+                { name: "Target", value: userMentionWithId(request.target_id) },
+                { name: "Request Content", value: formatMessageContentForLog(message.content) }
+            ])
+            .setTimestamp();
+
+        log({
+            event,
+            config,
+            channel: null,
+            message: {
+                embeds: [embed]
+            }
+        });
+    };
+
     config.sendNotification(`${message.author} ${requestLink} against ${targetMention} has been denied by ${reviewerMention}.`);
+
+    switch (request.punishment_type) {
+        case ModerationRequestType.Mute: {
+            handleModerationRequestDenyLog(LoggingEvent.MuteRequestDeny, "Mute");
+            break;
+        }
+
+        case ModerationRequestType.Ban: {
+            handleModerationRequestDenyLog(LoggingEvent.BanRequestDeny, "Ban");
+            break;
+        }
+    }
 }
 
 enum RequestStatus {
