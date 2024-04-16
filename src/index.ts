@@ -1,13 +1,14 @@
-import { CLIENT_INTENTS, CLIENT_PARTIALS, EXIT_EVENTS } from "@utils/constants";
+import { CLIENT_INTENTS, CLIENT_PARTIALS, EXIT_EVENTS } from "./utils/constants";
 import { PrismaClient } from "@prisma/client";
 import { handleProcessExit } from "./utils";
-import { Client } from "discord.js";
+import { Client, Events } from "discord.js";
 
 import Sentry from "@sentry/node";
 import CommandManager from "./managers/commands/CommandManager";
 import EventListenerManager from "./managers/events/EventListenerManager";
 import ComponentManager from "./managers/components/ComponentManager";
 import ConfigManager from "./managers/config/ConfigManager";
+import Logger from "./utils/logger";
 
 // Initialize Sentry
 Sentry.init({
@@ -49,22 +50,36 @@ async function main(): Promise<void> {
     // Login to Discord
     await client.login(process.env.DISCORD_TOKEN);
 
-    // Mount all event listeners and publish all commands
+    // Cache the configurations
+    ConfigManager.cacheGlobalConfig();
+    await ConfigManager.cacheGuildConfigs();
+
+    // Mount all event listeners
     await EventListenerManager.mount();
+
+    // Publish all commands (must be logged in)
     await CommandManager.publish();
 
-    // Load all configurations
-    ConfigManager.loadGlobalConfig();
-    await ConfigManager.loadGuildConfigs();
-
-    // Emit ready event again since it was mounted
-    // after the client was logged in
-    client.emit("ready", client);
+    // Emit the ready event as it was skipped
+    client.emit(Events.ClientReady, client);
 }
 
 // Perform closing operations on error
 main()
     .catch(error => {
-        Sentry.captureException(error);
+        const sentryId = Sentry.captureException(error);
+        Logger.error(`An unhandled error occurred: ${sentryId}`);
+
         process.exit(0);
     });
+
+// TODO - Message reports
+// TODO - User reports
+// TODO - User/Message report alerts
+// TODO - FAQ command
+// TODO - Infraction search
+// TODO - Infraction archive
+// TODO - Infraction info
+// TODO - Infraction reason
+// TODO - Infraction duration
+// TODO - Role requests

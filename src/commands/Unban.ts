@@ -58,7 +58,7 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
         }
 
         // Ensure a public log of the action is made
-        if (interaction.channel && config.inLoggingScope(interaction.channel)) {
+        if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
             config.sendNotification(`${interaction.user} unbanned ${user} - \`#${infraction.id}\` (\`${reason}\`)`, false);
         }
 

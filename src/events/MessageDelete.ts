@@ -12,7 +12,7 @@ import {
 
 import {
     formatMessageContentForLog,
-    MessageCache,
+    Messages,
     prepareMessageForStorage,
     prependReferenceLog
 } from "@utils/messages";
@@ -36,8 +36,8 @@ export default class MessageDeleteEventListener extends EventListener {
     async execute(deletedMessage: PartialMessage | DiscordMessage): Promise<void> {
         if (deletedMessage.author?.bot) return;
 
-        let message = await MessageCache.delete(deletedMessage.id);
-        const isPurged = MessageCache.purgeQueue.some(purged => purged.messages[0].id === deletedMessage.id);
+        let message = await Messages.delete(deletedMessage.id);
+        const isPurged = Messages.purgeQueue.some(purged => purged.messages[0].id === deletedMessage.id);
 
         // Handled by the purge command
         if (isPurged) return;
@@ -61,7 +61,7 @@ export default class MessageDeleteEventListener extends EventListener {
         if (!channel) return;
 
         const reference = message.reference_id
-            ? await MessageCache.get(message.reference_id)
+            ? await Messages.get(message.reference_id)
             : null;
 
         // Ensure the message doesn't exceed the character limit
@@ -94,7 +94,7 @@ export async function handleShortMessageDeleteLog(
     const maskedJumpURL = hyperlink("Jump to location", messageURL);
 
     const reference = message.reference_id
-        ? await MessageCache.get(message.reference_id)
+        ? await Messages.get(message.reference_id)
         : null;
 
     const embed = new EmbedBuilder()

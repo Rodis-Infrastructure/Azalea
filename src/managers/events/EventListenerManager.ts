@@ -7,9 +7,9 @@ import Sentry from "@sentry/node";
 import path from "path";
 import fs from "fs";
 
-/** Utility class for handling event listeners. */
+// Utility class for handling event listeners.
 export default class EventListenerManager {
-    /** Mounts all event listeners from the events directory. */
+    // Mounts all event listeners from the events directory.
     static async mount(): Promise<void> {
         const dirpath = path.resolve("src/events");
 

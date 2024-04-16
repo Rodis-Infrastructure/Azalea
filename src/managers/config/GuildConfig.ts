@@ -1,14 +1,18 @@
 import { Snowflake } from "discord-api-types/v10";
-import { Guild, GuildBasedChannel, GuildMember } from "discord.js";
-import { client } from "@/index";
+import { Colors, EmbedBuilder, Guild, GuildBasedChannel, GuildMember, messageLink, roleMention } from "discord.js";
+import { client, prisma } from "@/index";
+import { CronJob } from "cron";
+import { DeepPartial } from "@utils/types";
 
 import _ from "lodash";
+import { MessageReportStatus } from "@utils/reports";
+import Logger, { AnsiColor } from "@utils/logger";
 
 export default class GuildConfig {
-    private constructor(public readonly data: IGuildConfig, public readonly guild: Guild) {}
+    private constructor(public readonly data: RawGuildConfig, public readonly guild: Guild) {}
 
-    /** Initiate the guild configuration with default values */
-    static async bind(guildId: Snowflake, data: unknown): Promise<GuildConfig> {
+    // Initiate the guild configuration with default values
+    static async bind(guildId: Snowflake, data: DeepPartial<RawGuildConfig>): Promise<GuildConfig> {
         const guild = await client.guilds.fetch(guildId).catch(() => {
             throw new Error("Failed to load config, unknown guild ID");
         });
@@ -18,12 +22,16 @@ export default class GuildConfig {
             exclude_channels: []
         };
 
-        const configDefaults: IGuildConfig = {
+        const configDefaults: RawGuildConfig = {
             default_purge_amount: 100,
             permissions: [],
             response_ttl: 5000,
-            moderation_requests: [],
             ephemeral_scoping: channelScopingDefaults,
+            moderation_requests: [],
+            auto_reactions: [],
+            media_channels: [],
+            scheduled_messages: [],
+            user_flags: [],
             emojis: {
                 approve: "👍",
                 deny: "👎",
@@ -39,7 +47,7 @@ export default class GuildConfig {
         };
 
         // Use lodash to set default values for the guild configuration
-        const config: IGuildConfig = _.defaultsDeep(data, configDefaults);
+        const config: RawGuildConfig = _.defaultsDeep(data, configDefaults);
 
         // Set default values for each logging configuration
         for (const log of config.logging.logs) {
@@ -57,6 +65,10 @@ export default class GuildConfig {
             _.defaults(permissions.allow, []);
         }
 
+        for (const moderationRequest of config.moderation_requests) {
+            _.defaults(moderationRequest.allow_discord_media_links, true);
+        }
+
         return new GuildConfig(config, guild);
     }
 
@@ -70,6 +82,98 @@ export default class GuildConfig {
         }
     }
 
+    // Start the cron job for each scheduled message
+    async startScheduledMessageCronJobs(): Promise<void>{
+        // Start the cron job for each scheduled message
+        for (const scheduledMessage of this.data.scheduled_messages) {
+            const channel = await this.guild.channels
+                .fetch(scheduledMessage.channel_id)
+                .catch(() => null);
+
+            if (!channel) {
+                Logger.error(`Failed to mount scheduled message, unknown channel: ${scheduledMessage.channel_id}`);
+                continue;
+            }
+
+            if (!channel.isTextBased()) {
+                Logger.error(`Failed to mount scheduled message, channel is not text-based: ${channel.id}`);
+                continue;
+            }
+
+            // Start the cron job for the scheduled message
+            new CronJob(scheduledMessage.cron, () => {
+                channel.send(scheduledMessage.content);
+            }).start();
+        }
+    }
+
+    async startRequestAlertCronJobs(): Promise<void> {
+        Logger.info("Starting cron jobs for moderation request alerts...");
+
+        for (const request of this.data.moderation_requests) {
+            const alertConfig = request.alert;
+
+            if (!alertConfig) return;
+
+            const channel = await this.guild.channels
+                .fetch(alertConfig.channel_id)
+                .catch(() => null);
+
+            if (!channel) {
+                Logger.error(`Failed to mount moderation request alert, unknown channel: ${alertConfig.channel_id}`);
+                continue;
+            }
+
+            if (!channel.isTextBased()) {
+                Logger.error(`Failed to mount moderation request alert, channel is not text-based: ${channel.id}`);
+                continue;
+            }
+
+            const getAlertEmbed = (unresolvedRequestCount: number, oldestRequestUrl: string): EmbedBuilder => new EmbedBuilder()
+                .setColor(Colors.Red)
+                .setTitle("Unreviewed Request Alert")
+                .setDescription(`There are currently \`${unresolvedRequestCount}\` unresolved ${request.type} requests starting from ${oldestRequestUrl}`)
+                .setFooter({ text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved ${request.type} requests` });
+
+            // Start the cron job for the alert
+            new CronJob(alertConfig.cron, async () => {
+                const unresolvedRequests = await prisma.request.findMany({
+                    where: {
+                        status: MessageReportStatus.Unresolved,
+                        guild_id: this.guild.id
+                    },
+                    orderBy: {
+                        created_at: "asc"
+                    }
+                });
+
+                if (unresolvedRequests.length < alertConfig.count_threshold) {
+                    return;
+                }
+
+                const [oldestRequest] = unresolvedRequests;
+                const oldestRequestUrl = messageLink(request.channel_id, oldestRequest.id, this.guild.id);
+                const alert = getAlertEmbed(unresolvedRequests.length, oldestRequestUrl);
+
+                const mentionedRoles = alertConfig.mentioned_roles
+                    .map(roleMention)
+                    .join(" ");
+
+                // Send the alert to the channel
+                channel.send({
+                    content: mentionedRoles || undefined,
+                    embeds: [alert]
+                });
+            }).start();
+
+            Logger.log(`${request.type.toUpperCase()}_REQUEST_ALERT`, "Cron job started", {
+                color: AnsiColor.Purple
+            });
+        }
+
+        Logger.info("Finished starting moderation request alert cron jobs");
+    }
+
     /**
      * **All** of the following conditions must be met:
      *
@@ -77,21 +181,33 @@ export default class GuildConfig {
      * - The channel/thread/category ID **is not** included in the `exclude_channels` array
      *
      * @param channel - The channel to check
+     * @param scoping - The scoping to check against
      */
-    inLoggingScope(channel: GuildBasedChannel): boolean {
-        const scoping: ChannelScopingParams = {
+    inScope(channel: GuildBasedChannel, scoping: ChannelScoping): boolean {
+        const channelData: ChannelScopingParams = {
             categoryId: channel.parentId,
             channelId: channel.id,
             threadId: null
         };
 
         if (channel.isThread() && channel.parent) {
-            scoping.channelId = channel.parent.id;
-            scoping.threadId = channel.id;
-            scoping.categoryId = channel.parent.parentId;
+            channelData.channelId = channel.parent.id;
+            channelData.threadId = channel.id;
+            channelData.categoryId = channel.parent.parentId;
         }
 
-        return this.channelIsIncluded(scoping) && !this.channelIsExcluded(scoping);
+        return this.channelIsIncludedInScope(channelData, scoping) && !this.channelIsExcludedFromScope(channelData, scoping);
+    }
+
+    /**
+     * Get an array of emojis to add to a message in an auto-reaction channel.
+     * The array will be empty if the channel is not an auto-reaction channel.
+     *
+     * @param channelId - The channel ID to check
+     * @returns An array of emojis to add to a message
+     */
+    getAutoReactionEmojis(channelId: Snowflake): string[] {
+        return this.data.auto_reactions.find(reaction => reaction.channel_id === channelId)?.emojis ?? [];
     }
 
     /**
@@ -103,15 +219,16 @@ export default class GuildConfig {
      * - The `include_channels` array is empty
      *
      * @param channelData - The channel data to check
+     * @param scoping - The scoping to check against
      * @private
      */
-    private channelIsIncluded(channelData: ChannelScopingParams): boolean {
+    private channelIsIncludedInScope(channelData: ChannelScopingParams, scoping: ChannelScoping): boolean {
         const { channelId, threadId, categoryId } = channelData;
 
-        return this.data.ephemeral_scoping.include_channels.length === 0
-            || this.data.ephemeral_scoping.include_channels.includes(channelId)
-            || (threadId !== null && this.data.ephemeral_scoping.include_channels.includes(threadId))
-            || (categoryId !== null && this.data.ephemeral_scoping.include_channels.includes(categoryId));
+        return scoping.include_channels.length === 0
+            || scoping.include_channels.includes(channelId)
+            || (threadId !== null && scoping.include_channels.includes(threadId))
+            || (categoryId !== null && scoping.include_channels.includes(categoryId));
     }
 
     /**
@@ -122,14 +239,15 @@ export default class GuildConfig {
      * - The category ID is excluded in the `exclude_channels` array
      *
      * @param channelData - The channel data to check
+     * @param scoping - The scoping to check against
      * @private
      */
-    private channelIsExcluded(channelData: ChannelScopingParams): boolean {
+    private channelIsExcludedFromScope(channelData: ChannelScopingParams, scoping: ChannelScoping): boolean {
         const { channelId, threadId, categoryId } = channelData;
 
-        return this.data.ephemeral_scoping.exclude_channels.includes(channelId)
-            || (threadId !== null && this.data.ephemeral_scoping.exclude_channels.includes(threadId))
-            || (categoryId !== null && this.data.ephemeral_scoping.exclude_channels.includes(categoryId));
+        return scoping.exclude_channels.includes(channelId)
+            || (threadId !== null && scoping.exclude_channels.includes(threadId))
+            || (categoryId !== null && scoping.exclude_channels.includes(categoryId));
     }
 
     /**
@@ -197,7 +315,9 @@ export enum ModerationRequestType {
 export interface ModerationRequest {
     type: ModerationRequestType;
     channel_id: Snowflake;
-    alert: Alert;
+    // @default true
+    allow_discord_media_links: boolean;
+    alert?: Alert;
 }
 
 interface Alert {
@@ -206,8 +326,8 @@ interface Alert {
     cron: string;
     // Number of unreviewed items required to trigger an alert
     count_threshold: number;
-    // How old the oldest unreviewed item must be to trigger an alert (in minutes)
-    age_threshold: number;
+    // Role(s) mentioned in the alert
+    mentioned_roles: Snowflake[]
 }
 
 interface Permissions {
@@ -216,34 +336,88 @@ interface Permissions {
 }
 
 export enum Permission {
-    /*
+    /**
      * ## Grants access to:
      *
      * - Manage infractions not executed by them
      * - View the moderation activity of staff using `/info`
      */
     ManageInfractions = "manage_infractions",
-    /*
+    /**
      * ## Grants access to:
      *
      * - Approve / Deny mute requests
      * - Automatic mutes in ban requests
      */
     ManageMuteRequests = "manage_mute_requests",
-    ManageBanRequests = "manage_ban_requests"
+    /**
+     * ## Grants access to:
+     *
+     * - Approve / Deny ban requests
+     */
+    ManageBanRequests = "manage_ban_requests",
+    // Grants access to viewing a user's infractions
+    ViewInfractions = "view_infractions",
+    /**
+     * Grants access to viewing the moderation activity of
+     * users with the {@link Permission#ViewInfractions} permission
+     */
+    ViewModerationActivity = "view_moderation_activity"
 }
 
-interface IGuildConfig {
+export interface RawGuildConfig {
     logging: Logging;
     moderation_requests: ModerationRequest[];
+    auto_reactions: AutoReaction[];
     notification_channel?: Snowflake;
+    media_conversion_channel?: Snowflake;
+    scheduled_messages: ScheduledMessage[];
+    // Flags displayed in the user info message
+    user_flags: UserFlag[];
+    // Channels that require messages to have an attachment
+    media_channels: Snowflake[];
     permissions: Permissions[];
+    message_reports?: MessageReports;
     ephemeral_scoping: ChannelScoping;
     // Lifetime of non-ephemeral responses (milliseconds)
     response_ttl: number;
     // Value must be between 1 and 100 (inclusive) - Default: 100
     default_purge_amount: number;
     emojis: Emojis;
+}
+
+export interface UserFlag {
+    // The name of the flag
+    label: string;
+    // The user must have at least one of these roles to set the flag
+    roles: Snowflake[];
+}
+
+interface ScheduledMessage {
+    // Channel to send the message in
+    channel_id: Snowflake;
+    // Cron expression for when to send the message
+    cron: string;
+    // Message content
+    content: string;
+}
+
+interface AutoReaction {
+    // The channel to listen for messages in
+    channel_id: Snowflake;
+    // The reactions to add to messages
+    emojis: string[];
+}
+
+interface MessageReports {
+    // Channel to send message reports to
+    alert_channel: Snowflake;
+    // How long an alert will stay in the alert channel before being removed (in milliseconds)
+    alert_ttl?: number;
+    // Roles mentioned in new alerts
+    mentioned_roles?: Snowflake[];
+    // Users with these roles will be immune to message reports
+    excluded_roles?: Snowflake[];
 }
 
 /**
@@ -254,17 +428,17 @@ interface IGuildConfig {
  * - `👍` (Unicode emoji)
  */
 interface Emojis {
-    /** Approve moderation requests */
+    // Approve moderation requests
     approve: string;
-    /** Deny moderation requests */
+    // Deny moderation requests
     deny: string;
-    /** 30 minute quick mute */
+    // 30 minute quick mute
     quick_mute_30: string;
-    /** 1 hour quick mute */
+    // 1 hour quick mute
     quick_mute_60: string;
-    /** Purge a user's messages */
+    // Purge a user's messages
     purge_messages: string;
-    /** Report a message */
+    // Report a message
     report_message: string;
 }
 
@@ -294,7 +468,6 @@ export enum LoggingEvent {
     ThreadDelete = "thread_delete",
     ThreadUpdate = "thread_update",
     MediaStore = "media_store",
-    // TODO Implement infraction create logs
     InfractionCreate = "infraction_create",
     // TODO Implement infraction archive logs
     InfractionArchive = "infraction_archive",

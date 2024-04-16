@@ -74,7 +74,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
                                 action: Action.Mute,
                                 executor_id: executor.id,
                                 target_id: target.id,
-                                reason: "string",
+                                reason: EMPTY_INFRACTION_REASON,
                                 flag: flag,
                                 expires_at: new Date(msDuration)
                             }, config);

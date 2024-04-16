@@ -7,7 +7,7 @@ import {
     MessagePayload
 } from "discord.js";
 
-import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import GuildConfig, { ChannelScoping, LoggingEvent } from "@managers/config/GuildConfig";
 import Sentry from "@sentry/node";
 
 /**
@@ -52,10 +52,23 @@ async function getLoggingChannels(
     config: GuildConfig,
     channel: GuildBasedChannel | null
 ): Promise<GuildTextBasedChannel[]> {
+    const inLoggingScope = (logScoping: ChannelScoping): boolean => {
+        // If there is no channel, the event is in scope
+        if (!channel) return true;
+
+        // Resort to the default scoping if there is no override for the event
+        if (!logScoping.include_channels.length && !logScoping.exclude_channels.length) {
+            return config.inScope(channel, config.data.logging.default_scoping);
+        }
+
+        // Check against event-specific scoping
+        return config.inScope(channel, logScoping);
+    };
+
     // Fetch all logging channels for this event that are in scope
     const loggingChannelPromises = config.data.logging.logs
         .filter(log => log.events.includes(event))
-        .filter(() => !channel || config.inLoggingScope(channel))
+        .filter(log => inLoggingScope(log.scoping))
         .map(log => config.guild.channels.fetch(log.channel_id));
 
     const loggingChannels = await Promise.all(loggingChannelPromises);

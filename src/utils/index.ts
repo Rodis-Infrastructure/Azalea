@@ -1,6 +1,6 @@
 import { Snowflake } from "discord-api-types/v10";
 import { GuildBasedChannel, ThreadChannel } from "discord.js";
-import { MessageCache } from "./messages";
+import { Messages } from "./messages";
 import { ObjectDiff } from "./types";
 import { prisma } from "./..";
 
@@ -28,7 +28,7 @@ export async function handleProcessExit(event: string): Promise<void> {
     });
 
     try {
-        await MessageCache.clear();
+        await Messages.clear();
         await terminateDbConnection();
     } catch (error) {
         Logger.log(event, `Cleanup operations failed: ${error}`, {

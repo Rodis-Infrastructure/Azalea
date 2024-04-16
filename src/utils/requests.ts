@@ -1,37 +1,89 @@
 import { Colors, EmbedBuilder, GuildMember, hyperlink, Message, messageLink, userMention } from "discord.js";
-import { DEFAULT_MUTE_DURATION } from "./constants";
+import { DEFAULT_MUTE_DURATION, EMBED_FIELD_CHAR_LIMIT } from "./constants";
 import { RequestValidationError } from "./errors";
 import { Snowflake } from "discord-api-types/v10";
 import { formatMessageContentForLog, temporaryReply } from "./messages";
-import { userMentionWithId } from "@utils/index";
+import { userMentionWithId } from "./index";
 import { TypedRegEx } from "typed-regex";
+import { handleInfractionCreate } from "./infractions";
+import { Action } from "./types";
 import { client, prisma } from "./..";
-import { log } from "@utils/logging";
+import { log } from "./logging";
+import { Prisma } from "@prisma/client";
+import { handleMediaStore } from "@/commands/StoreMediaCtx";
 
 import GuildConfig, { LoggingEvent, ModerationRequestType, Permission } from "@managers/config/GuildConfig";
 import Sentry from "@sentry/node";
 import ms from "ms";
 
 export async function handleModerationRequest(message: Message<true>, config: GuildConfig): Promise<void> {
-    const request = config.data.moderation_requests.find(request => request.channel_id === message.channel.id);
-    if (!request) return;
+    const requestConfig = config.data.moderation_requests
+        .find(requestConfig => requestConfig.channel_id === message.channel.id);
+
+    if (!requestConfig) return;
+
+    if (!requestConfig.allow_discord_media_links && message.content.includes("cdn.discordapp.com")) {
+        await temporaryReply(message, "Discord media links are not allowed.", config.data.response_ttl);
+        return;
+    }
 
     try {
-        if (request.type === ModerationRequestType.Mute) {
-            await validateMuteRequest(message, config);
+        let request: Prisma.RequestCreateInput | null = null;
+
+        if (requestConfig.type === ModerationRequestType.Mute) {
+            request = await validateMuteRequest(message, config);
         }
 
-        if (request.type === ModerationRequestType.Ban) {
-            const request = await validateBanRequest(message, config);
+        if (requestConfig.type === ModerationRequestType.Ban) {
+            const res = await validateBanRequest(message, config);
+            const target = res[0];
 
-            if (!message.member) {
-                await temporaryReply(message, "Failed to fetch author, unable to perform auto-mute.", config.data.response_ttl);
-                return;
+            request = res[1];
+
+            // Don't attempt to auto-mute if the target user is already muted
+            if (!target?.isCommunicationDisabled()) {
+                if (!message.member) {
+                    await temporaryReply(message, "Failed to fetch author, unable to perform auto-mute.", config.data.response_ttl);
+                    return;
+                }
+
+                request.mute_id = await handleAutomaticMute({
+                    executor: message.member,
+                    reason: request.reason,
+                    target,
+                    config
+                });
             }
-
-            // TODO - Update reason on message update
-            await handleAutomaticMute(message.member, request, config);
         }
+
+        if (!request) return;
+
+        // Append the media log URLs to the message content
+        if (message.attachments.size) {
+            const media = Array.from(message.attachments.values());
+            const logUrls = await handleMediaStore(message.author.id, message.author.id, media, config);
+
+            request.reason += ` ${logUrls.join(" ")}`;
+        }
+
+        if (request.reason.length > EMBED_FIELD_CHAR_LIMIT) {
+            await temporaryReply(message, `The reason is too long, it must be under ${EMBED_FIELD_CHAR_LIMIT} characters.`, config.data.response_ttl);
+            return;
+        }
+
+        // Store the request in the database if it doesn't exist
+        // Update the reason if the request is already stored
+        await prisma.request.upsert({
+            create: request,
+            where: {
+                id: message.id
+            },
+            update: {
+                target_id: request.target_id,
+                reason: request.reason,
+                duration: request.duration
+            }
+        });
     } catch (error) {
         if (error instanceof RequestValidationError) {
             await temporaryReply(message, error.message, config.data.response_ttl);
@@ -39,7 +91,7 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
         }
 
         Sentry.captureException(error);
-        await temporaryReply(message, "An unknown error has occurred while trying to handle the request.", config.data.response_ttl);
+        await temporaryReply(message, "An unknown error has occurred while trying to handle the request", config.data.response_ttl);
     }
 }
 
@@ -50,27 +102,43 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
  * - Check if the request target user is in the guild.
  * - Check whether the target user is already muted.
  *
- * @param requestAuthor - The request author.
- * @param request - The request.
- * @param config - The guild configuration.
+ * @param data.executor - The request author.
+ * @param data.target - The target member.
+ * @param data.reason - The reason for the mute.
+ * @param data.config - The guild configuration.
+ * @returns The ID of the newly created infraction.
  */
-async function handleAutomaticMute(requestAuthor: GuildMember, request: RequestAutoMuteProps, config: GuildConfig): Promise<void> {
+async function handleAutomaticMute(data: {
+    executor: GuildMember,
+    target: GuildMember | null,
+    reason: string,
+    config: GuildConfig
+}): Promise<number | null> {
+    const { executor, target, reason, config } = data;
+
     // Check if the request author has permission to manage mute requests
-    if (!config.hasPermission(requestAuthor, Permission.ManageMuteRequests)) {
-        return;
+    if (!config.hasPermission(executor, Permission.ManageMuteRequests)) {
+        return null;
     }
 
     // Only guild members can be muted
-    if (!request.target) {
+    if (!target) {
         throw new RequestValidationError("Failed to fetch target, unable to perform auto-mute.");
     }
 
-    // Check if the target is already muted
-    if (request.target.isCommunicationDisabled()) {
-        return;
-    }
+    await target.timeout(DEFAULT_MUTE_DURATION, reason);
 
-    await request.target.timeout(DEFAULT_MUTE_DURATION, request.reason);
+    // Store the infraction
+    const infraction = await handleInfractionCreate({
+        expires_at: new Date(Date.now() + DEFAULT_MUTE_DURATION),
+        guild_id: config.guild.id,
+        executor_id: executor.id,
+        target_id: target.id,
+        action: Action.Mute,
+        reason
+    }, config);
+
+    return infraction && infraction.id;
 }
 
 /**
@@ -83,8 +151,9 @@ async function handleAutomaticMute(requestAuthor: GuildMember, request: RequestA
  *
  * @param request - The request.
  * @param config - The guild configuration.
+ * @returns The target member and the request data: [targetMember, requestData]
  */
-async function validateMuteRequest(request: Message<true>, config: GuildConfig): Promise<void> {
+async function validateMuteRequest(request: Message<true>, config: GuildConfig): Promise<Prisma.RequestCreateInput> {
     /**
      * Regex pattern for extracting the target ID, duration, and reason from the message content.
      * ## Examples
@@ -101,7 +170,7 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
 
     // Validate the request format
     if (!matches) {
-        throw new RequestValidationError("Invalid ban request format.");
+        throw new RequestValidationError("Invalid mute request format.");
     }
 
     // Check if the request is a duplicate
@@ -138,18 +207,16 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
         ? ms(matches.duration)
         : null;
 
-    await prisma.request.create({
-        data: {
-            id: request.id,
-            author_id: request.author.id,
-            target_id: target.id,
-            guild_id: config.guild.id,
-            punishment_type: ModerationRequestType.Mute,
-            reason: matches.reason,
-            status: RequestStatus.Pending,
-            duration: msDuration
-        }
-    });
+    return {
+        id: request.id,
+        author_id: request.author.id,
+        target_id: target.id,
+        guild_id: config.guild.id,
+        punishment_type: ModerationRequestType.Mute,
+        reason: matches.reason,
+        status: RequestStatus.Pending,
+        duration: msDuration
+    };
 }
 
 /**
@@ -161,8 +228,9 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
  *
  * @param request - The request.
  * @param config - The guild configuration.
+ * @returns The target member and the request data: [targetMember, requestData]
  */
-async function validateBanRequest(request: Message<true>, config: GuildConfig): Promise<RequestAutoMuteProps> {
+async function validateBanRequest(request: Message<true>, config: GuildConfig): Promise<[GuildMember | null, Prisma.RequestCreateInput]> {
     /**
      * Regex pattern for extracting the target ID and reason from the message content.
      * ## Examples
@@ -208,22 +276,15 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
         throw new RequestValidationError("You cannot mute a member with a higher or equal role.");
     }
 
-    await prisma.request.create({
-        data: {
-            id: request.id,
-            author_id: request.author.id,
-            target_id: matches.targetId,
-            guild_id: config.guild.id,
-            punishment_type: ModerationRequestType.Ban,
-            reason: matches.reason,
-            status: RequestStatus.Pending
-        }
-    });
-
-    return {
-        target,
-        reason: matches.reason
-    };
+    return [target, {
+        id: request.id,
+        author_id: request.author.id,
+        target_id: matches.targetId,
+        guild_id: config.guild.id,
+        punishment_type: ModerationRequestType.Ban,
+        reason: matches.reason,
+        status: RequestStatus.Pending
+    }];
 }
 
 /**
@@ -233,7 +294,7 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
  * @param reviewerId - The ID of the user approving the moderation request.
  * @param config - The guild configuration.
  */
-export async function approveRequest(requestId: Snowflake, reviewerId: Snowflake, config: GuildConfig): Promise<void> {
+export async function approveModerationRequest(requestId: Snowflake, reviewerId: Snowflake, config: GuildConfig): Promise<void> {
     const request = await prisma.request.update({
         where: { id: requestId },
         data: { status: RequestStatus.Approved },
@@ -260,7 +321,7 @@ export async function approveRequest(requestId: Snowflake, reviewerId: Snowflake
         return;
     }
 
-    const handleModerationLog = (event: LoggingEvent, action: string): void => {
+    const handleModerationRequestApproveLog = (event: LoggingEvent, action: string): void => {
         const embed = new EmbedBuilder()
             .setColor(Colors.Green)
             .setAuthor({ name: "Moderation Request Approved" })
@@ -293,7 +354,7 @@ export async function approveRequest(requestId: Snowflake, reviewerId: Snowflake
             }
 
             await target.timeout(request.duration, request.reason);
-            handleModerationLog(LoggingEvent.MuteRequestApprove, "Muted");
+            handleModerationRequestApproveLog(LoggingEvent.MuteRequestApprove, "Muted");
             break;
         }
 
@@ -306,10 +367,28 @@ export async function approveRequest(requestId: Snowflake, reviewerId: Snowflake
             }
 
             await guild.members.ban(target, { reason: request.reason });
-            handleModerationLog(LoggingEvent.BanRequestApprove, "Banned");
+            handleModerationRequestApproveLog(LoggingEvent.BanRequestApprove, "Banned");
             break;
         }
     }
+
+    const action = request.punishment_type === ModerationRequestType.Mute
+        ? Action.Mute
+        : Action.Ban;
+
+    const expiresAt = request.duration
+        ? new Date(Date.now() + request.duration)
+        : null;
+
+    await handleInfractionCreate({
+        expires_at: expiresAt,
+        guild_id: request.guild_id,
+        executor_id: reviewerId,
+        request_author_id: request.author_id,
+        target_id: request.target_id,
+        reason: request.reason,
+        action
+    }, config);
 }
 
 /**
@@ -319,7 +398,7 @@ export async function approveRequest(requestId: Snowflake, reviewerId: Snowflake
  * @param reviewerId - The ID of the user denying the moderation request.
  * @param config - The guild configuration.
  */
-export async function denyRequest(message: Message<true>, reviewerId: Snowflake, config: GuildConfig): Promise<void> {
+export async function denyModerationRequest(message: Message<true>, reviewerId: Snowflake, config: GuildConfig): Promise<void> {
     const request = await prisma.request.update({
         where: { id: message.id },
         data: { status: RequestStatus.Denied },
@@ -374,6 +453,20 @@ export async function denyRequest(message: Message<true>, reviewerId: Snowflake,
         }
 
         case ModerationRequestType.Ban: {
+            const target = await config.guild.members.fetch(request.target_id).catch(() => null);
+
+            // Unmute the target user
+            if (target && target.isCommunicationDisabled()) {
+                await target.timeout(null);
+                await handleInfractionCreate({
+                    guild_id: request.guild_id,
+                    executor_id: reviewerId,
+                    target_id: request.target_id,
+                    reason: "Ban request denied",
+                    action: Action.Unmute
+                }, config);
+            }
+
             handleModerationRequestDenyLog(LoggingEvent.BanRequestDeny, "Ban");
             break;
         }
@@ -384,9 +477,4 @@ enum RequestStatus {
     Pending = "pending",
     Approved = "approved",
     Denied = "denied"
-}
-
-interface RequestAutoMuteProps {
-    target: GuildMember | null;
-    reason: string;
 }

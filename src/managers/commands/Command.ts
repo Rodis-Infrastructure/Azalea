@@ -2,7 +2,7 @@ import { ApplicationCommandData, AutocompleteInteraction, CommandInteraction, Sn
 import { DEFAULT_COMMAND_PERMISSIONS, DEFAULT_DM_PERMISSION } from "@utils/constants";
 import { InteractionReplyData } from "@utils/types";
 
-/** The base class for all commands. */
+// The base class for all commands.
 export default abstract class Command<T extends CommandInteraction> {
     /**
      * @param data The data for the command.

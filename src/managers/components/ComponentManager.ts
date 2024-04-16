@@ -7,12 +7,12 @@ import Sentry from "@sentry/node";
 import path from "path";
 import fs from "fs";
 
-/** Utility class for handling component interactions. */
+// Utility class for handling component interactions.
 export default class ComponentManager {
-    /** Cached components mapped by their custom IDs. */
+    // Cached components mapped by their custom IDs.
     private static _cache = new Map<CustomID, Component>;
 
-    /** Caches all components from the components directory. */
+    // Caches all components from the components directory.
     static async cache(): Promise<void> {
         const dirpath = path.resolve("src/components");
 

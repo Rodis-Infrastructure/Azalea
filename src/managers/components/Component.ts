@@ -1,7 +1,7 @@
 import { MessageComponentInteraction, ModalSubmitInteraction } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
 
-/** The base class for all component interactions. */
+// The base class for all component interactions.
 export default abstract class Component {
     /**
      * @param customId The custom ID of the component.

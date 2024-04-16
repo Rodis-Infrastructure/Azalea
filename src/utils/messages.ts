@@ -18,7 +18,7 @@ import { CronJob } from "cron";
 import Logger from "./logger";
 import ConfigManager from "@managers/config/ConfigManager";
 
-export class MessageCache {
+export class Messages {
     // Cache for messages that haven't been stored in the database yet
     private static dbQueue = new Collection<Snowflake, Message>();
     // Queue for messages that need to be purged
@@ -164,7 +164,7 @@ export class MessageCache {
         return old_content ?? EMPTY_MESSAGE_CONTENT;
     }
 
-    /** Clear the cache and store the messages in the database */
+    // Clear the cache and store the messages in the database
     static async clear(): Promise<void> {
         Logger.info("Storing cached messages...");
 
@@ -183,7 +183,7 @@ export class MessageCache {
     }
 
     // Start a cron job that will clear the cache and store the messages in the database
-    static startCronJobs(): void {
+    static startDbStorageCronJob(): void {
         const cron = ConfigManager.globalConfig.database.messages.insert_cron;
 
         new CronJob(cron, async () => {
@@ -215,7 +215,7 @@ export function prepareMessageForStorage(message: DiscordMessage<true>): Message
 export async function prependReferenceLog(reference: Snowflake | Message, embeds: EmbedBuilder[]): Promise<void> {
     // Fetch the reference if an ID is passed
     if (typeof reference === "string") {
-        const cachedReference = await MessageCache.get(reference);
+        const cachedReference = await Messages.get(reference);
         if (!cachedReference) return;
 
         reference = cachedReference;
@@ -246,7 +246,7 @@ export async function prependReferenceLog(reference: Snowflake | Message, embeds
 
 // Escape code blocks, truncate the content if it's too long, and wrap it in a code block
 export function formatMessageContentForLog(content: string | null): string {
-    return elipsify(content ?? EMPTY_MESSAGE_CONTENT, EMBED_FIELD_CHAR_LIMIT);
+    return elipsify(content || EMPTY_MESSAGE_CONTENT, EMBED_FIELD_CHAR_LIMIT);
 }
 
 // Ignores messages that were sent in DMs. This function shouldn't be used on deleted messages

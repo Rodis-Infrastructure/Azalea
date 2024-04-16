@@ -1,30 +1,43 @@
 import {
+    ActionRowBuilder,
+    ButtonBuilder,
     EmbedBuilder,
     Events,
     GuildEmoji,
     hyperlink,
+    inlineCode,
     Message,
     MessageCreateOptions,
     MessageReaction,
     PartialMessageReaction,
     ReactionEmoji,
-    User, userMention
+    roleMention,
+    User,
+    userMention
 } from "discord.js";
 
-import { prepareMessageForStorage, prependReferenceLog, resolvePartialMessage } from "@utils/messages";
+import {
+    formatMessageContentForLog,
+    prepareMessageForStorage,
+    prependReferenceLog,
+    resolvePartialMessage
+} from "@utils/messages";
+
 import { handleQuickMute, THIRTY_MINUTES } from "@/commands/QuickMute30Ctx";
 import { log, mapLogEntriesToFile } from "@utils/logging";
 import { formatMessageLogEntry } from "./MessageBulkDelete";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
+import { handlePurgeLog, purgeUser } from "@/commands/Purge";
+import { pluralize, userMentionWithId } from "@/utils";
+import { Snowflake, ButtonStyle } from "discord-api-types/v10";
+import { ONE_HOUR } from "@/commands/QuickMute60Ctx";
+import { approveModerationRequest, denyModerationRequest } from "@utils/requests";
+import { prisma } from "./..";
+import { MessageReportFlag, MessageReportStatus } from "@utils/reports";
 
 import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
-import { handlePurgeLog, purgeUser } from "@/commands/Purge";
-import { pluralize } from "@/utils";
-import { Snowflake } from "discord-api-types/v10";
-import { ONE_HOUR } from "@/commands/QuickMute60Ctx";
-import { approveRequest, denyRequest } from "@utils/requests";
 
 export default class MessageReactionAddEventListener extends EventListener {
     constructor() {
@@ -78,14 +91,161 @@ export default class MessageReactionAddEventListener extends EventListener {
             return;
         }
 
+        // Handle moderation request approvals
         if (emojiId === config.data.emojis.approve) {
-            await approveRequest(message.id, user.id, config);
+            await approveModerationRequest(message.id, user.id, config);
             return;
         }
 
+        // Handle moderation request denials
         if (emojiId === config.data.emojis.deny) {
-            await denyRequest(message, user.id, config);
+            await denyModerationRequest(message, user.id, config);
         }
+
+        // Handle message reports
+        if (emojiId === config.data.emojis.report_message && !message.author.bot) {
+            await this.createMessageReport(user.id, message, config);
+        }
+    }
+
+    async createMessageReport(reporterId: Snowflake, message: Message<true>, config: GuildConfig): Promise<void> {
+        // Message reports have not been configured
+        if (!config.data.message_reports) return;
+
+        const excludedRoles = config.data.message_reports.excluded_roles;
+        const isExcluded = message.member?.roles.cache.some(role => excludedRoles?.includes(role.id));
+
+        // Don't report messages from users with excluded roles
+        if (isExcluded) return;
+
+        const alertChannel = await config.guild.channels.fetch(config.data.message_reports.alert_channel);
+
+        // Ensure the alert channel exists and is a text channel
+        // An error should be thrown since the bot shouldn't be started with an incomplete configuration
+        if (!alertChannel || !alertChannel.isTextBased()) {
+            throw new Error(`Invalid alert channel passed to \`message_reports.alert_channel\` in the config for guild with ID ${config.guild.id}`);
+        }
+
+        const originalReport = await prisma.messageReport.findUnique({
+            where: {
+                message_id: message.id,
+                status: MessageReportStatus.Unresolved
+            }
+        });
+
+        // The message has already been reported
+        if (originalReport) {
+            return;
+        }
+
+        // Flags mapped by their names for the report
+        const mappedFlags = [];
+        // Bitwise flags for storage
+        let flags = 0;
+
+        // Add a flag if the message has attachments
+        if (message.attachments.size) {
+            // Use Enum[Enum.Value] to ensure the flag name is up-to-date with changes
+            mappedFlags.push(MessageReportFlag[MessageReportFlag.HasAttachment]);
+            flags |= MessageReportFlag.HasAttachment;
+        }
+
+        // Add a flag if the message has stickers
+        if (message.stickers.size) {
+            // Use Enum[Enum.Value] to ensure the flag name is up-to-date with changes
+            mappedFlags.push(MessageReportFlag[MessageReportFlag.HasSticker]);
+            flags |= MessageReportFlag.HasSticker;
+        }
+
+        const jumpUrl = hyperlink("Jump to message", message.url);
+        const alert = new EmbedBuilder()
+            .setDescription(jumpUrl)
+            .setThumbnail(message.author.displayAvatarURL())
+            .setFields([
+                {
+                    name: "Reported by",
+                    value: userMentionWithId(reporterId)
+                },
+                {
+                    name: "Target",
+                    value: userMentionWithId(message.author.id)
+                },
+                {
+                    name: "Message Content",
+                    value: formatMessageContentForLog(message.content)
+                }
+            ])
+            .setTimestamp();
+
+        // Add flags to the embed if there are any
+        if (mappedFlags.length) {
+            // Split the flags by capital letters and wrap them in inline code blocks
+            const formattedFlags = mappedFlags
+                .map(flag => {
+                    const formattedFlag = flag.split(/(?=[A-Z])/).join(" ");
+                    return inlineCode(formattedFlag);
+                })
+                .join(", ");
+
+            alert.addFields({
+                name: "Flags",
+                value: formattedFlags
+            });
+        }
+
+        // Mark the report as resolved
+        const resolveMessageReportButton = new ButtonBuilder()
+            .setCustomId(`message_report_resolve`)
+            .setLabel("Resolve")
+            .setStyle(ButtonStyle.Success);
+
+        // Mute the target user for 30 minutes
+        const quickMute30Button = new ButtonBuilder()
+            .setCustomId("message_report_qm30")
+            .setLabel("Quick mute (30m)")
+            .setStyle(ButtonStyle.Danger);
+
+        // Mute the target user for 1 hour
+        const quickMute60Button = new ButtonBuilder()
+            .setCustomId("message_report_qm60")
+            .setLabel("Quick mute (1h)")
+            .setStyle(ButtonStyle.Danger);
+
+        // Search the target user's infractions
+        const infractionsButton = new ButtonBuilder()
+            .setCustomId("infraction_search")
+            .setLabel("Infractions")
+            .setStyle(ButtonStyle.Secondary);
+
+        const actionRow = new ActionRowBuilder<ButtonBuilder>().setComponents(
+            resolveMessageReportButton,
+            quickMute30Button,
+            quickMute60Button,
+            infractionsButton
+        );
+
+        // Mention the roles that should be pinged when a message is reported
+        const mentionedRoles = config.data.message_reports.mentioned_roles?.map(roleMention).join(" ");
+
+        const report = await alertChannel.send({
+            content: mentionedRoles,
+            embeds: [alert],
+            components: [actionRow]
+        });
+
+        // Store the report
+        await prisma.messageReport.create({
+            data: {
+                id: report.id,
+                message_id: message.id,
+                guild_id: message.guildId,
+                author_id: message.author.id,
+                channel_id: message.channelId,
+                content: message.content,
+                reporter_id: message.author.id,
+                flags
+            }
+        });
     }
 
     async handleReactionMessagePurging(message: Message<true>, executorId: Snowflake, config: GuildConfig): Promise<void> {
@@ -176,7 +336,7 @@ export default class MessageReactionAddEventListener extends EventListener {
         };
     }
 
-    /** @returns The emoji ID and URL if the emoji is a custom emoji, otherwise the emoji name */
+    // @returns The emoji ID and URL if the emoji is a custom emoji, otherwise the emoji name
     parseEmoji(emoji: GuildEmoji | ReactionEmoji): string {
         if (emoji.id) {
             const maskedEmojiURL = hyperlink("view", `<${emoji.imageURL()}>`);

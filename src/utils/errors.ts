@@ -3,3 +3,9 @@ export class RequestValidationError extends Error {
         super(message);
     }
 }
+
+export class MediaStoreError extends Error {
+    constructor(message: string) {
+        super(message);
+    }
+}

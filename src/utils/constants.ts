@@ -1,4 +1,4 @@
-import { GatewayIntentBits, Partials, PermissionFlagsBits } from "discord.js";
+import { EmbedField, GatewayIntentBits, Partials, PermissionFlagsBits } from "discord.js";
 
 export const LOG_ENTRY_DATE_FORMAT: Intl.DateTimeFormatOptions = {
     month: "2-digit",
@@ -23,13 +23,13 @@ export const DEFAULT_MUTE_DURATION = 1000 * 60 * 60 * 24 * 28;
 export const EXIT_EVENTS = ["SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", "SIGABRT", "SIGBUS", "SIGFPE", "SIGUSR1", "SIGSEGV", "SIGUSR2", "SIGTERM", "uncaughtException", "unhandledRejection"];
 
 
-/** The default permissions required to use commands. */
+// The default permissions required to use commands.
 export const DEFAULT_COMMAND_PERMISSIONS: readonly bigint[] = [PermissionFlagsBits.ManageGuild];
 
-/** The default state of whether commands should be allowed in DMs. */
+// The default state of whether commands should be allowed in DMs.
 export const DEFAULT_DM_PERMISSION: boolean = false;
 
-/** The default intents for the Discord client. */
+// The default intents for the Discord client.
 export const CLIENT_INTENTS: readonly GatewayIntentBits[] = [
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.GuildVoiceStates,
@@ -40,8 +40,15 @@ export const CLIENT_INTENTS: readonly GatewayIntentBits[] = [
     GatewayIntentBits.Guilds
 ];
 
-/** The default partials for the Discord client. */
+// The default partials for the Discord client.
 export const CLIENT_PARTIALS: Partials[] = [
     Partials.Reaction,
     Partials.Message
 ];
+
+// An empty embed field. Typically used for layout purposes.
+export const BLANK_EMBED_FIELD: EmbedField = {
+    name: "\u200b",
+    value: "\u200b",
+    inline: true
+};

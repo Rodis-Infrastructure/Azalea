@@ -33,4 +33,10 @@ export default class Logger {
             color: AnsiColor.Cyan
         });
     }
+
+    static error(message: string): void {
+        Logger.log("ERROR", message, {
+            color: AnsiColor.Red
+        });
+    }
 }

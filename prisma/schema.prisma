@@ -16,6 +16,9 @@ model Request {
   punishment_type String
   status          String   @default("pending")
   created_at      DateTime @default(now())
+  /// ID of the auto-mute infraction - only applicable to ban requests
+  mute_id         Int?
+  /// Duration of the mute - only applicable to mute requests
   duration        Int?
 }
 
@@ -49,4 +52,29 @@ model Infraction {
   updated_by        String?
   archived_at       DateTime?
   archived_by       String?
+}
+
+model MessageReport {
+  id          String  @id
+  message_id  String  @unique
+  channel_id  String
+  author_id   String
+  reporter_id String
+  guild_id    String
+  flags       Int
+  status      String  @default("unresolved")
+  /// ID of the moderator that resolved the report
+  resolved_by String?
+  content     String?
+}
+
+model UserReport {
+  id          String  @id
+  target_id   String
+  reporter_id String
+  guild_id    String
+  reason      String
+  status      String  @default("unresolved")
+  /// ID of the moderator that resolved the report
+  resolved_by String?
 }

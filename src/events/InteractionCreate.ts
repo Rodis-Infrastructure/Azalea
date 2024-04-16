@@ -41,7 +41,7 @@ export default class InteractionCreate extends EventListener {
         try {
             await this.handleInteraction(interaction, config);
         } catch (error) {
-            Sentry.captureException(error, {
+            const sentryId = Sentry.captureException(error, {
                 user: {
                     id: interaction.user.id,
                     username: interaction.user.username
@@ -54,7 +54,7 @@ export default class InteractionCreate extends EventListener {
             });
 
             await interaction.reply({
-                content: "An error occurred while executing this interaction.",
+                content: `An error occurred while executing this interaction (\`${sentryId}\`)`,
                 ephemeral: true
             }).catch(() => null);
         } finally {
@@ -64,7 +64,7 @@ export default class InteractionCreate extends EventListener {
 
     async handleInteraction(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
         const ephemeralReply = interaction.channel
-            ? config.inLoggingScope(interaction.channel)
+            ? config.inScope(interaction.channel, config.data.ephemeral_scoping)
             : true;
 
         let response: InteractionReplyData | null;
@@ -131,7 +131,7 @@ export default class InteractionCreate extends EventListener {
         });
     }
 
-    /** @returns The interaction's name or custom ID */
+    // @returns The interaction's name or custom ID
     parseInteractionName(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>): string {
         if (interaction.isChatInputCommand()) {
             const subcommand = interaction.options.getSubcommand(false);

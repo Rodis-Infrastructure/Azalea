@@ -11,7 +11,7 @@ import {
 import {
     prependReferenceLog,
     formatMessageContentForLog,
-    MessageCache,
+    Messages,
     resolvePartialMessage,
     prepareMessageForStorage
 } from "@utils/messages";
@@ -42,15 +42,15 @@ export default class MessageUpdateEventListener extends EventListener {
         if (!config) return;
 
         this.handleMessageUpdateLog(message, config).catch(() => null);
-        await handleModerationRequest(message, config).catch(() => null);
+        handleModerationRequest(message, config);
     }
 
     async handleMessageUpdateLog(message: DiscordMessage<true>, config: GuildConfig): Promise<void> {
         const reference = message.reference?.messageId
-            ? await MessageCache.get(message.reference.messageId)
+            ? await Messages.get(message.reference.messageId)
             : null;
 
-        const oldContent = await MessageCache.updateContent(message.id, message.content);
+        const oldContent = await Messages.updateContent(message.id, message.content);
         if (oldContent === message.content) return;
 
         let logContent: MessageCreateOptions | null;
@@ -75,7 +75,7 @@ export default class MessageUpdateEventListener extends EventListener {
         });
     }
 
-    /** @returns The log message */
+    // @returns The log message
     async getShortLogContent(
         message: DiscordMessage<true>,
         reference: Message | null,
@@ -103,7 +103,7 @@ export default class MessageUpdateEventListener extends EventListener {
         return { embeds };
     }
 
-    /** @returns The log message */
+    // @returns The log message
     async getLongLogContent(
         message: DiscordMessage<true>,
         reference: Message | null,

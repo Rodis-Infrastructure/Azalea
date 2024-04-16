@@ -10,7 +10,7 @@ import {
 
 import { log, mapLogEntriesToFile } from "@utils/logging";
 import { EMPTY_MESSAGE_CONTENT, LOG_ENTRY_DATE_FORMAT } from "@utils/constants";
-import { MessageCache } from "@utils/messages";
+import { Messages } from "@utils/messages";
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
 import { pluralize } from "@/utils";
@@ -26,12 +26,12 @@ export default class MessageBulkDeleteEventListener extends EventListener {
     }
 
     async execute(deletedMessages: Collection<Snowflake, PartialMessage | DiscordMessage<true>>, channel: GuildTextBasedChannel): Promise<void> {
-        const messages = await MessageCache.deleteMany(deletedMessages);
+        const messages = await Messages.deleteMany(deletedMessages);
         const config = ConfigManager.getGuildConfig(channel.guild.id);
 
         if (!messages.length || !config) return;
 
-        const purgeIndex = MessageCache.purgeQueue.findIndex(purged =>
+        const purgeIndex = Messages.purgeQueue.findIndex(purged =>
             purged.messages.some(message =>
                 messages.some(m => m.id === message.id)
             )
@@ -41,7 +41,7 @@ export default class MessageBulkDeleteEventListener extends EventListener {
         if (purgeIndex !== -1) {
             return;
         } else {
-            delete MessageCache.purgeQueue[purgeIndex];
+            delete Messages.purgeQueue[purgeIndex];
         }
 
         handleMessageBulkDeleteLog(messages, channel, config);
@@ -67,7 +67,7 @@ export async function handleMessageBulkDeleteLog(
         }
 
         if (message.reference_id) {
-            const reference = await MessageCache.get(message.reference_id);
+            const reference = await Messages.get(message.reference_id);
 
             if (reference) {
                 const referenceEntry = await formatMessageLogEntry(reference);

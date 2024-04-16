@@ -9,14 +9,14 @@ import Command from "./Command";
 import path from "path";
 import fs from "fs";
 
-/** Utility class for handling command interactions. */
+// Utility class for handling command interactions.
 export default class CommandManager {
-    /** Cached global commands mapped by their names. */
+    // Cached global commands mapped by their names.
     private static _globalCommands = new Collection<string, Command<CommandInteraction>>();
-    /** Cached guild commands mapped by their guild's ID. */
+    // Cached guild commands mapped by their guild's ID.
     private static _guildCommands = new Collection<Snowflake, Collection<string, Command<CommandInteraction>>>();
 
-    /** Caches all commands from the commands directory. */
+    // Caches all commands from the commands directory.
     static async cache(): Promise<void> {
         const dirpath = path.resolve("src/commands");
 
@@ -81,7 +81,7 @@ export default class CommandManager {
         Logger.info(`Cached ${commandCount} ${pluralize(commandCount, "command")}`);
     }
 
-    /** Publish all cached commands to Discord. */
+    // Publish all cached commands to Discord.
     static async publish(): Promise<void> {
         Logger.info("Publishing commands...");
 
@@ -126,7 +126,7 @@ export default class CommandManager {
         Logger.info("Finished publishing commands");
     }
 
-    /** Handles a command interaction. */
+    // Handles a command interaction.
     static handleCommand(interaction: CommandInteraction): Promise<InteractionReplyData> | InteractionReplyData {
         const command = CommandManager._get(
             interaction.commandId,
@@ -141,7 +141,7 @@ export default class CommandManager {
         return command.execute(interaction);
     }
 
-    /** Handles an autocomplete interaction. */
+    // Handles an autocomplete interaction.
     static async handleAutocomplete(interaction: AutocompleteInteraction): Promise<void> {
         const command = CommandManager._get(
             interaction.commandId,

@@ -25,3 +25,7 @@ export enum Flag {
 }
 
 export type InteractionReplyData = InteractionReplyOptions | string | null;
+
+export type DeepPartial<T> = {
+    [P in keyof T]?: DeepPartial<T[P]>;
+};

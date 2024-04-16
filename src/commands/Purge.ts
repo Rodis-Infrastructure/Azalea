@@ -5,7 +5,7 @@ import {
     GuildTextBasedChannel
 } from "discord.js";
 
-import { MessageCache, prepareMessageForStorage } from "@utils/messages";
+import { Messages, prepareMessageForStorage } from "@utils/messages";
 import { handleMessageBulkDeleteLog } from "@/events/MessageBulkDelete";
 import { handleShortMessageDeleteLog } from "@/events/MessageDelete";
 import { InteractionReplyData } from "@utils/types";
@@ -133,7 +133,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
         if (!messages.size) return [];
 
         // Append the messages to the purge queue for logging
-        MessageCache.purgeQueue.push({
+        Messages.purgeQueue.push({
             channelId: channel.id,
             messages: serializedMessages
         });
@@ -177,14 +177,14 @@ export async function handlePurgeLog(messages: Message[], channel: GuildTextBase
  */
 export async function purgeUser(targetId: Snowflake, channel: GuildTextBasedChannel, amount: number): Promise<Message[]> {
     // Get the user's messages from cache or the database
-    const messages = await MessageCache.getByUser(targetId, channel.id, amount);
+    const messages = await Messages.getByUser(targetId, channel.id, amount);
     // Map the messages by their IDs
     const messageIds = messages.map(message => message.id);
 
     if (!messages.length) return [];
 
     // Append the messages to the purge queue for logging
-    MessageCache.purgeQueue.push({
+    Messages.purgeQueue.push({
         channelId: channel.id,
         messages: messages
     });

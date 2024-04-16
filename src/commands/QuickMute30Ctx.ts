@@ -116,7 +116,7 @@ export async function handleQuickMute(data: {
     }
 
     // Ensure a public log of the action is made
-    if (config.inLoggingScope(channel)) {
+    if (config.inScope(channel, config.data.ephemeral_scoping)) {
         config.sendNotification(`${executor} set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` (\`${reason}\`)`, false);
     }
 

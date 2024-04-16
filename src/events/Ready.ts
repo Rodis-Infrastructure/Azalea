@@ -1,8 +1,9 @@
-import { MessageCache } from "@utils/messages";
+import { Messages } from "@utils/messages";
 import { Client, Events } from "discord.js";
 
 import Logger, { AnsiColor } from "@utils/logger";
 import EventListener from "@managers/events/EventListener";
+import ConfigManager from "@managers/config/ConfigManager";
 
 export default class Ready extends EventListener {
     constructor() {
@@ -18,6 +19,12 @@ export default class Ready extends EventListener {
         });
 
         // Operations that require the global config
-        MessageCache.startCronJobs();
+        Messages.startDbStorageCronJob();
+
+        // Start scheduled messages for all guilds
+        ConfigManager.guildConfigs.forEach(config => {
+            config.startScheduledMessageCronJobs();
+            config.startRequestAlertCronJobs();
+        });
     }
 }

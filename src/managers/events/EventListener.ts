@@ -1,6 +1,6 @@
 import { ClientEvents, Events } from "discord.js";
 
-/** The base class for all event listeners. */
+// The base class for all event listeners.
 export default abstract class EventListener {
     /**
      * @param event The event to handle.
