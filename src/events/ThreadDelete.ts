@@ -6,7 +6,7 @@ import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
 
-export default class ThreadDeleteEventListener extends EventListener {
+export default class ThreadDelete extends EventListener {
     constructor() {
         super(Events.ThreadDelete);
     }
@@ -15,10 +15,10 @@ export default class ThreadDeleteEventListener extends EventListener {
         const config = ConfigManager.getGuildConfig(thread.guildId);
         if (!config) return;
 
-        this.handleThreadDeleteLog(thread, config);
+        ThreadDelete._log(thread, config);
     }
 
-    handleThreadDeleteLog(thread: ThreadChannel, config: GuildConfig): void {
+    private static _log(thread: ThreadChannel, config: GuildConfig): void {
         if (!thread.ownerId || !thread.parent) return;
 
         const embed = new EmbedBuilder()

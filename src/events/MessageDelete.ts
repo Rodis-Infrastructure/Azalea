@@ -18,7 +18,6 @@ import {
 } from "@utils/messages";
 
 import { channelMentionWithName, userMentionWithId } from "@/utils";
-import { handleMessageBulkDeleteLog } from "./MessageBulkDelete";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { log } from "@utils/logging";
 import { Message } from "@prisma/client";
@@ -27,8 +26,9 @@ import { client } from "./..";
 import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
+import MessageBulkDelete from "./MessageBulkDelete";
 
-export default class MessageDeleteEventListener extends EventListener {
+export default class MessageDelete extends EventListener {
     constructor() {
         super(Events.MessageDelete);
     }
@@ -70,7 +70,7 @@ export default class MessageDeleteEventListener extends EventListener {
             message.content!.length > EMBED_FIELD_CHAR_LIMIT ||
             (reference?.content && reference.content.length > EMBED_FIELD_CHAR_LIMIT)
         ) {
-            await handleMessageBulkDeleteLog([message], channel, config);
+            await MessageBulkDelete.log([message], channel, config);
             return;
         }
 

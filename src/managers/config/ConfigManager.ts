@@ -35,10 +35,12 @@ export default class ConfigManager {
             const [guildId] = file.split(".");
             // Parse the config file and set default values
             const parsedConfig = readYamlFile<DeepPartial<RawGuildConfig>>(`configs/${file}`);
-            const config = await GuildConfig.bind(guildId, parsedConfig);
+            const config = await GuildConfig.from(guildId, parsedConfig).catch(error => {
+                Logger.error(`Failed to parse config for guild with ID ${guildId} - ${error.message}`);
+                process.exit(1);
+            });
 
             // Validate the config and cache it
-            config.validate();
             this.addGuildConfig(guildId, config);
 
             Logger.log(`GUILD_CONFIG`, `Cached config for guild with ID ${guildId}`, {

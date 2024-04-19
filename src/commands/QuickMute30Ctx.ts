@@ -7,17 +7,14 @@ import {
     TimestampStyles
 } from "discord.js";
 
-import { Action, Flag, InteractionReplyData } from "@utils/types";
+import { Action, Flag, InteractionReplyData, MuteDuration } from "@utils/types";
 import { handleInfractionCreate } from "@utils/infractions";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { handlePurgeLog, purgeUser } from "./Purge";
 import { elipsify } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
-
-// Constants
-export const THIRTY_MINUTES = 1000 * 60 * 30;
+import Purge from "./Purge";
 
 export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInteraction<"cached">> {
     constructor() {
@@ -32,7 +29,7 @@ export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInt
         return handleQuickMute({
             executor: interaction.member,
             targetMessage: interaction.targetMessage,
-            duration: THIRTY_MINUTES
+            duration: MuteDuration.Short
         });
     }
 }
@@ -49,7 +46,7 @@ export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInt
 export async function handleQuickMute(data: {
     executor: GuildMember,
     targetMessage: Message<true>,
-    duration: number
+    duration: MuteDuration
 }): Promise<string> {
     const { executor, targetMessage, duration } = data;
     const { content, member, channel } = targetMessage;
@@ -84,14 +81,14 @@ export async function handleQuickMute(data: {
     }
 
     // Mute the user
-    await member.timeout(THIRTY_MINUTES, content);
+    await member.timeout(duration, content);
 
     // Calculate the expiration date
     const expiresTimestamp = Date.now() + duration;
     const expiresAt = new Date(expiresTimestamp);
 
-    const messages = await purgeUser(member.id, channel, config.data.default_purge_amount);
-    const [logUrl] = await handlePurgeLog(messages, channel, config);
+    const messages = await Purge.purgeUser(member.id, channel, config.data.default_purge_amount);
+    const [logUrl] = await Purge.log(messages, channel, config);
 
     // Format the expiration date as a relative timestamp
     const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);

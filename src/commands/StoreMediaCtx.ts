@@ -33,7 +33,7 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
         }
 
         try {
-            const logURLs = await handleMediaStore(interaction.user.id, interaction.targetMessage.author.id, files, config);
+            const logURLs = await StoreMediaCtx.storeMedia(interaction.user.id, interaction.targetMessage.author.id, files, config);
             return `Stored \`${files.length}\` ${pluralize(files.length, "attachment")} from ${interaction.targetMessage.author} - ${logURLs.join(" ")}`;
         } catch (error) {
             if (error instanceof MediaStoreError) {
@@ -52,32 +52,32 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
             return "An error occurred while storing the media.";
         }
     }
-}
 
-/**
- * Handles storing media in the logging channel
- *
- * @param media - The media to store
- * @param executorId - ID of the user who stored the media
- * @param targetId - ID of the user whose media is being stored
- * @param config - The guild configuration
- * @returns - The media log URLs
- */
-export async function handleMediaStore(executorId: Snowflake, targetId: Snowflake, media: Attachment[], config: GuildConfig): Promise<string[]> {
-    const loggedMessages = await log({
-        event: LoggingEvent.MediaStore,
-        message: {
-            content: `Media from ${userMention(targetId)}, stored by ${userMention(executorId)}`,
-            allowedMentions: { parse: [] },
-            files: media
-        },
-        channel: null,
-        config
-    });
+    /**
+     * Handles storing media in the logging channel
+     *
+     * @param media - The media to store
+     * @param executorId - ID of the user who stored the media
+     * @param targetId - ID of the user whose media is being stored
+     * @param config - The guild configuration
+     * @returns - The media log URLs
+     */
+    static async storeMedia(executorId: Snowflake, targetId: Snowflake, media: Attachment[], config: GuildConfig): Promise<string[]> {
+        const loggedMessages = await log({
+            event: LoggingEvent.MediaStore,
+            message: {
+                content: `Media from ${userMention(targetId)}, stored by ${userMention(executorId)}`,
+                allowedMentions: { parse: [] },
+                files: media
+            },
+            channel: null,
+            config
+        });
 
-    if (!loggedMessages?.length) {
-        throw new MediaStoreError("Failed to store media.");
+        if (!loggedMessages?.length) {
+            throw new MediaStoreError("Failed to store media.");
+        }
+
+        return loggedMessages.map(message => message.url);
     }
-
-    return loggedMessages.map(message => message.url);
 }

@@ -1,4 +1,5 @@
 import { InteractionReplyData } from "@utils/types";
+import { Collection } from "discord.js";
 import { pluralize } from "@/utils";
 
 import Component, { ComponentInteraction, CustomID } from "./Component";
@@ -10,7 +11,7 @@ import fs from "fs";
 // Utility class for handling component interactions.
 export default class ComponentManager {
     // Cached components mapped by their custom IDs.
-    private static _cache = new Map<CustomID, Component>;
+    private static _cache = new Collection<CustomID, Component>;
 
     // Caches all components from the components directory.
     static async cache(): Promise<void> {
@@ -56,9 +57,31 @@ export default class ComponentManager {
         Logger.info(`Cached ${componentCount} ${pluralize(componentCount, "component")}`);
     }
 
+    private static getComponent(customId: string): Component | undefined {
+        return ComponentManager._cache.find(component => {
+            if (typeof component.customId === "string") {
+                return component.customId === customId;
+            }
+
+            if ("matches" in component.customId) {
+                return customId.match(component.customId.matches);
+            }
+
+            if ("startsWith" in component.customId) {
+                return customId.startsWith(component.customId.startsWith);
+            }
+
+            if ("endsWith" in component.customId) {
+                return customId.endsWith(component.customId.endsWith);
+            }
+
+            return customId.includes(component.customId.includes);
+        });
+    }
+
     static handle(interaction: ComponentInteraction): Promise<InteractionReplyData> | InteractionReplyData {
         // Retrieve the component's instance from cache by its custom ID
-        const component = ComponentManager._cache.get(interaction.customId);
+        const component = ComponentManager.getComponent(interaction.customId);
 
         if (!component) {
             throw new Error(`Component "${interaction.customId}" not found`);

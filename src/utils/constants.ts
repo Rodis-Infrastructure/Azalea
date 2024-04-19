@@ -20,6 +20,9 @@ export const EMBED_FIELD_CHAR_LIMIT = 1000;
 // 28 days
 export const DEFAULT_MUTE_DURATION = 1000 * 60 * 60 * 24 * 28;
 
+// 28 days
+export const MAX_MUTE_DURATION = 1000 * 60 * 60 * 24 * 28;
+
 export const EXIT_EVENTS = ["SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", "SIGABRT", "SIGBUS", "SIGFPE", "SIGUSR1", "SIGSEGV", "SIGUSR2", "SIGTERM", "uncaughtException", "unhandledRejection"];
 
 

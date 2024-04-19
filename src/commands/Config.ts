@@ -36,16 +36,16 @@ export default class Config extends Command<ChatInputCommandInteraction<"cached"
 
         switch (subcommand) {
             case ConfigSubcommand.Global:
-                return this.getGlobalConfigAttachment();
+                return Config._getGlobalConfigAttachment();
 
             case ConfigSubcommand.Guild: {
                 const guildId = interaction.options.getString("guild_id") ?? interaction.guildId;
-                return this.getGuildConfigAttachment(guildId);
+                return Config._getGuildConfigAttachment(guildId);
             }
         }
     }
 
-    getGlobalConfigAttachment(): InteractionReplyData {
+    private static _getGlobalConfigAttachment(): InteractionReplyData {
         const stringifiedConfig = YAML.stringify(ConfigManager.globalConfig);
         const buffer = Buffer.from(stringifiedConfig);
         const file = new AttachmentBuilder(buffer, { name: "azalea.cfg.yml" });
@@ -53,7 +53,7 @@ export default class Config extends Command<ChatInputCommandInteraction<"cached"
         return { files: [file] };
     }
 
-    getGuildConfigAttachment(guildId: Snowflake): InteractionReplyData {
+    private static _getGuildConfigAttachment(guildId: Snowflake): InteractionReplyData {
         const guildConfig = ConfigManager.getGuildConfig(guildId);
 
         if (!guildConfig) {

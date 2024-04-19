@@ -6,17 +6,17 @@ import {
 } from "discord.js";
 
 import { Messages, prepareMessageForStorage } from "@utils/messages";
-import { handleMessageBulkDeleteLog } from "@/events/MessageBulkDelete";
 import { handleShortMessageDeleteLog } from "@/events/MessageDelete";
 import { InteractionReplyData } from "@utils/types";
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
 import { pluralize } from "@/utils";
+import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import GuildConfig from "@managers/config/GuildConfig";
 import Command from "@managers/commands/Command";
-import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
+import MessageBulkDelete from "@/events/MessageBulkDelete";
 
 export default class Purge extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -90,7 +90,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
                 const target = targetMember ?? interaction.options.getUser("user", true);
 
                 // Purge the user's messages
-                messages = await purgeUser(target.id, interaction.channel, amount);
+                messages = await Purge.purgeUser(target.id, interaction.channel, amount);
                 response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")} by ${target}`;
 
                 break;
@@ -99,7 +99,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
             // Purge all recent messages in the channel
             case PurgeSubcommand.All: {
                 // Purge the channel's recent messages
-                messages = await this.purgeAll(interaction.channel, amount);
+                messages = await Purge._purgeAll(interaction.channel, amount);
                 response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")}`;
 
                 break;
@@ -112,7 +112,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
         }
 
         // Link to the log for ease of access
-        const logURLs = await handlePurgeLog(messages, interaction.channel, config);
+        const logURLs = await Purge.log(messages, interaction.channel, config);
 
         return `${response}: ${logURLs.join(" ")}`;
     }
@@ -124,7 +124,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
      * @param amount - The maximum amount of messages to purge
      * @returns The purged messages
      */
-    async purgeAll(channel: GuildTextBasedChannel, amount: number): Promise<Message[]> {
+    private static async _purgeAll(channel: GuildTextBasedChannel, amount: number): Promise<Message[]> {
         // Fetch recently sent messages in the channel
         const messages = await channel.messages.fetch({ limit: amount });
         // Serialize the messages for storage
@@ -142,57 +142,57 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
         await channel.bulkDelete(messages);
         return serializedMessages;
     }
-}
+    /**
+     * Handles logging for message purging
+     *
+     * @param messages - The messages that were purged
+     * @param channel - The channel the messages were purged from
+     * @param config - The guild's configuration
+     * @returns The URLs to the logs
+     */
+    static async log(messages: Message[], channel: GuildTextBasedChannel, config: GuildConfig): Promise<string[]> {
+        let logs: DiscordMessage<true>[];
 
-/**
- * Handles logging for message purging
- *
- * @param messages - The messages that were purged
- * @param channel - The channel the messages were purged from
- * @param config - The guild's configuration
- * @returns The URLs to the logs
- */
-export async function handlePurgeLog(messages: Message[], channel: GuildTextBasedChannel, config: GuildConfig): Promise<string[]> {
-    let logs: DiscordMessage<true>[];
+        // If only one message was purged, log it as a single message
+        // Otherwise, log them in a text file
+        if (messages.length === 1 && (!messages[0].content || messages[0].content.length <= EMBED_FIELD_CHAR_LIMIT)) {
+            logs = await handleShortMessageDeleteLog(messages[0], channel, config) ?? [];
+        } else {
+            logs = await MessageBulkDelete.log(messages, channel, config) ?? [];
+        }
 
-    // If only one message was purged, log it as a single message
-    // Otherwise, log them in a text file
-    if (messages.length === 1 && (!messages[0].content || messages[0].content.length <= EMBED_FIELD_CHAR_LIMIT)) {
-        logs = await handleShortMessageDeleteLog(messages[0], channel, config) ?? [];
-    } else {
-        logs = await handleMessageBulkDeleteLog(messages, channel, config) ?? [];
+        // Link to the logs for ease of access
+        return logs.map(log => log.url);
     }
 
-    // Link to the logs for ease of access
-    return logs.map(log => log.url);
+    /**
+     * Purges messages from a user in a channel
+     *
+     * @param targetId - The ID of the user to purge messages from
+     * @param channel - The channel to purge messages from
+     * @param amount - The maximum amount of messages to purge
+     * @returns The purged messages
+     */
+    static async purgeUser(targetId: Snowflake, channel: GuildTextBasedChannel, amount: number): Promise<Message[]> {
+        // Get the user's messages from cache or the database
+        const messages = await Messages.getByUser(targetId, channel.id, amount);
+        // Map the messages by their IDs
+        const messageIds = messages.map(message => message.id);
+
+        if (!messages.length) return [];
+
+        // Append the messages to the purge queue for logging
+        Messages.purgeQueue.push({
+            channelId: channel.id,
+            messages: messages
+        });
+
+        // Purge the messages
+        await channel.bulkDelete(messageIds);
+        return messages;
+    }
 }
 
-/**
- * Purges messages from a user in a channel
- *
- * @param targetId - The ID of the user to purge messages from
- * @param channel - The channel to purge messages from
- * @param amount - The maximum amount of messages to purge
- * @returns The purged messages
- */
-export async function purgeUser(targetId: Snowflake, channel: GuildTextBasedChannel, amount: number): Promise<Message[]> {
-    // Get the user's messages from cache or the database
-    const messages = await Messages.getByUser(targetId, channel.id, amount);
-    // Map the messages by their IDs
-    const messageIds = messages.map(message => message.id);
-
-    if (!messages.length) return [];
-
-    // Append the messages to the purge queue for logging
-    Messages.purgeQueue.push({
-        channelId: channel.id,
-        messages: messages
-    });
-
-    // Purge the messages
-    await channel.bulkDelete(messageIds);
-    return messages;
-}
 
 enum PurgeSubcommand {
     All = "all",

@@ -1,10 +1,10 @@
 import { ApplicationCommandType, MessageContextMenuCommandInteraction } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
-import { handlePurgeLog, purgeUser } from "./Purge";
 import { pluralize } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
+import Purge from "./Purge";
 
 export default class PurgeCtx extends Command<MessageContextMenuCommandInteraction<"cached">> {
     constructor() {
@@ -26,7 +26,7 @@ export default class PurgeCtx extends Command<MessageContextMenuCommandInteracti
             return Promise.resolve("You cannot purge messages from a user with a higher role than you.");
         }
 
-        const messages = await purgeUser(
+        const messages = await Purge.purgeUser(
             interaction.targetMessage.author.id,
             interaction.channel,
             config.data.default_purge_amount
@@ -37,7 +37,7 @@ export default class PurgeCtx extends Command<MessageContextMenuCommandInteracti
         }
 
 
-        const logURLs = await handlePurgeLog(messages, interaction.channel, config);
+        const logURLs = await Purge.log(messages, interaction.channel, config);
         const response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")} by ${interaction.targetMessage.author}`;
 
         return `${response}: ${logURLs.join(", ")}`;

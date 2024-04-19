@@ -112,3 +112,10 @@ export function elipsify(str: string, length: number): string {
         ? `${croppedStr}...(${str.length - croppedStr.length} more characters)`
         : str;
 }
+
+// Remove links and unnecessary whitespace from a string
+export function stripLinks(str: string): string {
+    return str
+        .replaceAll(/https?:\/\/[^\s\n\r]+/gi, "")
+        .replaceAll(/\s{2,}/g, " ");
+}

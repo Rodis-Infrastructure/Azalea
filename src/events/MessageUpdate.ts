@@ -13,10 +13,10 @@ import {
     formatMessageContentForLog,
     Messages,
     resolvePartialMessage,
-    prepareMessageForStorage
+    prepareMessageForStorage,
+    formatMessageLogEntry
 } from "@utils/messages";
 
-import { formatMessageLogEntry } from "./MessageBulkDelete";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { log, mapLogEntriesToFile } from "@utils/logging";
 import { handleModerationRequest } from "@utils/requests";
@@ -26,7 +26,7 @@ import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 
-export default class MessageUpdateEventListener extends EventListener {
+export default class MessageUpdate extends EventListener {
     constructor() {
         super(Events.MessageUpdate);
     }
@@ -41,11 +41,11 @@ export default class MessageUpdateEventListener extends EventListener {
         const config = ConfigManager.getGuildConfig(message.guildId);
         if (!config) return;
 
-        this.handleMessageUpdateLog(message, config).catch(() => null);
+        MessageUpdate._log(message, config).catch(() => null);
         handleModerationRequest(message, config);
     }
 
-    async handleMessageUpdateLog(message: DiscordMessage<true>, config: GuildConfig): Promise<void> {
+    private static async _log(message: DiscordMessage<true>, config: GuildConfig): Promise<void> {
         const reference = message.reference?.messageId
             ? await Messages.get(message.reference.messageId)
             : null;
@@ -60,9 +60,9 @@ export default class MessageUpdateEventListener extends EventListener {
             message.content.length > EMBED_FIELD_CHAR_LIMIT ||
             (reference?.content && reference.content.length > EMBED_FIELD_CHAR_LIMIT)
         ) {
-            logContent = await this.getLongLogContent(message, reference, oldContent);
+            logContent = await MessageUpdate._getLongLogContent(message, reference, oldContent);
         } else {
-            logContent = await this.getShortLogContent(message, reference, oldContent);
+            logContent = await MessageUpdate._getShortLogContent(message, reference, oldContent);
         }
 
         if (!logContent) return;
@@ -76,7 +76,7 @@ export default class MessageUpdateEventListener extends EventListener {
     }
 
     // @returns The log message
-    async getShortLogContent(
+    private static async _getShortLogContent(
         message: DiscordMessage<true>,
         reference: Message | null,
         oldContent: string
@@ -104,13 +104,13 @@ export default class MessageUpdateEventListener extends EventListener {
     }
 
     // @returns The log message
-    async getLongLogContent(
+    private static async _getLongLogContent(
         message: DiscordMessage<true>,
         reference: Message | null,
         oldContent: string
     ): Promise<MessageCreateOptions | null> {
         const serializedMessage = prepareMessageForStorage(message);
-        const entry = await this.formatLogEntry(serializedMessage, reference, oldContent);
+        const entry = await MessageUpdate._formatLogEntry(serializedMessage, reference, oldContent);
         const file = mapLogEntriesToFile([entry]);
         const maskedJumpURL = hyperlink("Jump to message", `<${message.url}>`);
 
@@ -121,7 +121,7 @@ export default class MessageUpdateEventListener extends EventListener {
         };
     }
 
-    async formatLogEntry(message: Message, reference: Message | null, oldContent: string): Promise<string> {
+    private static async _formatLogEntry(message: Message, reference: Message | null, oldContent: string): Promise<string> {
         const [oldMessageEntry, newMessageEntry] = await Promise.all([
             formatMessageLogEntry({ ...message, content: oldContent }),
             formatMessageLogEntry({ ...message, created_at: new Date() })

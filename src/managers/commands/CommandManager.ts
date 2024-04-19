@@ -1,4 +1,4 @@
-import { AutocompleteInteraction, Collection, CommandInteraction, Snowflake } from "discord.js";
+import { Collection, CommandInteraction, Snowflake } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
 import { pluralize } from "@/utils";
 import { client } from "@/index";
@@ -8,13 +8,15 @@ import Sentry from "@sentry/node";
 import Command from "./Command";
 import path from "path";
 import fs from "fs";
+import GuildCommand from "./GuildCommand";
+import ConfigManager from "@managers/config/ConfigManager";
 
 // Utility class for handling command interactions.
 export default class CommandManager {
     // Cached global commands mapped by their names.
     private static _globalCommands = new Collection<string, Command<CommandInteraction>>();
     // Cached guild commands mapped by their guild's ID.
-    private static _guildCommands = new Collection<Snowflake, Collection<string, Command<CommandInteraction>>>();
+    private static _guildCommands = new Collection<Snowflake, Collection<string, GuildCommand<CommandInteraction>>>();
 
     // Caches all commands from the commands directory.
     static async cache(): Promise<void> {
@@ -30,55 +32,70 @@ export default class CommandManager {
         const filenames = fs.readdirSync(dirpath);
         let commandCount = 0;
 
-        try {
-            for (const filename of filenames) {
-                const filepath = path.resolve(dirpath, filename);
+        const guilds = await client.guilds.fetch();
+        const guildIds = guilds.map(guild => guild.id);
 
-                // Import and initiate the command
-                const commandModule = await import(filepath);
-                const commandClass = commandModule.default;
+        for (const filename of filenames) {
+            const filepath = path.resolve(dirpath, filename);
+
+            // Import and initiate the command
+            const commandModule = await import(filepath).catch(Sentry.captureException);
+            if (!commandModule) continue;
+
+            const commandClass = commandModule.default;
+            // Ensure the command is an instance of the Command class
+            if (!(commandClass.prototype instanceof Command)) continue;
+
+            let logMessage: string;
+            let level: string;
+
+            if (commandClass.prototype instanceof GuildCommand) {
+                const commandName = CommandManager._cacheGuildCommand(guildIds, commandClass);
+
+                logMessage = `Cached guild command "${commandName}"`;
+                level = "GUILD";
+            } else {
                 const command = new commandClass();
+                CommandManager._globalCommands.set(command.data.name, command);
 
-                // Ensure the command is an instance of the Command class
-                if (!(command instanceof Command)) {
-                    continue;
-                }
-
-                const logMessage = `Cached command "${command.data.name}"`;
-
-                if (command.guildIds?.length) {
-                    for (const guildId of command.guildIds) {
-                        let guildCommands = CommandManager._guildCommands.get(guildId);
-
-                        // Initialize the guild's command collection if it doesn't exist
-                        // eslint-disable-next-line max-depth
-                        if (!guildCommands) {
-                            guildCommands = new Collection<string, Command<CommandInteraction>>();
-                            CommandManager._guildCommands.set(guildId, guildCommands);
-                        }
-
-                        // Append the command to the guild's command collection
-                        guildCommands.set(command.data.name, command);
-
-                        Logger.log(`GUILD: ${guildId}`, logMessage, {
-                            color: AnsiColor.Purple
-                        });
-                    }
-                } else {
-                    CommandManager._globalCommands.set(command.data.name, command);
-
-                    Logger.log("GLOBAL", logMessage, {
-                        color: AnsiColor.Purple
-                    });
-                }
-
-                commandCount++;
+                logMessage = `Cached global command "${command.data.name}"`;
+                level = "GLOBAL";
             }
-        } catch (error) {
-            Sentry.captureException(error);
+
+            Logger.log(level, logMessage, {
+                color: AnsiColor.Purple
+            });
+
+            commandCount++;
         }
 
-        Logger.info(`Cached ${commandCount} ${pluralize(commandCount, "command")}`);
+        Logger.info(`Cached ${commandCount} global ${pluralize(commandCount, "command")}`);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private static _cacheGuildCommand(guildIds: Snowflake[], commandClass: any): string {
+        let commandName: string | null = null;
+
+        for (const guildId of guildIds) {
+            const config = ConfigManager.getGuildConfig(guildId);
+            if (!config) continue;
+
+            const command = new commandClass(config);
+            commandName ??= command.data.name;
+
+            const guildCommands = CommandManager._guildCommands.get(guildId);
+
+            if (guildCommands) {
+                guildCommands.set(command.data.name, command);
+            } else {
+                const entry = [command.data.name, command] as const;
+                const guildCommands = new Collection([entry]);
+
+                CommandManager._guildCommands.set(guildId, guildCommands);
+            }
+        }
+
+        return commandName ?? "unknown";
     }
 
     // Publish all cached commands to Discord.
@@ -139,26 +156,6 @@ export default class CommandManager {
         }
 
         return command.execute(interaction);
-    }
-
-    // Handles an autocomplete interaction.
-    static async handleAutocomplete(interaction: AutocompleteInteraction): Promise<void> {
-        const command = CommandManager._get(
-            interaction.commandId,
-            interaction.commandName,
-            interaction.guildId
-        );
-
-        if (!command) {
-            throw new Error(`Command "${interaction.commandName}" not found`);
-        }
-
-        // Ensure the command has an autocomplete() method
-        if (!command.autocomplete) {
-            throw new Error(`Command "${interaction.commandName}" does not have an autocomplete() method`);
-        }
-
-        await command.autocomplete(interaction);
     }
 
     /**

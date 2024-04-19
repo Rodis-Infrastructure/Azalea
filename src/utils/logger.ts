@@ -8,6 +8,7 @@ interface ColorOptions {
 export enum AnsiColor {
     Purple = "\x1b[35m",
     Green = "\x1b[32m",
+    Yellow = "\x1b[33m",
     Reset = "\x1b[0m",
     Cyan = "\x1b[36m",
     Grey = "\x1b[90m",

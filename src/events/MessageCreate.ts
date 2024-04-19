@@ -1,15 +1,15 @@
 import { Messages, resolvePartialMessage, temporaryReply } from "@utils/messages";
 import { handleModerationRequest } from "@utils/requests";
 import { Events, Message, PartialMessage } from "discord.js";
-import { handleMediaStore } from "@/commands/StoreMediaCtx";
 import { MediaStoreError } from "@utils/errors";
 import { pluralize } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import Sentry from "@sentry/node";
+import StoreMediaCtx from "@/commands/StoreMediaCtx";
 
-export default class MessageCreateEventListener extends EventListener {
+export default class MessageCreate extends EventListener {
     constructor() {
         super(Events.MessageCreate);
     }
@@ -31,7 +31,7 @@ export default class MessageCreateEventListener extends EventListener {
         ) {
             try {
                 const media = Array.from(message.attachments.values());
-                const logUrls = await handleMediaStore(message.author.id, message.author.id, media, config);
+                const logUrls = await StoreMediaCtx.storeMedia(message.author.id, message.author.id, media, config);
 
                 message.reply(`Stored \`${media.length}\` ${pluralize(media.length, "attachment")} - ${logUrls.join(" ")}`);
             } catch (error) {

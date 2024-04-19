@@ -11,7 +11,9 @@ import {
     time,
     TimestampStyles,
     User,
-    Snowflake
+    Snowflake,
+    GuildTextBasedChannel,
+    InteractionReplyOptions
 } from "discord.js";
 
 import { Action, InteractionReplyData } from "@utils/types";
@@ -36,10 +38,38 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
         });
     }
 
-    async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+    execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const member = interaction.options.getMember("user");
-        const user = member?.user ?? interaction.options.getUser("user", true);
+        const user = interaction.options.getUser("user", true);
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+
+        return UserInfo.get({
+            channel: interaction.channel,
+            executor: interaction.member,
+            config,
+            member,
+            user
+        });
+    }
+
+    /**
+     * Get information about a user
+     *
+     * @param data.member - The target member (for role checks)
+     * @param data.user - The target user
+     * @param data.config - The guild configuration
+     * @param data.channel - The channel the command was executed in
+     * @param data.executor - The executor of the command
+     * @returns An interaction reply with the user's information
+     */
+    static async get(data: {
+        member: GuildMember | null;
+        user: User;
+        config: GuildConfig;
+        channel: GuildTextBasedChannel | null;
+        executor: GuildMember;
+    }): Promise<InteractionReplyOptions> {
+        const { member, user, config, channel, executor } = data;
 
         const displayedName = member?.nickname
             ? `Nickname: ${member.nickname}`
@@ -67,7 +97,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             });
         }
 
-        const isBanned = await interaction.guild.bans
+        const isBanned = await config.guild.bans
             .fetch(user.id)
             .then(() => true)
             .catch(() => false);
@@ -82,7 +112,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
                 where: {
                     action: Action.Ban,
                     target_id: user.id,
-                    guild_id: interaction.guildId
+                    guild_id: config.guild.id
                 }
             }) ?? {
                 reason: EMPTY_INFRACTION_REASON
@@ -96,7 +126,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             embed.setTitle("Not in server");
         }
 
-        const flags = this.getUserFlags(member, user, config);
+        const flags = UserInfo._getFlags(member, user, config);
 
         if (flags.length) {
             const formattedFlags = flags
@@ -118,13 +148,13 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 
         const components: ActionRowBuilder<ButtonBuilder>[] = [];
 
-        let ephemeral = interaction.channel
-            ? config.inScope(interaction.channel, config.data.ephemeral_scoping)
+        let ephemeral = channel
+            ? config.inScope(channel, config.data.ephemeral_scoping)
             : true;
 
         // Executor has permission to view infractions
-        if (config.hasPermission(interaction.member, Permission.ViewInfractions)) {
-            await this.getUserInfractionsReceived(embed, user.id, interaction.guildId);
+        if (config.hasPermission(executor, Permission.ViewInfractions)) {
+            await UserInfo._getReceivedInfractions(embed, user.id, config.guild.id);
 
             const infractionSearchButton = new ButtonBuilder()
                 .setLabel("Infractions")
@@ -140,10 +170,10 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
         // Executor has permission to view moderation activity
         // Target has permission to view infractions (staff)
         if (
-            config.hasPermission(interaction.member, Permission.ViewModerationActivity) &&
+            config.hasPermission(executor, Permission.ViewModerationActivity) &&
             member && config.hasPermission(member, Permission.ViewInfractions)
         ) {
-            await this.getUserInfractionsDealt(embed, user.id, interaction.guildId);
+            await UserInfo._getDealtInfractions(embed, user.id, config.guild.id);
 
             // Only allow the executor to view the moderation activity
             ephemeral = true;
@@ -164,16 +194,16 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
      * @param guildId - The source guild's ID
      * @private
      */
-    private async getUserInfractionsReceived(embed: EmbedBuilder, userId: Snowflake, guildId: Snowflake): Promise<void> {
+    private static async _getReceivedInfractions(embed: EmbedBuilder, userId: Snowflake, guildId: Snowflake): Promise<void> {
         const infractions = await prisma.$queryRaw<InfractionCount>`
-            SELECT SUM(action = ${Action.Ban})  as ban_count,
-                   SUM(action = ${Action.Kick}) as kick_count,
-                   SUM(action = ${Action.Mute}) as mute_count,
-                   SUM(action = ${Action.Note}) as note_count
-            FROM Infraction
-            WHERE target_id = ${userId}
-              AND guild_id = ${guildId};
-        `;
+        SELECT SUM(action = ${Action.Ban})  as ban_count,
+               SUM(action = ${Action.Kick}) as kick_count,
+               SUM(action = ${Action.Mute}) as mute_count,
+               SUM(action = ${Action.Note}) as note_count
+        FROM Infraction
+        WHERE target_id = ${userId}
+          AND guild_id = ${guildId};
+    `;
 
 
         embed.addFields({
@@ -194,16 +224,16 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
      * @param guildId - The source guild's ID
      * @private
      */
-    private async getUserInfractionsDealt(embed: EmbedBuilder, userId: Snowflake, guildId: Snowflake): Promise<void> {
+    private static async _getDealtInfractions(embed: EmbedBuilder, userId: Snowflake, guildId: Snowflake): Promise<void> {
         const infractions = await prisma.$queryRaw<InfractionCount>`
-            SELECT SUM(action = ${Action.Ban})  as ban_count,
-                   SUM(action = ${Action.Kick}) as kick_count,
-                   SUM(action = ${Action.Mute}) as mute_count,
-                   SUM(action = ${Action.Note}) as note_count
-            FROM Infraction
-            WHERE (executor_id = ${userId} or request_author_id = ${userId})
-              AND guild_id = ${guildId};
-        `;
+        SELECT SUM(action = ${Action.Ban})  as ban_count,
+               SUM(action = ${Action.Kick}) as kick_count,
+               SUM(action = ${Action.Mute}) as mute_count,
+               SUM(action = ${Action.Note}) as note_count
+        FROM Infraction
+        WHERE (executor_id = ${userId} or request_author_id = ${userId})
+          AND guild_id = ${guildId};
+    `;
 
         embed.addFields({
             name: "Infractions Dealt",
@@ -224,7 +254,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
      * @returns An array of flags
      * @private
      */
-    private getUserFlags(member: GuildMember | null, user: User, config: GuildConfig): string[] {
+    private static _getFlags(member: GuildMember | null, user: User, config: GuildConfig): string[] {
         const flags: string[] = [];
 
         if (member) {
@@ -249,6 +279,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
         return flags;
     }
 }
+
 
 interface InfractionCount {
     ban_count: bigint | null;

@@ -2,21 +2,46 @@ import { Snowflake } from "discord-api-types/v10";
 import { Colors, EmbedBuilder, Guild, GuildBasedChannel, GuildMember, messageLink, roleMention } from "discord.js";
 import { client, prisma } from "@/index";
 import { CronJob } from "cron";
-import { DeepPartial } from "@utils/types";
+import { DeepPartial, Result } from "@utils/types";
+import { MessageReportStatus } from "@utils/reports";
 
 import _ from "lodash";
-import { MessageReportStatus } from "@utils/reports";
 import Logger, { AnsiColor } from "@utils/logger";
 
 export default class GuildConfig {
-    private constructor(public readonly data: RawGuildConfig, public readonly guild: Guild) {}
+    private constructor(public readonly data: RawGuildConfig, public readonly guild: Guild) {
+    }
 
-    // Initiate the guild configuration with default values
-    static async bind(guildId: Snowflake, data: DeepPartial<RawGuildConfig>): Promise<GuildConfig> {
+    /**
+     * Ensure the values passed to the configuration are appropriate
+     *
+     * @param guildId - ID of the guild associated with the config
+     * @param data - The raw config data
+     * @returns Parsed instance of the guild's configuration
+     */
+    static async from(guildId: Snowflake, data: DeepPartial<RawGuildConfig>): Promise<GuildConfig> {
+        const config = GuildConfig.setDefaults(data);
+        const validationResult = GuildConfig.validate(config);
+
+        if (!validationResult.success) {
+            throw new Error(validationResult.message);
+        }
+
         const guild = await client.guilds.fetch(guildId).catch(() => {
             throw new Error("Failed to load config, unknown guild ID");
         });
 
+        return new GuildConfig(config, guild);
+    }
+
+    /**
+     * Set default values for missing fields in the guild configuration
+     *
+     * @param data - The guild configuration data
+     * @returns The guild configuration with default values set
+     * @private
+     */
+    private static setDefaults(data: DeepPartial<RawGuildConfig>): RawGuildConfig {
         const channelScopingDefaults: ChannelScoping = {
             include_channels: [],
             exclude_channels: []
@@ -65,25 +90,70 @@ export default class GuildConfig {
             _.defaults(permissions.allow, []);
         }
 
+        // Set default values for each moderation request configuration
         for (const moderationRequest of config.moderation_requests) {
             _.defaults(moderationRequest.allow_discord_media_links, true);
+
+            if (moderationRequest.alert) {
+                _.defaults(moderationRequest.alert.count_threshold, 25);
+                _.defaults(moderationRequest.alert.mentioned_roles, []);
+            }
         }
 
-        return new GuildConfig(config, guild);
+        // Set default values for each auto-reaction configuration
+        for (const autoReaction of config.auto_reactions) {
+            _.defaults(autoReaction.emojis, []);
+        }
+
+        // Set default values for each user flag configuration
+        for (const userFlag of config.user_flags) {
+            _.defaults(userFlag.roles, []);
+        }
+
+        return config;
     }
 
-    validate(): void {
-        if (this.data.default_purge_amount < 1 || this.data.default_purge_amount > 100) {
-            throw new Error("Invalid default purge amount, the value must be between 1 and 100 (inclusive)");
+    /**
+     * Ensure the values passed to the configuration are appropriate
+     *
+     * @returns The result of the validation
+     */
+    private static validate(data: RawGuildConfig): Result {
+        if (data.default_purge_amount < 1 || data.default_purge_amount > 100) {
+            return {
+                success: false,
+                message: "Invalid default purge amount, the value must be between 1 and 100 (inclusive)"
+            };
         }
 
-        if (!Number.isInteger(this.data.default_purge_amount)) {
-            throw new Error("Invalid default purge amount, the value must be an integer");
+        if (data.response_ttl < 1) {
+            return {
+                success: false,
+                message: "Invalid response TTL, the value must be greater than 0"
+            };
         }
+
+        for (const moderationRequest of data.moderation_requests) {
+            if (moderationRequest.alert && moderationRequest.alert.count_threshold < 1) {
+                return {
+                    success: false,
+                    message: "Invalid alert count threshold, the value must be greater than 0"
+                };
+            }
+
+            if (!Object.values(ModerationRequestType).includes(moderationRequest.type)) {
+                return {
+                    success: false,
+                    message: "Invalid moderation request type"
+                };
+            }
+        }
+
+        return { success: true };
     }
 
     // Start the cron job for each scheduled message
-    async startScheduledMessageCronJobs(): Promise<void>{
+    async startScheduledMessageCronJobs(): Promise<void> {
         // Start the cron job for each scheduled message
         for (const scheduledMessage of this.data.scheduled_messages) {
             const channel = await this.guild.channels
@@ -469,8 +539,8 @@ export enum LoggingEvent {
     ThreadUpdate = "thread_update",
     MediaStore = "media_store",
     InfractionCreate = "infraction_create",
-    // TODO Implement infraction archive logs
     InfractionArchive = "infraction_archive",
+    InfractionRestore = "infraction_restore",
     // TODO Implement infraction update logs
     InfractionUpdate = "infraction_update",
     BanRequestApprove = "ban_request_approve",

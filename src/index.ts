@@ -43,12 +43,14 @@ export const client: Client<true> = new Client({
 });
 
 async function main(): Promise<void> {
-    // Cache all commands and components
+    // Cache all components
     await ComponentManager.cache();
-    await CommandManager.cache();
 
     // Login to Discord
     await client.login(process.env.DISCORD_TOKEN);
+
+    // Cache all commands
+    await CommandManager.cache();
 
     // Cache the configurations
     ConfigManager.cacheGlobalConfig();
@@ -77,9 +79,4 @@ main()
 // TODO - User reports
 // TODO - User/Message report alerts
 // TODO - FAQ command
-// TODO - Infraction search
-// TODO - Infraction archive
-// TODO - Infraction info
-// TODO - Infraction reason
-// TODO - Infraction duration
 // TODO - Role requests

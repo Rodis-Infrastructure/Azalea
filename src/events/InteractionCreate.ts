@@ -39,7 +39,7 @@ export default class InteractionCreate extends EventListener {
         }
 
         try {
-            await this.handleInteraction(interaction, config);
+            await InteractionCreate._handle(interaction, config);
         } catch (error) {
             const sentryId = Sentry.captureException(error, {
                 user: {
@@ -58,11 +58,11 @@ export default class InteractionCreate extends EventListener {
                 ephemeral: true
             }).catch(() => null);
         } finally {
-            this.handleInteractionCreateLog(interaction, config);
+            InteractionCreate._log(interaction, config);
         }
     }
 
-    async handleInteraction(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
+    private static async _handle(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
         const ephemeralReply = interaction.channel
             ? config.inScope(interaction.channel, config.data.ephemeral_scoping)
             : true;
@@ -102,10 +102,10 @@ export default class InteractionCreate extends EventListener {
         }
     }
 
-    handleInteractionCreateLog(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): void {
+    private static _log(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): void {
         if (!interaction.channel) return;
 
-        const interactionName = this.parseInteractionName(interaction);
+        const interactionName = InteractionCreate._parseInteractionName(interaction);
         const embed = new EmbedBuilder()
             .setColor(Colors.Grey)
             .setAuthor({ name: "Interaction Used" })
@@ -132,7 +132,7 @@ export default class InteractionCreate extends EventListener {
     }
 
     // @returns The interaction's name or custom ID
-    parseInteractionName(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>): string {
+    private static _parseInteractionName(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>): string {
         if (interaction.isChatInputCommand()) {
             const subcommand = interaction.options.getSubcommand(false);
 

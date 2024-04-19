@@ -6,7 +6,7 @@ import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
 
-export default class VoiceStateUpdateEventListener extends EventListener {
+export default class VoiceStateUpdate extends EventListener {
     constructor() {
         super(Events.VoiceStateUpdate);
     }
@@ -21,10 +21,10 @@ export default class VoiceStateUpdateEventListener extends EventListener {
         const config = ConfigManager.getGuildConfig(newState.guild.id);
         if (!config) return;
 
-        this.handleVoiceStateUpdateLog(oldState, newState, channel, config);
+        VoiceStateUpdate._log(oldState, newState, channel, config);
     }
 
-    handleVoiceStateUpdateLog(
+    private static _log(
         oldState: VoiceState,
         newState: VoiceState,
         channel: VoiceBasedChannel,
@@ -36,19 +36,19 @@ export default class VoiceStateUpdateEventListener extends EventListener {
         // User joined a voice channel
         if (!oldState.channelId && newState.channelId) {
             event = LoggingEvent.VoiceJoin;
-            embed = this.getVoiceJoinLogEmbed(newState);
+            embed = VoiceStateUpdate._getVoiceJoinLogEmbed(newState);
         }
 
         // User left a voice channel
         if (oldState.channelId && !newState.channelId) {
             event = LoggingEvent.VoiceLeave;
-            embed = this.getVoiceLeaveLogEmbed(oldState);
+            embed = VoiceStateUpdate._getVoiceLeaveLogEmbed(oldState);
         }
 
         // User switched voice channels
         if (oldState.channelId && newState.channelId) {
             event = LoggingEvent.VoiceSwitch;
-            embed = this.getVoiceSwitchLogEmbed(oldState, newState);
+            embed = VoiceStateUpdate._getVoiceSwitchLogEmbed(oldState, newState);
         }
 
         log({
@@ -61,7 +61,7 @@ export default class VoiceStateUpdateEventListener extends EventListener {
         });
     }
 
-    getVoiceJoinLogEmbed(newState: VoiceState): EmbedBuilder {
+    private static _getVoiceJoinLogEmbed(newState: VoiceState): EmbedBuilder {
         return new EmbedBuilder()
             .setColor(Colors.Green)
             .setAuthor({ name: "Voice Join" })
@@ -78,7 +78,7 @@ export default class VoiceStateUpdateEventListener extends EventListener {
             .setTimestamp();
     }
 
-    getVoiceLeaveLogEmbed(oldState: VoiceState): EmbedBuilder {
+    private static _getVoiceLeaveLogEmbed(oldState: VoiceState): EmbedBuilder {
         return new EmbedBuilder()
             .setColor(Colors.Red)
             .setAuthor({ name: "Voice Leave" })
@@ -95,7 +95,7 @@ export default class VoiceStateUpdateEventListener extends EventListener {
             .setTimestamp();
     }
 
-    getVoiceSwitchLogEmbed(oldState: VoiceState, newState: VoiceState): EmbedBuilder {
+    private static _getVoiceSwitchLogEmbed(oldState: VoiceState, newState: VoiceState): EmbedBuilder {
         return new EmbedBuilder()
             .setColor(0x9C84EF) // Light purple
             .setAuthor({ name: "Voice Switch" })

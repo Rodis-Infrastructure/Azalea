@@ -6,7 +6,7 @@ import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 
-export default class ThreadCreateEventListener extends EventListener {
+export default class ThreadCreate extends EventListener {
     constructor() {
         super(Events.ThreadCreate);
     }
@@ -15,10 +15,10 @@ export default class ThreadCreateEventListener extends EventListener {
         const config = ConfigManager.getGuildConfig(thread.guildId);
         if (!config) return;
 
-        this.handleThreadCreateLog(thread, config);
+        ThreadCreate._log(thread, config);
     }
 
-    handleThreadCreateLog(thread: ThreadChannel, config: GuildConfig): void {
+    private static _log(thread: ThreadChannel, config: GuildConfig): void {
         if (!thread.ownerId || !thread.parent) return;
 
         const embed = new EmbedBuilder()

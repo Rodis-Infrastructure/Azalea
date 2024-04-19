@@ -18,4 +18,6 @@ export default abstract class Component {
 }
 
 export type ComponentInteraction = MessageComponentInteraction | ModalSubmitInteraction;
-export type CustomID = string;
+export type CustomID = string | { startsWith: string } | { endsWith: string } | { includes: string } | {
+    matches: RegExp
+};

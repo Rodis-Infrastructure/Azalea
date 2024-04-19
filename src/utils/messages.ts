@@ -5,14 +5,15 @@ import {
     hyperlink,
     Message as DiscordMessage,
     messageLink,
-    PartialMessage
+    PartialMessage,
+    StickerFormatType
 } from "discord.js";
 
-import { EMBED_FIELD_CHAR_LIMIT, EMPTY_MESSAGE_CONTENT } from "./constants";
+import { EMBED_FIELD_CHAR_LIMIT, EMPTY_MESSAGE_CONTENT, LOG_ENTRY_DATE_FORMAT } from "./constants";
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
 import { elipsify, pluralize, userMentionWithId } from "./index";
-import { prisma } from "./..";
+import { client, prisma } from "./..";
 import { CronJob } from "cron";
 
 import Logger from "./logger";
@@ -121,8 +122,7 @@ export class Messages {
             const dbDeletedMessages = await prisma.$queryRaw<Message[]>`
                 UPDATE message
                 SET deleted = true
-                WHERE id IN (${ids.join(",")}) 
-                RETURNING *;
+                WHERE id IN (${ids.join(",")}) RETURNING *;
             `;
 
             // Merge the cached and stored messages
@@ -267,6 +267,27 @@ export async function temporaryReply(message: DiscordMessage, content: string, t
         await reply.delete().catch(() => null);
     }, ttl);
 }
+
+
+// Returns an entry in the format: `[DD/MM/YYYY, HH:MM:SS] AUTHOR_ID — MESSAGE_CONTENT`
+export async function formatMessageLogEntry(message: Message): Promise<string> {
+    const timestamp = new Date(message.created_at).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
+    let content = message.content ?? EMPTY_MESSAGE_CONTENT;
+
+    // If the message is a sticker, it cannot have message content
+    if (message.sticker_id) {
+        const sticker = await client.fetchSticker(message.sticker_id).catch(() => null);
+
+        if (sticker && sticker.format === StickerFormatType.Lottie) {
+            content = `Sticker "${sticker.name}": Lottie`;
+        } else if (sticker) {
+            content = `Sticker "${sticker.name}": ${sticker.url}`;
+        }
+    }
+
+    return `[${timestamp}] ${message.author_id} — ${content}`;
+}
+
 
 interface PurgeOptions {
     channelId: Snowflake;

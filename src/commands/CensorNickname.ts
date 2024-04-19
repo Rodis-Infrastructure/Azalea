@@ -38,59 +38,59 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const member = interaction.options.getMember("member");
 
-        return handleCensorNickname(interaction.user.id, member, config);
-    }
-}
-
-export async function handleCensorNickname(executorId: Snowflake, target: GuildMember | null, config: GuildConfig): Promise<InteractionReplyData> {
-    if (!target) {
-        return "You can't censor someone who isn't in the server";
+        return CensorNickname.handle(interaction.user.id, member, config);
     }
 
-    if (target.roles.cache.size) {
-        return "You can't censor the nickname of someone who has roles";
+    static async handle(executorId: Snowflake, target: GuildMember | null, config: GuildConfig): Promise<InteractionReplyData> {
+        if (!target) {
+            return "You can't censor someone who isn't in the server";
+        }
+
+        if (target.roles.cache.size) {
+            return "You can't censor the nickname of someone who has roles";
+        }
+
+        if (!target.manageable) {
+            return "I do not have permission to censor this user's nickname";
+        }
+
+        // Random 5-digit number
+        const rand = Math.floor(Math.random() * 90000) + 10000;
+        const oldNickname = target.displayName;
+        const censoredNickname = `Unverified User ${rand}`;
+
+        await target.setNickname(censoredNickname, `Inappropriate nickname, censored by ${executorId}`);
+
+        const embed = new EmbedBuilder()
+            .setColor(Colors.NotQuiteBlack)
+            .setAuthor({ name: "Nickname Censored" })
+            .setFields([
+                {
+                    name: "Executor",
+                    value: userMentionWithId(executorId)
+                },
+                {
+                    name: "Target",
+                    value: userMentionWithId(target.id)
+                },
+                {
+                    name: "Old Nickname",
+                    value: oldNickname
+                },
+                {
+                    name: "New Nickname",
+                    value: censoredNickname
+                }
+            ])
+            .setTimestamp();
+
+        log({
+            event: LoggingEvent.InfractionCreate,
+            message: { embeds: [embed] },
+            channel: null,
+            config
+        });
+
+        return `Changed ${target}'s nickname from \`${oldNickname}\` to \`${censoredNickname}\``;
     }
-
-    if (!target.manageable) {
-        return "I do not have permission to censor this user's nickname";
-    }
-
-    // Random 5-digit number
-    const rand = Math.floor(Math.random() * 90000) + 10000;
-    const oldNickname = target.displayName;
-    const censoredNickname = `Unverified User ${rand}`;
-
-    await target.setNickname(censoredNickname, `Inappropriate nickname, censored by ${executorId}`);
-
-    const embed = new EmbedBuilder()
-        .setColor(Colors.NotQuiteBlack)
-        .setAuthor({ name: "Nickname Censored" })
-        .setFields([
-            {
-                name: "Executor",
-                value: userMentionWithId(executorId)
-            },
-            {
-                name: "Target",
-                value: userMentionWithId(target.id)
-            },
-            {
-                name: "Old Nickname",
-                value: oldNickname
-            },
-            {
-                name: "New Nickname",
-                value: censoredNickname
-            }
-        ])
-        .setTimestamp();
-
-    log({
-        event: LoggingEvent.InfractionCreate,
-        message: { embeds: [embed] },
-        channel: null,
-        config
-    });
-
-    return `Changed ${target}'s nickname from \`${oldNickname}\` to \`${censoredNickname}\``;
 }

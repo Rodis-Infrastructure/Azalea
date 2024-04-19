@@ -1,10 +1,10 @@
-import { InteractionReplyData } from "@utils/types";
+import { InteractionReplyData, MuteDuration } from "@utils/types";
 import { ButtonInteraction, GuildTextBasedChannel } from "discord.js";
-import { handleQuickMute, THIRTY_MINUTES } from "@/commands/QuickMute30Ctx";
+import { handleQuickMute } from "@/commands/QuickMute30Ctx";
+import { MessageReportStatus } from "@utils/reports";
 import { prisma } from "./..";
 
 import Component from "@managers/components/Component";
-import { MessageReportStatus } from "@utils/reports";
 
 export default class MessageReportQuickMute30 extends Component {
     constructor() {
@@ -12,17 +12,18 @@ export default class MessageReportQuickMute30 extends Component {
     }
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
-        return handleMessageReportQuickMute(interaction, THIRTY_MINUTES);
+        return handleMessageReportQuickMute(interaction, MuteDuration.Short);
     }
 }
 
 /**
- * Handles quick mute interactions for message reports
+ * Handles quick mute interactions for message reports.
+ * Has an **ephemeral** response
  *
  * @param interaction - The quick mute button
  * @param duration - The duration of the quick mute
  */
-export async function handleMessageReportQuickMute(interaction: ButtonInteraction<"cached">, duration: number): Promise<InteractionReplyData> {
+export async function handleMessageReportQuickMute(interaction: ButtonInteraction<"cached">, duration: MuteDuration): Promise<InteractionReplyData> {
     // Returns null if the report is not found
     const report = await prisma.messageReport.findUnique({
         where: {
@@ -61,9 +62,13 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
         });
     }
 
+    const status = duration === MuteDuration.Short
+        ? MessageReportStatus.QuickMute30
+        : MessageReportStatus.QuickMute60;
+
     await prisma.messageReport.update({
         where: { id: report.id },
-        data: { status: MessageReportStatus.QuickMute30 }
+        data: { status }
     });
 
     await interaction.reply({

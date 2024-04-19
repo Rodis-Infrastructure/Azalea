@@ -17,29 +17,28 @@ import {
 } from "discord.js";
 
 import {
-    formatMessageContentForLog,
+    formatMessageContentForLog, formatMessageLogEntry,
     prepareMessageForStorage,
     prependReferenceLog,
     resolvePartialMessage
 } from "@utils/messages";
 
-import { handleQuickMute, THIRTY_MINUTES } from "@/commands/QuickMute30Ctx";
+import { handleQuickMute } from "@/commands/QuickMute30Ctx";
 import { log, mapLogEntriesToFile } from "@utils/logging";
-import { formatMessageLogEntry } from "./MessageBulkDelete";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { handlePurgeLog, purgeUser } from "@/commands/Purge";
 import { pluralize, userMentionWithId } from "@/utils";
 import { Snowflake, ButtonStyle } from "discord-api-types/v10";
-import { ONE_HOUR } from "@/commands/QuickMute60Ctx";
 import { approveModerationRequest, denyModerationRequest } from "@utils/requests";
 import { prisma } from "./..";
 import { MessageReportFlag, MessageReportStatus } from "@utils/reports";
+import { MuteDuration } from "@utils/types";
 
 import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
+import Purge from "@/commands/Purge";
 
-export default class MessageReactionAddEventListener extends EventListener {
+export default class MessageReactionAdd extends EventListener {
     constructor() {
         super(Events.MessageReactionAdd);
     }
@@ -57,16 +56,16 @@ export default class MessageReactionAddEventListener extends EventListener {
 
         // Only log the first reaction
         if (reaction.count === 1) {
-            this.handleMessageReactionAddLog(reaction.emoji, message, user, config);
+            MessageReactionAdd._log(reaction.emoji, message, user, config);
         }
 
-        const emojiId = this.getEmojiId(reaction.emoji);
+        const emojiId = MessageReactionAdd._getEmojiId(reaction.emoji);
         const executor = await message.guild.members.fetch(user.id);
 
         // Handle a 30-minute quick mute
         if (emojiId === config.data.emojis.quick_mute_30) {
-            await this.handleReactionQuickMute({
-                duration: THIRTY_MINUTES,
+            await MessageReactionAdd._quickMute({
+                duration: MuteDuration.Short,
                 targetMessage: message,
                 executor
             }, config);
@@ -76,9 +75,9 @@ export default class MessageReactionAddEventListener extends EventListener {
 
         // Handle a one-hour quick mute
         if (emojiId === config.data.emojis.quick_mute_60) {
-            await this.handleReactionQuickMute({
+            await MessageReactionAdd._quickMute({
                 targetMessage: message,
-                duration: ONE_HOUR,
+                duration: MuteDuration.Long,
                 executor
             }, config);
 
@@ -87,7 +86,7 @@ export default class MessageReactionAddEventListener extends EventListener {
 
         // Handle message purging
         if (emojiId === config.data.emojis.purge_messages) {
-            await this.handleReactionMessagePurging(message, user.id, config);
+            await MessageReactionAdd._purgeUser(message, user.id, config);
             return;
         }
 
@@ -104,11 +103,11 @@ export default class MessageReactionAddEventListener extends EventListener {
 
         // Handle message reports
         if (emojiId === config.data.emojis.report_message && !message.author.bot) {
-            await this.createMessageReport(user.id, message, config);
+            await MessageReactionAdd._createMessageReport(user.id, message, config);
         }
     }
 
-    async createMessageReport(reporterId: Snowflake, message: Message<true>, config: GuildConfig): Promise<void> {
+    private static async _createMessageReport(reporterId: Snowflake, message: Message<true>, config: GuildConfig): Promise<void> {
         // Message reports have not been configured
         if (!config.data.message_reports) return;
 
@@ -195,25 +194,25 @@ export default class MessageReactionAddEventListener extends EventListener {
 
         // Mark the report as resolved
         const resolveMessageReportButton = new ButtonBuilder()
-            .setCustomId(`message_report_resolve`)
+            .setCustomId(`message-report-resolve`)
             .setLabel("Resolve")
             .setStyle(ButtonStyle.Success);
 
         // Mute the target user for 30 minutes
         const quickMute30Button = new ButtonBuilder()
-            .setCustomId("message_report_qm30")
+            .setCustomId("message-report-qm30")
             .setLabel("Quick mute (30m)")
             .setStyle(ButtonStyle.Danger);
 
         // Mute the target user for 1 hour
         const quickMute60Button = new ButtonBuilder()
-            .setCustomId("message_report_qm60")
+            .setCustomId("message-report-qm60")
             .setLabel("Quick mute (1h)")
             .setStyle(ButtonStyle.Danger);
 
         // Search the target user's infractions
         const infractionsButton = new ButtonBuilder()
-            .setCustomId("infraction_search")
+            .setCustomId(`infraction-search-${message.author.id}`)
             .setLabel("Infractions")
             .setStyle(ButtonStyle.Secondary);
 
@@ -248,25 +247,25 @@ export default class MessageReactionAddEventListener extends EventListener {
         });
     }
 
-    async handleReactionMessagePurging(message: Message<true>, executorId: Snowflake, config: GuildConfig): Promise<void> {
-        const messages = await purgeUser(
+    private static async _purgeUser(message: Message<true>, executorId: Snowflake, config: GuildConfig): Promise<void> {
+        const messages = await Purge.purgeUser(
             message.author.id,
             message.channel,
             config.data.default_purge_amount
         );
 
         const response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")} by ${message.author}`;
-        const logUrls = await handlePurgeLog(messages, message.channel, config);
+        const logUrls = await Purge.log(messages, message.channel, config);
 
         config.sendNotification(`${userMention(executorId)} ${response}: ${logUrls.join(" ")}`);
     }
 
-    async handleReactionQuickMute(data: Parameters<typeof handleQuickMute>[number], config: GuildConfig): Promise<void> {
+    private static async _quickMute(data: Parameters<typeof handleQuickMute>[number], config: GuildConfig): Promise<void> {
         const response = await handleQuickMute(data);
         config.sendNotification(`${data.executor} ${response}`);
     }
 
-    async handleMessageReactionAddLog(
+    private static async _log(
         emoji: GuildEmoji | ReactionEmoji,
         message: Message<true>,
         user: User,
@@ -275,9 +274,9 @@ export default class MessageReactionAddEventListener extends EventListener {
         let logContent: MessageCreateOptions | null;
 
         if (message.content.length > EMBED_FIELD_CHAR_LIMIT) {
-            logContent = await this.getLongLogContent(emoji, message, user);
+            logContent = await MessageReactionAdd._getLongLogContent(emoji, message, user);
         } else {
-            logContent = await this.getShortLogContent(emoji, message, user);
+            logContent = await MessageReactionAdd._getShortLogContent(emoji, message, user);
         }
 
         if (!logContent) return;
@@ -290,7 +289,7 @@ export default class MessageReactionAddEventListener extends EventListener {
         });
     }
 
-    async getShortLogContent(
+    private static async _getShortLogContent(
         emoji: GuildEmoji | ReactionEmoji,
         message: Message<true>,
         user: User
@@ -309,7 +308,7 @@ export default class MessageReactionAddEventListener extends EventListener {
                 },
                 {
                     name: "Emoji",
-                    value: this.parseEmoji(emoji)
+                    value: MessageReactionAdd._parseEmoji(emoji)
                 }
             ])
             .setTimestamp();
@@ -320,7 +319,7 @@ export default class MessageReactionAddEventListener extends EventListener {
         return { embeds };
     }
 
-    async getLongLogContent(
+    private static async _getLongLogContent(
         emoji: GuildEmoji | ReactionEmoji,
         message: Message<true>,
         user: User
@@ -330,14 +329,14 @@ export default class MessageReactionAddEventListener extends EventListener {
         const file = mapLogEntriesToFile([entry]);
 
         return {
-            content: `Reaction ${this.parseEmoji(emoji)} added to message in ${message.channel} by ${user}`,
+            content: `Reaction ${MessageReactionAdd._parseEmoji(emoji)} added to message in ${message.channel} by ${user}`,
             allowedMentions: { parse: [] },
             files: [file]
         };
     }
 
     // @returns The emoji ID and URL if the emoji is a custom emoji, otherwise the emoji name
-    parseEmoji(emoji: GuildEmoji | ReactionEmoji): string {
+    private static _parseEmoji(emoji: GuildEmoji | ReactionEmoji): string {
         if (emoji.id) {
             const maskedEmojiURL = hyperlink("view", `<${emoji.imageURL()}>`);
             return `\`<:${emoji.name}:${emoji.id}>\` (${maskedEmojiURL})`;
@@ -346,7 +345,7 @@ export default class MessageReactionAddEventListener extends EventListener {
         return emoji.toString();
     }
 
-    getEmojiId(emoji: GuildEmoji | ReactionEmoji): string | null {
+    private static _getEmojiId(emoji: GuildEmoji | ReactionEmoji): string | null {
         return emoji.name || emoji.id;
     }
 }

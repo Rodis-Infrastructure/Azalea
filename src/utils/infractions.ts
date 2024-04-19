@@ -4,6 +4,7 @@ import { Colors, EmbedBuilder } from "discord.js";
 import { Snowflake } from "discord-api-types/v10";
 import { prisma } from "./..";
 import { log } from "./logging";
+import { Action } from "./types";
 
 import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
 import Sentry from "@sentry/node";
@@ -145,71 +146,49 @@ export async function handleInfractionUnarchive(data: {
     });
 }
 
-export async function handleInfractionReasonChange(
-    data: {
-        id: number,
-        reason: string,
-        updated_by: Snowflake
-    },
-    config: GuildConfig
-): Promise<void> {
-    const { id, reason, updated_by } = data;
-
-    let infraction: Infraction;
-
-    try {
-        infraction = await prisma.infraction.update({
-            where: { id },
-            data: {
-                updated_at: new Date(),
-                updated_by,
-                reason
-            }
-        });
-    } catch (error) {
-        Sentry.captureException(error, { extra: { data } });
-        return;
-    }
-
-    const embed = new EmbedBuilder()
-        .setColor(Colors.Green)
-        .setAuthor({ name: "Infraction Reason Changed" })
-        .setTitle(`${infraction.flag} ${infraction.action}`)
-        .setFields([
-            {
-                name: "Updated By",
-                value: userMentionWithId(updated_by)
-            },
-            {
-                name: "New Reason",
-                value: reason
-            }
-        ])
-        .setFooter({ text: `#${infraction.id}` })
-        .setTimestamp();
-
-    await log({
-        event: LoggingEvent.InfractionCreate,
-        message: { embeds: [embed] },
-        channel: null,
-        config
-    });
-}
-
+/**
+ * Handles the expiration date change of an infraction by:
+ *
+ * - Updating the expiration date in the database.
+ * - Logging the change in the appropriate channel.
+ *
+ * @param data
+ * @param data.id - ID of the infraction to modify (latest mute by default)
+ * @param data.expires_at - New expiration date of the infraction ({@link Date.now} by default)
+ * @param data.updated_by - ID of the user responsible for changing the duration
+ * @param data.target_id - ID of the user the infraction is applied to (specify if no ID is passed)
+ * @param config - The guild configuration
+ * @param logChange - Whether to log the change in the appropriate channel
+ */
 export async function handleInfractionExpirationChange(
-    data: {
-        id: number,
-        expires_at: Date,
-        updated_by: Snowflake
-    },
+    data: InfractionExpirationChangeData,
     config: GuildConfig,
     logChange = true
 ): Promise<void> {
-    const { id, expires_at, updated_by } = data;
+    const { expires_at, updated_by, target_id } = data;
+    let { id } = data;
 
     let infraction: Infraction;
 
     try {
+        // Use the most recent mute's ID if no ID is provided
+        if (!id) {
+            const recentMuteInfraction = await prisma.infraction.findFirst({
+                where: {
+                    action: Action.Mute,
+                    expires_at: { gt: new Date() },
+                    guild_id: config.guild.id,
+                    target_id
+                },
+                select: {
+                    id: true
+                }
+            });
+
+            if (!recentMuteInfraction) return;
+            id = recentMuteInfraction.id;
+        }
+
         infraction = await prisma.infraction.update({
             where: { id },
             data: {
@@ -225,7 +204,8 @@ export async function handleInfractionExpirationChange(
 
     if (!logChange) return;
 
-    const dateDiff = expires_at.getTime() - Date.now();
+    const expiresAtTimestamp = expires_at?.getTime() ?? Date.now();
+    const dateDiff = expiresAtTimestamp - Date.now();
     const staticDuration = humanizeTimestamp(dateDiff);
 
     const embed = new EmbedBuilder()
@@ -252,3 +232,15 @@ export async function handleInfractionExpirationChange(
         config
     });
 }
+
+type InfractionExpirationChangeData = {
+    id: number,
+    updated_by: Snowflake,
+    expires_at?: Date,
+    target_id?: never
+} | {
+    target_id: Snowflake,
+    updated_by: Snowflake,
+    expires_at?: Date,
+    id?: never
+};

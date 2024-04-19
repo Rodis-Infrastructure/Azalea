@@ -6,7 +6,7 @@ import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
 
-export default class ThreadUpdateEventListener extends EventListener {
+export default class ThreadUpdate extends EventListener {
     constructor() {
         super(Events.ThreadUpdate);
     }
@@ -15,10 +15,10 @@ export default class ThreadUpdateEventListener extends EventListener {
         const config = ConfigManager.getGuildConfig(newThread.guildId);
         if (!config) return;
 
-        this.handleThreadUpdateLog(oldThread, newThread, config);
+        ThreadUpdate._log(oldThread, newThread, config);
     }
 
-    handleThreadUpdateLog(oldThread: ThreadChannel, newThread: ThreadChannel, config: GuildConfig): void {
+    private static _log(oldThread: ThreadChannel, newThread: ThreadChannel, config: GuildConfig): void {
         if (!newThread.ownerId || !newThread.parent) return;
 
         const difference = getObjectDiff(oldThread, newThread);

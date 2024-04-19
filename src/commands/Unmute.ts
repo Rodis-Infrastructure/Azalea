@@ -66,9 +66,8 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
 
         // Update the expiration date of the infraction to the current time
         await handleInfractionExpirationChange({
-            id: infraction.id,
-            expires_at: new Date(),
-            updated_by: interaction.user.id
+            updated_by: interaction.user.id,
+            target_id: member.id
         }, config, false);
 
         // Ensure a public log of the action is made
