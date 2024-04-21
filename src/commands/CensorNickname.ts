@@ -10,8 +10,9 @@ import { InteractionReplyData } from "@utils/types";
 import { Snowflake } from "discord-api-types/v10";
 import { userMentionWithId } from "@/utils";
 import { log } from "@utils/logging";
+import { LoggingEvent } from "@managers/config/schema";
 
-import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 

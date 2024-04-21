@@ -1,8 +1,9 @@
 import { AutocompleteInteraction, Colors, EmbedBuilder, Events, Interaction } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
 import { log } from "@utils/logging";
+import { LoggingEvent } from "@managers/config/schema";
 
-import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import GuildConfig from "@managers/config/GuildConfig";
 import ComponentManager from "@managers/components/ComponentManager";
 import CommandManager from "@managers/commands/CommandManager";
 import EventListener from "@managers/events/EventListener";

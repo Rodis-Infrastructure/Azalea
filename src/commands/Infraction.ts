@@ -22,8 +22,9 @@ import { Prisma } from "@prisma/client";
 import { humanizeTimestamp, stripLinks, userMentionWithId } from "@/utils";
 import { log } from "@utils/logging";
 import { DEFAULT_MUTE_DURATION, EMBED_FIELD_CHAR_LIMIT, MAX_MUTE_DURATION } from "@utils/constants";
+import { LoggingEvent, Permission } from "@managers/config/schema";
 
-import GuildConfig, { LoggingEvent, Permission } from "@managers/config/GuildConfig";
+import GuildConfig from "@managers/config/GuildConfig";
 import Command from "@managers/commands/Command";
 import ConfigManager from "@managers/config/ConfigManager";
 import ms from "ms";

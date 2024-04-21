@@ -260,8 +260,19 @@ export async function resolvePartialMessage(message: PartialMessage | DiscordMes
     return fetchedMessage;
 }
 
+/**
+ * Send a temporary reply to a message and delete it after a specified time
+ *
+ * @param message - The message to reply to
+ * @param content - The content of the reply
+ * @param ttl - The time-to-live of the reply in milliseconds
+ */
 export async function temporaryReply(message: DiscordMessage, content: string, ttl: number): Promise<void> {
-    const reply = await message.reply(content);
+    const reply = await message.reply({
+        // Only allow the replied user to be mentioned
+        allowedMentions: { parse: [], repliedUser: true },
+        content
+    });
 
     setTimeout(async () => {
         await reply.delete().catch(() => null);

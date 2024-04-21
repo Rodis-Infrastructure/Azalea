@@ -1,9 +1,10 @@
 import { Collection } from "discord.js";
 import { Snowflake } from "discord-api-types/v10";
 import { pluralize, readYamlFile } from "@/utils";
-import { DeepPartial } from "@utils/types";
+import { GlobalConfig, globalConfigSchema } from "./schema";
+import { fromZodError } from "zod-validation-error";
 
-import GuildConfig, { GlobalConfig, RawGuildConfig } from "./GuildConfig";
+import GuildConfig from "./GuildConfig";
 import Logger, { AnsiColor } from "@utils/logger";
 import fs from "fs";
 
@@ -34,21 +35,22 @@ export default class ConfigManager {
             // Extract the guild ID from the file name
             const [guildId] = file.split(".");
             // Parse the config file and set default values
-            const parsedConfig = readYamlFile<DeepPartial<RawGuildConfig>>(`configs/${file}`);
+            const parsedConfig = readYamlFile(`configs/${file}`);
+
             const config = await GuildConfig.from(guildId, parsedConfig).catch(error => {
                 Logger.error(`Failed to parse config for guild with ID ${guildId} - ${error.message}`);
                 process.exit(1);
             });
 
             // Validate the config and cache it
-            this.addGuildConfig(guildId, config);
+            ConfigManager.addGuildConfig(guildId, config);
 
             Logger.log(`GUILD_CONFIG`, `Cached config for guild with ID ${guildId}`, {
                 color: AnsiColor.Purple
             });
         }
 
-        const configCount = this.guildConfigs.size;
+        const configCount = ConfigManager.guildConfigs.size;
         Logger.info(`Cached ${configCount} guild ${pluralize(configCount, "configuration")}`);
     }
 
@@ -61,13 +63,27 @@ export default class ConfigManager {
         }
 
         // Load and parse the global config from the azalea.cfg.yml file
-        this.globalConfig = readYamlFile<GlobalConfig>("azalea.cfg.yml");
+        const rawConfig = readYamlFile<GlobalConfig>("azalea.cfg.yml");
+        ConfigManager.globalConfig = ConfigManager._parseGlobalConfig(rawConfig);
+
         Logger.info("Cached global configuration");
+    }
+
+    private static _parseGlobalConfig(data: unknown): GlobalConfig {
+        const parseResult = globalConfigSchema.safeParse(data);
+
+        if (!parseResult.success) {
+            const validationError = fromZodError(parseResult.error);
+            Logger.error(validationError.toString());
+            process.exit(1);
+        }
+
+        return parseResult.data;
     }
 
     // Cache an instance of a guild configuration
     static addGuildConfig(guildId: Snowflake, config: GuildConfig): GuildConfig {
-        return this.guildConfigs.set(guildId, config).first()!;
+        return ConfigManager.guildConfigs.set(guildId, config).first()!;
     }
 
     static getGuildConfig(guildId: Snowflake, exists: true): GuildConfig;
@@ -75,7 +91,7 @@ export default class ConfigManager {
     // Get a guild configuration by its guild ID
     static getGuildConfig(guildId: Snowflake, exists?: boolean): GuildConfig | undefined {
         return exists
-            ? this.guildConfigs.get(guildId)!
-            : this.guildConfigs.get(guildId);
+            ? ConfigManager.guildConfigs.get(guildId)!
+            : ConfigManager.guildConfigs.get(guildId);
     }
 }

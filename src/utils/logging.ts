@@ -7,7 +7,9 @@ import {
     MessagePayload
 } from "discord.js";
 
-import GuildConfig, { ChannelScoping, LoggingEvent } from "@managers/config/GuildConfig";
+import { LoggingEvent, ChannelScoping } from "@managers/config/schema";
+
+import GuildConfig from "@managers/config/GuildConfig";
 import Sentry from "@sentry/node";
 
 /**

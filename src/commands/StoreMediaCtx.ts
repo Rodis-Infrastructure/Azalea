@@ -10,8 +10,9 @@ import { InteractionReplyData } from "@utils/types";
 import { log } from "@utils/logging";
 import { pluralize } from "@/utils";
 import { MediaStoreError } from "@utils/errors";
+import { LoggingEvent } from "@managers/config/schema";
 
-import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import Sentry from "@sentry/node";

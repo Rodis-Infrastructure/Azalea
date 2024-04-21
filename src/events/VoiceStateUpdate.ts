@@ -1,8 +1,9 @@
 import { Colors, EmbedBuilder, Events, VoiceBasedChannel, VoiceState } from "discord.js";
 import { channelMentionWithName, userMentionWithId } from "@/utils";
 import { log } from "@utils/logging";
+import { LoggingEvent } from "@managers/config/schema";
 
-import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import GuildConfig from "@managers/config/GuildConfig";
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
 
@@ -97,7 +98,7 @@ export default class VoiceStateUpdate extends EventListener {
 
     private static _getVoiceSwitchLogEmbed(oldState: VoiceState, newState: VoiceState): EmbedBuilder {
         return new EmbedBuilder()
-            .setColor(0x9C84EF) // Light purple
+            .setColor(Colors.Yellow)
             .setAuthor({ name: "Voice Switch" })
             .setFields([
                 {

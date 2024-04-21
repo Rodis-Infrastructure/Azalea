@@ -10,9 +10,10 @@ import { Action } from "./types";
 import { client, prisma } from "./..";
 import { log } from "./logging";
 import { Prisma } from "@prisma/client";
-import { handleMediaStore } from "@/commands/StoreMediaCtx";
+import { LoggingEvent, ModerationRequestType, Permission } from "@managers/config/schema";
 
-import GuildConfig, { LoggingEvent, ModerationRequestType, Permission } from "@managers/config/GuildConfig";
+import GuildConfig from "@managers/config/GuildConfig";
+import StoreMediaCtx from "@/commands/StoreMediaCtx";
 import Sentry from "@sentry/node";
 import ms from "ms";
 
@@ -61,7 +62,7 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
         // Append the media log URLs to the message content
         if (message.attachments.size) {
             const media = Array.from(message.attachments.values());
-            const logUrls = await handleMediaStore(message.author.id, message.author.id, media, config);
+            const logUrls = await StoreMediaCtx.storeMedia(message.author.id, message.author.id, media, config);
 
             request.reason += ` ${logUrls.join(" ")}`;
         }

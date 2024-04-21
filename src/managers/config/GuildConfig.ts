@@ -1,11 +1,12 @@
 import { Snowflake } from "discord-api-types/v10";
 import { Colors, EmbedBuilder, Guild, GuildBasedChannel, GuildMember, messageLink, roleMention } from "discord.js";
+import { ChannelScoping, Permission, RawGuildConfig, rawGuildConfigSchema } from "./schema";
 import { client, prisma } from "@/index";
 import { CronJob } from "cron";
-import { DeepPartial, Result } from "@utils/types";
 import { MessageReportStatus } from "@utils/reports";
+import { fromZodError } from "zod-validation-error";
+import { InteractionReplyData } from "@utils/types";
 
-import _ from "lodash";
 import Logger, { AnsiColor } from "@utils/logger";
 
 export default class GuildConfig {
@@ -19,14 +20,8 @@ export default class GuildConfig {
      * @param data - The raw config data
      * @returns Parsed instance of the guild's configuration
      */
-    static async from(guildId: Snowflake, data: DeepPartial<RawGuildConfig>): Promise<GuildConfig> {
-        const config = GuildConfig.setDefaults(data);
-        const validationResult = GuildConfig.validate(config);
-
-        if (!validationResult.success) {
-            throw new Error(validationResult.message);
-        }
-
+    static async from(guildId: Snowflake, data: unknown): Promise<GuildConfig> {
+        const config = GuildConfig._parse(guildId, data);
         const guild = await client.guilds.fetch(guildId).catch(() => {
             throw new Error("Failed to load config, unknown guild ID");
         });
@@ -35,121 +30,23 @@ export default class GuildConfig {
     }
 
     /**
-     * Set default values for missing fields in the guild configuration
+     * Set default values and validate the guild configuration
      *
+     * @param guildId - ID of the guild associated with the config
      * @param data - The guild configuration data
      * @returns The guild configuration with default values set
      * @private
      */
-    private static setDefaults(data: DeepPartial<RawGuildConfig>): RawGuildConfig {
-        const channelScopingDefaults: ChannelScoping = {
-            include_channels: [],
-            exclude_channels: []
-        };
+    private static _parse(guildId: Snowflake, data: unknown): RawGuildConfig {
+        const parseResult = rawGuildConfigSchema.safeParse(data);
 
-        const configDefaults: RawGuildConfig = {
-            default_purge_amount: 100,
-            permissions: [],
-            response_ttl: 5000,
-            ephemeral_scoping: channelScopingDefaults,
-            moderation_requests: [],
-            auto_reactions: [],
-            media_channels: [],
-            scheduled_messages: [],
-            user_flags: [],
-            emojis: {
-                approve: "👍",
-                deny: "👎",
-                quick_mute_30: "🔇",
-                quick_mute_60: "🔇",
-                purge_messages: "🗑️",
-                report_message: "⚠️"
-            },
-            logging: {
-                default_scoping: channelScopingDefaults,
-                logs: []
-            }
-        };
-
-        // Use lodash to set default values for the guild configuration
-        const config: RawGuildConfig = _.defaultsDeep(data, configDefaults);
-
-        // Set default values for each logging configuration
-        for (const log of config.logging.logs) {
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-            if (!log.scoping) {
-                log.scoping = config.logging.default_scoping;
-            } else {
-                log.scoping = _.defaults(log.scoping, channelScopingDefaults);
-            }
+        if (!parseResult.success) {
+            const validationError = fromZodError(parseResult.error);
+            Logger.error(`GUILD_CONFIG: ${guildId} | ${validationError.toString()}`);
+            process.exit(1);
         }
 
-        // Set default values for each permission configuration
-        for (const permissions of config.permissions) {
-            _.defaults(permissions.roles, []);
-            _.defaults(permissions.allow, []);
-        }
-
-        // Set default values for each moderation request configuration
-        for (const moderationRequest of config.moderation_requests) {
-            _.defaults(moderationRequest.allow_discord_media_links, true);
-
-            if (moderationRequest.alert) {
-                _.defaults(moderationRequest.alert.count_threshold, 25);
-                _.defaults(moderationRequest.alert.mentioned_roles, []);
-            }
-        }
-
-        // Set default values for each auto-reaction configuration
-        for (const autoReaction of config.auto_reactions) {
-            _.defaults(autoReaction.emojis, []);
-        }
-
-        // Set default values for each user flag configuration
-        for (const userFlag of config.user_flags) {
-            _.defaults(userFlag.roles, []);
-        }
-
-        return config;
-    }
-
-    /**
-     * Ensure the values passed to the configuration are appropriate
-     *
-     * @returns The result of the validation
-     */
-    private static validate(data: RawGuildConfig): Result {
-        if (data.default_purge_amount < 1 || data.default_purge_amount > 100) {
-            return {
-                success: false,
-                message: "Invalid default purge amount, the value must be between 1 and 100 (inclusive)"
-            };
-        }
-
-        if (data.response_ttl < 1) {
-            return {
-                success: false,
-                message: "Invalid response TTL, the value must be greater than 0"
-            };
-        }
-
-        for (const moderationRequest of data.moderation_requests) {
-            if (moderationRequest.alert && moderationRequest.alert.count_threshold < 1) {
-                return {
-                    success: false,
-                    message: "Invalid alert count threshold, the value must be greater than 0"
-                };
-            }
-
-            if (!Object.values(ModerationRequestType).includes(moderationRequest.type)) {
-                return {
-                    success: false,
-                    message: "Invalid moderation request type"
-                };
-            }
-        }
-
-        return { success: true };
+        return parseResult.data;
     }
 
     // Start the cron job for each scheduled message
@@ -175,6 +72,10 @@ export default class GuildConfig {
                 channel.send(scheduledMessage.content);
             }).start();
         }
+    }
+
+    getQuickResponse(value: string): InteractionReplyData {
+        return this.data.quick_responses.find(response => response.value === value)?.response ?? null;
     }
 
     async startRequestAlertCronJobs(): Promise<void> {
@@ -355,200 +256,8 @@ export default class GuildConfig {
     }
 }
 
-export interface ChannelScoping {
-    include_channels: Snowflake[];
-    exclude_channels: Snowflake[];
-}
-
 export interface ChannelScopingParams {
     channelId: Snowflake;
     threadId: Snowflake | null;
     categoryId: Snowflake | null;
-}
-
-interface Log {
-    events: LoggingEvent[];
-    channel_id: Snowflake;
-    scoping: ChannelScoping;
-}
-
-interface Logging {
-    default_scoping: ChannelScoping;
-    logs: Log[];
-}
-
-export enum ModerationRequestType {
-    Ban = "ban",
-    Mute = "mute"
-}
-
-export interface ModerationRequest {
-    type: ModerationRequestType;
-    channel_id: Snowflake;
-    // @default true
-    allow_discord_media_links: boolean;
-    alert?: Alert;
-}
-
-interface Alert {
-    channel_id: Snowflake;
-    // Cron expression for when to send the alert
-    cron: string;
-    // Number of unreviewed items required to trigger an alert
-    count_threshold: number;
-    // Role(s) mentioned in the alert
-    mentioned_roles: Snowflake[]
-}
-
-interface Permissions {
-    roles: Snowflake[];
-    allow: Permission[]
-}
-
-export enum Permission {
-    /**
-     * ## Grants access to:
-     *
-     * - Manage infractions not executed by them
-     * - View the moderation activity of staff using `/info`
-     */
-    ManageInfractions = "manage_infractions",
-    /**
-     * ## Grants access to:
-     *
-     * - Approve / Deny mute requests
-     * - Automatic mutes in ban requests
-     */
-    ManageMuteRequests = "manage_mute_requests",
-    /**
-     * ## Grants access to:
-     *
-     * - Approve / Deny ban requests
-     */
-    ManageBanRequests = "manage_ban_requests",
-    // Grants access to viewing a user's infractions
-    ViewInfractions = "view_infractions",
-    /**
-     * Grants access to viewing the moderation activity of
-     * users with the {@link Permission#ViewInfractions} permission
-     */
-    ViewModerationActivity = "view_moderation_activity"
-}
-
-export interface RawGuildConfig {
-    logging: Logging;
-    moderation_requests: ModerationRequest[];
-    auto_reactions: AutoReaction[];
-    notification_channel?: Snowflake;
-    media_conversion_channel?: Snowflake;
-    scheduled_messages: ScheduledMessage[];
-    // Flags displayed in the user info message
-    user_flags: UserFlag[];
-    // Channels that require messages to have an attachment
-    media_channels: Snowflake[];
-    permissions: Permissions[];
-    message_reports?: MessageReports;
-    ephemeral_scoping: ChannelScoping;
-    // Lifetime of non-ephemeral responses (milliseconds)
-    response_ttl: number;
-    // Value must be between 1 and 100 (inclusive) - Default: 100
-    default_purge_amount: number;
-    emojis: Emojis;
-}
-
-export interface UserFlag {
-    // The name of the flag
-    label: string;
-    // The user must have at least one of these roles to set the flag
-    roles: Snowflake[];
-}
-
-interface ScheduledMessage {
-    // Channel to send the message in
-    channel_id: Snowflake;
-    // Cron expression for when to send the message
-    cron: string;
-    // Message content
-    content: string;
-}
-
-interface AutoReaction {
-    // The channel to listen for messages in
-    channel_id: Snowflake;
-    // The reactions to add to messages
-    emojis: string[];
-}
-
-interface MessageReports {
-    // Channel to send message reports to
-    alert_channel: Snowflake;
-    // How long an alert will stay in the alert channel before being removed (in milliseconds)
-    alert_ttl?: number;
-    // Roles mentioned in new alerts
-    mentioned_roles?: Snowflake[];
-    // Users with these roles will be immune to message reports
-    excluded_roles?: Snowflake[];
-}
-
-/**
- * Unicode emoji passed as a string or by ID
- * if they are custom emoji, for example:
- *
- * - `000000000000000000` (custom emoji ID)
- * - `👍` (Unicode emoji)
- */
-interface Emojis {
-    // Approve moderation requests
-    approve: string;
-    // Deny moderation requests
-    deny: string;
-    // 30 minute quick mute
-    quick_mute_30: string;
-    // 1 hour quick mute
-    quick_mute_60: string;
-    // Purge a user's messages
-    purge_messages: string;
-    // Report a message
-    report_message: string;
-}
-
-interface Database {
-    messages: Messages;
-}
-
-interface Messages {
-    insert_cron: string;
-    delete_cron: string;
-}
-
-export interface GlobalConfig {
-    database: Database;
-}
-
-export enum LoggingEvent {
-    MessageBulkDelete = "message_bulk_delete",
-    MessageDelete = "message_delete",
-    MessageUpdate = "message_update",
-    MessageReactionAdd = "message_reaction_add",
-    InteractionCreate = "interaction_create",
-    VoiceJoin = "voice_join",
-    VoiceLeave = "voice_leave",
-    VoiceSwitch = "voice_switch",
-    ThreadCreate = "thread_create",
-    ThreadDelete = "thread_delete",
-    ThreadUpdate = "thread_update",
-    MediaStore = "media_store",
-    InfractionCreate = "infraction_create",
-    InfractionArchive = "infraction_archive",
-    InfractionRestore = "infraction_restore",
-    // TODO Implement infraction update logs
-    InfractionUpdate = "infraction_update",
-    BanRequestApprove = "ban_request_approve",
-    BanRequestDeny = "ban_request_deny",
-    MuteRequestApprove = "mute_request_approve",
-    MuteRequestDeny = "mute_request_deny",
-    // TODO Implement message report create logs
-    MessageReportCreate = "message_report_create",
-    // TODO Implement message report resolve logs
-    MessageReportResolve = "message_report_resolve"
 }

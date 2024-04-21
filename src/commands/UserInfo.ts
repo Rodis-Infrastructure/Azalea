@@ -19,9 +19,10 @@ import {
 import { Action, InteractionReplyData } from "@utils/types";
 import { BLANK_EMBED_FIELD, EMPTY_INFRACTION_REASON } from "@utils/constants";
 import { prisma } from "./..";
+import { Permission, UserFlag } from "@managers/config/schema";
 
 import Command from "@managers/commands/Command";
-import GuildConfig, { Permission, UserFlag } from "@managers/config/GuildConfig";
+import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 
 export default class UserInfo extends Command<ChatInputCommandInteraction<"cached">> {

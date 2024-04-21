@@ -32,8 +32,9 @@ import { approveModerationRequest, denyModerationRequest } from "@utils/requests
 import { prisma } from "./..";
 import { MessageReportFlag, MessageReportStatus } from "@utils/reports";
 import { MuteDuration } from "@utils/types";
+import { LoggingEvent } from "@managers/config/schema";
 
-import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import Purge from "@/commands/Purge";
@@ -61,6 +62,9 @@ export default class MessageReactionAdd extends EventListener {
 
         const emojiId = MessageReactionAdd._getEmojiId(reaction.emoji);
         const executor = await message.guild.members.fetch(user.id);
+
+        // All subsequent actions require the emoji configuration
+        if (!config.data.emojis) return;
 
         // Handle a 30-minute quick mute
         if (emojiId === config.data.emojis.quick_mute_30) {
@@ -112,7 +116,7 @@ export default class MessageReactionAdd extends EventListener {
         if (!config.data.message_reports) return;
 
         const excludedRoles = config.data.message_reports.excluded_roles;
-        const isExcluded = message.member?.roles.cache.some(role => excludedRoles?.includes(role.id));
+        const isExcluded = message.member?.roles.cache.some(role => excludedRoles.includes(role.id));
 
         // Don't report messages from users with excluded roles
         if (isExcluded) return;

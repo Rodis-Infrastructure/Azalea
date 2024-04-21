@@ -49,12 +49,12 @@ async function main(): Promise<void> {
     // Login to Discord
     await client.login(process.env.DISCORD_TOKEN);
 
-    // Cache all commands
-    await CommandManager.cache();
-
     // Cache the configurations
     ConfigManager.cacheGlobalConfig();
     await ConfigManager.cacheGuildConfigs();
+
+    // Cache all commands
+    await CommandManager.cache();
 
     // Mount all event listeners
     await EventListenerManager.mount();
@@ -76,7 +76,5 @@ main()
     });
 
 // TODO - Message reports
-// TODO - User reports
-// TODO - User/Message report alerts
-// TODO - FAQ command
+// TODO - Message report alerts
 // TODO - Role requests

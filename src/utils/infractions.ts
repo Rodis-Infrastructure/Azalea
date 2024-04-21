@@ -4,9 +4,10 @@ import { Colors, EmbedBuilder } from "discord.js";
 import { Snowflake } from "discord-api-types/v10";
 import { prisma } from "./..";
 import { log } from "./logging";
-import { Action } from "./types";
+import { Action, ActionEmbedColor } from "./types";
+import { LoggingEvent } from "@managers/config/schema";
 
-import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import GuildConfig from "@managers/config/GuildConfig";
 import Sentry from "@sentry/node";
 
 /**
@@ -36,7 +37,7 @@ export async function handleInfractionCreate(data: Prisma.InfractionCreateInput,
         .join(" ");
 
     const embed = new EmbedBuilder()
-        .setColor(Colors.NotQuiteBlack)
+        .setColor(ActionEmbedColor[infraction.action])
         .setAuthor({ name: "Infraction Created" })
         .setTitle(embedTitle)
         .setFields([

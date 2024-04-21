@@ -1,8 +1,9 @@
 import { channelMentionWithName, getObjectDiff, userMentionWithId } from "@/utils";
-import { EmbedBuilder, Events, ThreadChannel } from "discord.js";
+import { Colors, EmbedBuilder, Events, ThreadChannel } from "discord.js";
 import { log } from "@utils/logging";
+import { LoggingEvent } from "@managers/config/schema";
 
-import GuildConfig, { LoggingEvent } from "@managers/config/GuildConfig";
+import GuildConfig from "@managers/config/GuildConfig";
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
 
@@ -31,7 +32,7 @@ export default class ThreadUpdate extends EventListener {
         if (!changes.length) return;
 
         const embed = new EmbedBuilder()
-            .setColor(0x9C84EF) // Light purple
+            .setColor(Colors.Yellow)
             .setAuthor({ name: "Thread Updated" })
             .setFields([
                 {

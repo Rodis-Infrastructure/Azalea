@@ -1,6 +1,5 @@
 import { ColorResolvable, Colors, InteractionReplyOptions } from "discord.js";
 
-export type AbstractInstanceType<T> = T extends { prototype: infer U } ? U : never;
 export type ObjectDiff = Record<string | number | symbol, ObjectPropDiff>;
 
 interface ObjectPropDiff {
@@ -44,12 +43,3 @@ export enum Flag {
 }
 
 export type InteractionReplyData = InteractionReplyOptions | string | null;
-
-export type DeepPartial<T> = {
-    [P in keyof T]?: DeepPartial<T[P]>;
-};
-
-export interface Result {
-    success: boolean;
-    message?: string;
-}
