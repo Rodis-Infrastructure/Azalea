@@ -64,7 +64,7 @@ export default class MessageReactionAdd extends EventListener {
         const executor = await message.guild.members.fetch(user.id);
 
         // All subsequent actions require the emoji configuration
-        if (!config.data.emojis) return;
+        if (!config.data.emojis || !emojiId) return;
 
         // Handle a 30-minute quick mute
         if (emojiId === config.data.emojis.quick_mute_30) {
@@ -199,20 +199,25 @@ export default class MessageReactionAdd extends EventListener {
         // Mark the report as resolved
         const resolveMessageReportButton = new ButtonBuilder()
             .setCustomId(`message-report-resolve`)
-            .setLabel("Resolve")
+            .setLabel("OK")
             .setStyle(ButtonStyle.Success);
 
         // Mute the target user for 30 minutes
         const quickMute30Button = new ButtonBuilder()
             .setCustomId("message-report-qm30")
-            .setLabel("Quick mute (30m)")
+            .setLabel("QM (30m)")
             .setStyle(ButtonStyle.Danger);
 
         // Mute the target user for 1 hour
         const quickMute60Button = new ButtonBuilder()
             .setCustomId("message-report-qm60")
-            .setLabel("Quick mute (1h)")
+            .setLabel("QM (1h)")
             .setStyle(ButtonStyle.Danger);
+
+        const userInfoButton = new ButtonBuilder()
+            .setCustomId(`user-info-${message.author.id}`)
+            .setLabel("User Info")
+            .setStyle(ButtonStyle.Secondary);
 
         // Search the target user's infractions
         const infractionsButton = new ButtonBuilder()
@@ -224,6 +229,7 @@ export default class MessageReactionAdd extends EventListener {
             resolveMessageReportButton,
             quickMute30Button,
             quickMute60Button,
+            userInfoButton,
             infractionsButton
         );
 

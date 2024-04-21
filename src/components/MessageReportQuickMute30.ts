@@ -8,7 +8,7 @@ import Component from "@managers/components/Component";
 
 export default class MessageReportQuickMute30 extends Component {
     constructor() {
-        super("message_report_qm30");
+        super("message-report-qm30");
     }
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {

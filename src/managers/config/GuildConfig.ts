@@ -145,6 +145,61 @@ export default class GuildConfig {
         Logger.info("Finished starting moderation request alert cron jobs");
     }
 
+    async startMessageReportAlertCronJob(): Promise<void> {
+        Logger.info("Starting cron job for message report alerts...");
+
+        const alertConfig = this.data.message_reports?.alert;
+
+        if (!alertConfig) {
+            Logger.error("Failed to mount message report alert, missing alert configuration");
+            return;
+        }
+
+        const channel = await this.guild.channels
+            .fetch(alertConfig.channel_id)
+            .catch(() => null);
+
+        if (!channel || !channel.isTextBased()) {
+            Logger.error(`Failed to mount message report alert, unknown channel: ${alertConfig.channel_id}`);
+            return;
+        }
+
+        const getAlertEmbed = (unresolvedReportCount: number): EmbedBuilder => new EmbedBuilder()
+            .setColor(Colors.Red)
+            .setTitle("Unresolved Message Report Alert")
+            .setDescription(`There are currently \`${unresolvedReportCount}\` unresolved message reports`)
+            .setFooter({ text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved message reports` });
+
+        // Start the cron job for the alert
+        new CronJob(alertConfig.cron, async () => {
+            const unresolvedReportCount = await prisma.messageReport.count({
+                where: {
+                    status: MessageReportStatus.Unresolved,
+                    guild_id: this.guild.id
+                }
+            });
+
+            if (unresolvedReportCount < alertConfig.count_threshold) {
+                return;
+            }
+
+            const alert = getAlertEmbed(unresolvedReportCount);
+            const mentionedRoles = alertConfig.mentioned_roles
+                .map(roleMention)
+                .join(" ");
+
+            // Send the alert to the channel
+            channel.send({
+                content: mentionedRoles || undefined,
+                embeds: [alert]
+            });
+        }).start();
+
+        Logger.log("MESSAGE_REPORT_ALERT", "Cron job started", {
+            color: AnsiColor.Purple
+        });
+    }
+
     /**
      * **All** of the following conditions must be met:
      *

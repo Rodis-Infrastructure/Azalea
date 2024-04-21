@@ -25,6 +25,7 @@ export default class Ready extends EventListener {
         ConfigManager.guildConfigs.forEach(config => {
             config.startScheduledMessageCronJobs();
             config.startRequestAlertCronJobs();
+            config.startMessageReportAlertCronJob();
         });
     }
 }

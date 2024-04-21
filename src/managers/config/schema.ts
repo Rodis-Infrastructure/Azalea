@@ -187,6 +187,7 @@ const messageReportsSchema = z.object({
     alert_channel: snowflakeSchema,
     // How long an alert will stay in the alert channel before being removed (in milliseconds)
     alert_ttl: z.number().positive().optional(),
+    alert: alertSchema.optional(),
     // Roles mentioned in new alerts
     mentioned_roles: z.array(snowflakeSchema).nonempty().optional(),
     // Users with these roles will be immune to message reports

@@ -75,6 +75,4 @@ main()
         process.exit(0);
     });
 
-// TODO - Message reports
-// TODO - Message report alerts
 // TODO - Role requests

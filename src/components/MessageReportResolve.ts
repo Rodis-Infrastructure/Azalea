@@ -7,7 +7,7 @@ import Component from "@managers/components/Component";
 
 export default class MessageReportResolve extends Component {
     constructor() {
-        super("message_report_resolve");
+        super("message-report-resolve");
     }
 
     async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
