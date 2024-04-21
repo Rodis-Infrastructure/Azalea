@@ -249,6 +249,23 @@ const quickResponseSchema = z.object({
     response: z.union([messageContentSchema, interactionReplyOptionsSchema])
 });
 
+const requestedRoleSchema = z.object({
+    // The role requested
+    id: snowflakeSchema,
+    // How long the role should be kept for (in milliseconds)
+    // Indefinite if not set
+    ttl: z.number().positive().optional()
+});
+
+const roleRequestsSchema = z.object({
+    // The role request channel
+    channel_id: snowflakeSchema,
+    // Users with these roles can manage role requests
+    reviewer_roles: z.array(snowflakeSchema).nonempty(),
+    // Roles that can be requested
+    roles: z.array(requestedRoleSchema).nonempty()
+});
+
 // Guild config schema exported for validation
 export const rawGuildConfigSchema = z.object({
     logging: loggingSchema.default(defaultLogging),
@@ -257,6 +274,7 @@ export const rawGuildConfigSchema = z.object({
     notification_channel: snowflakeSchema.optional(),
     media_conversion_channel: snowflakeSchema.optional(),
     quick_responses: z.array(quickResponseSchema).default([]),
+    role_requests: roleRequestsSchema.optional(),
     scheduled_messages: z.array(scheduledMessageSchema).default([]),
     // Flags displayed in the user info message
     user_flags: z.array(userFlagSchema).default([]),

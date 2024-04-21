@@ -1,13 +1,23 @@
+import {
+    ActionRowBuilder,
+    ButtonBuilder, ButtonStyle,
+    EmbedBuilder,
+    Events,
+    Message,
+    PartialMessage, SelectMenuComponentOptionData,
+    StringSelectMenuBuilder
+} from "discord.js";
+
 import { Messages, resolvePartialMessage, temporaryReply } from "@utils/messages";
 import { handleModerationRequest } from "@utils/requests";
-import { Events, Message, PartialMessage } from "discord.js";
 import { MediaStoreError } from "@utils/errors";
-import { pluralize } from "@/utils";
+import { pluralize, userMentionWithId } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import Sentry from "@sentry/node";
 import StoreMediaCtx from "@/commands/StoreMediaCtx";
+import GuildConfig from "@managers/config/GuildConfig";
 
 export default class MessageCreate extends EventListener {
     constructor() {
@@ -57,7 +67,61 @@ export default class MessageCreate extends EventListener {
             message.delete().catch(() => null);
         }
 
+        if (config.data.role_requests?.channel_id === message.channel.id && message.mentions.users.size) {
+            MessageCreate._createRoleRequest(message, config);
+        }
+
         // Source channel conditions are handled within the function
         handleModerationRequest(message, config);
+    }
+
+    private static async _createRoleRequest(message: Message<true>, config: GuildConfig): Promise<void> {
+        if (message.mentions.users.size > 50) {
+            await temporaryReply(message, "You can only mention up to 50 users at a time.", config.data.response_ttl);
+            return;
+        }
+
+        const mentionedUsers = message.mentions.users.map(user => userMentionWithId(user.id));
+        const embed = new EmbedBuilder()
+            .setAuthor({
+                name: `Role Request (by @${message.author.username} - ${message.author.id})`,
+                url: message.author.displayAvatarURL(),
+                iconURL: message.author.displayAvatarURL()
+            })
+            .setDescription(mentionedUsers.join("\n"));
+
+        const selectableRoleIds = config.data.role_requests!.roles;
+        const roles = await message.guild.roles.fetch();
+        const selectableRoles = roles.filter(role =>
+            selectableRoleIds.some(selectableRole => selectableRole.id === role.id)
+        );
+
+        const selectableRoleOptions: SelectMenuComponentOptionData[] = selectableRoles.map(role => ({
+            label: role.name,
+            value: role.id
+        }));
+
+        const roleSelectMenu = new StringSelectMenuBuilder()
+            .setCustomId("role-request-select-role")
+            .setPlaceholder("Select role to add...")
+            .setOptions(selectableRoleOptions);
+
+        const selectMenuActionRow = new ActionRowBuilder<StringSelectMenuBuilder>()
+            .setComponents(roleSelectMenu);
+
+        const addNoteButton = new ButtonBuilder()
+            .setCustomId("role-request-add-note")
+            .setLabel("Add Note")
+            .setStyle(ButtonStyle.Secondary);
+
+        const buttonActionRow = new ActionRowBuilder<ButtonBuilder>()
+            .setComponents(addNoteButton);
+
+        await message.channel.send({
+            embeds: [embed],
+            components: [selectMenuActionRow, buttonActionRow]
+        });
+
+        message.delete().catch(() => null);
     }
 }

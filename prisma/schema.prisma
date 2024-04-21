@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Request {
+model ModerationRequest {
   id              String   @id
   author_id       String
   target_id       String
@@ -77,4 +77,13 @@ model UserReport {
   status      String  @default("unresolved")
   /// ID of the moderator that resolved the report
   resolved_by String?
+}
+
+model RoleRequest {
+  member_id  String
+  role_id    String
+  guild_id   String
+  expires_at DateTime
+
+  @@id([member_id, role_id])
 }

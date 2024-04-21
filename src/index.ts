@@ -74,5 +74,3 @@ main()
 
         process.exit(0);
     });
-
-// TODO - Role requests
