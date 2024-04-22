@@ -2,7 +2,7 @@ import { Colors, EmbedBuilder, GuildMember, hyperlink, Message, messageLink, use
 import { DEFAULT_MUTE_DURATION, EMBED_FIELD_CHAR_LIMIT } from "./constants";
 import { RequestValidationError } from "./errors";
 import { Snowflake } from "discord-api-types/v10";
-import { formatMessageContentForLog, temporaryReply } from "./messages";
+import { temporaryReply } from "./messages";
 import { userMentionWithId } from "./index";
 import { TypedRegEx } from "typed-regex";
 import { handleInfractionCreate } from "./infractions";
@@ -23,13 +23,13 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
 
     if (!requestConfig) return;
 
-    if (!requestConfig.allow_discord_media_links && message.content.includes("cdn.discordapp.com")) {
+    if (!requestConfig.allow_discord_media_links && message.content.includes("cdn.discord")) {
         await temporaryReply(message, "Discord media links are not allowed.", config.data.response_ttl);
         return;
     }
 
     try {
-        let request: Prisma.RequestCreateInput | null = null;
+        let request: Prisma.ModerationRequestCreateInput | null = null;
 
         if (requestConfig.type === ModerationRequestType.Mute) {
             request = await validateMuteRequest(message, config);
@@ -74,7 +74,7 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
 
         // Store the request in the database if it doesn't exist
         // Update the reason if the request is already stored
-        await prisma.request.upsert({
+        await prisma.moderationRequest.upsert({
             create: request,
             where: {
                 id: message.id
@@ -154,7 +154,7 @@ async function handleAutomaticMute(data: {
  * @param config - The guild configuration.
  * @returns The target member and the request data: [targetMember, requestData]
  */
-async function validateMuteRequest(request: Message<true>, config: GuildConfig): Promise<Prisma.RequestCreateInput> {
+async function validateMuteRequest(request: Message<true>, config: GuildConfig): Promise<Prisma.ModerationRequestCreateInput> {
     /**
      * Regex pattern for extracting the target ID, duration, and reason from the message content.
      * ## Examples
@@ -175,7 +175,7 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
     }
 
     // Check if the request is a duplicate
-    const originalRequest = await prisma.request.findFirst({
+    const originalRequest = await prisma.moderationRequest.findFirst({
         select: { id: true },
         where: {
             target_id: matches.targetId,
@@ -231,7 +231,7 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
  * @param config - The guild configuration.
  * @returns The target member and the request data: [targetMember, requestData]
  */
-async function validateBanRequest(request: Message<true>, config: GuildConfig): Promise<[GuildMember | null, Prisma.RequestCreateInput]> {
+async function validateBanRequest(request: Message<true>, config: GuildConfig): Promise<[GuildMember | null, Prisma.ModerationRequestCreateInput]> {
     /**
      * Regex pattern for extracting the target ID and reason from the message content.
      * ## Examples
@@ -249,7 +249,7 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
     }
 
     // Check if the request is a duplicate
-    const originalRequest = await prisma.request.findFirst({
+    const originalRequest = await prisma.moderationRequest.findFirst({
         select: { id: true },
         where: {
             target_id: matches.targetId,
@@ -296,7 +296,7 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
  * @param config - The guild configuration.
  */
 export async function approveModerationRequest(requestId: Snowflake, reviewerId: Snowflake, config: GuildConfig): Promise<void> {
-    const request = await prisma.request.update({
+    const request = await prisma.moderationRequest.update({
         where: { id: requestId },
         data: { status: RequestStatus.Approved },
         select: {
@@ -331,7 +331,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
                 { name: "Reviewer", value: userMentionWithId(reviewerId) },
                 { name: "Request Author", value: userMentionWithId(request.author_id) },
                 { name: "Target", value: userMentionWithId(request.target_id) },
-                { name: "Request Content", value: formatMessageContentForLog(request.reason) }
+                { name: "Request Content", value: request.reason }
             ])
             .setTimestamp();
 
@@ -345,12 +345,21 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
         });
     };
 
+    const reviewer = await config.guild.members
+        .fetch(reviewerId)
+        .catch(() => null);
+
     switch (request.punishment_type) {
         case ModerationRequestType.Mute: {
             const target = await guild.members.fetch(request.target_id).catch(() => null);
 
             if (!target) {
                 config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, the offender may have left the guild.`);
+                return;
+            }
+
+            if (reviewer && !config.hasPermission(reviewer, Permission.ManageMuteRequests)) {
+                config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, you do not have permission to manage mute requests.`);
                 return;
             }
 
@@ -364,6 +373,11 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
 
             if (!target) {
                 config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, the offender was not found.`);
+                return;
+            }
+
+            if (reviewer && !config.hasPermission(reviewer, Permission.ManageBanRequests)) {
+                config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, you do not have permission to manage ban requests.`);
                 return;
             }
 
@@ -400,7 +414,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
  * @param config - The guild configuration.
  */
 export async function denyModerationRequest(message: Message<true>, reviewerId: Snowflake, config: GuildConfig): Promise<void> {
-    const request = await prisma.request.update({
+    const request = await prisma.moderationRequest.update({
         where: { id: message.id },
         data: { status: RequestStatus.Denied },
         select: {
@@ -431,7 +445,7 @@ export async function denyModerationRequest(message: Message<true>, reviewerId: 
                 { name: "Reviewer", value: userMentionWithId(reviewerId) },
                 { name: "Request Author", value: userMentionWithId(request.author_id) },
                 { name: "Target", value: userMentionWithId(request.target_id) },
-                { name: "Request Content", value: formatMessageContentForLog(message.content) }
+                { name: "Request Content", value: message.content }
             ])
             .setTimestamp();
 

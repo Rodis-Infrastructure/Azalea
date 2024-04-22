@@ -11,8 +11,6 @@ const snowflakeSchema = z.string().regex(/^\d{17,19}$/gm);
 const emojiSchema = z.union([z.string().emoji(), snowflakeSchema]);
 const stringSchema = z.string().min(1);
 const messageContentSchema = stringSchema.max(4000);
-// Format: "#123456" or "#123" or 0x123456 or 0x123
-const colorSchema = z.union([z.string().regex(/^#([A-F\d]{6}|[A-F\d]{3})$/gmi), z.number()]);
 
 // ————————————————————————————————————————————————————————————————————————————————
 // Global Config
@@ -59,7 +57,7 @@ const embedSchema = z.object({
     title: stringSchema.max(256).optional(),
     description: stringSchema.max(4096).optional(),
     url: z.string().url().optional(),
-    color: colorSchema.optional(),
+    color: z.number().optional(),
     footer: embedFooterSchema.optional(),
     author: embedAuthorSchema.optional(),
     fields: z.array(embedFieldSchema).max(25).optional(),
@@ -92,9 +90,7 @@ export enum LoggingEvent {
     BanRequestDeny = "ban_request_deny",
     MuteRequestApprove = "mute_request_approve",
     MuteRequestDeny = "mute_request_deny",
-    // TODO Implement message report create logs
     MessageReportCreate = "message_report_create",
-    // TODO Implement message report resolve logs
     MessageReportResolve = "message_report_resolve"
 }
 
@@ -249,10 +245,7 @@ const interactionReplyOptionsSchema = z.object({
 const quickResponseSchema = z.object({
     // The label displayed in the command's dropdown
     label: stringSchema.max(100),
-    value: z.union([
-        z.string().regex(/^[\w-]{1,100}$/gm),
-        z.number().positive()
-    ]),
+    value: z.string().regex(/^[\w-]{1,100}$/gm),
     // The response to send when the command is executed
     response: z.union([messageContentSchema, interactionReplyOptionsSchema])
 });

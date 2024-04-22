@@ -1,6 +1,6 @@
 import {
     ActionRowBuilder,
-    ButtonBuilder,
+    ButtonBuilder, Colors,
     EmbedBuilder,
     Events,
     GuildEmoji,
@@ -160,9 +160,8 @@ export default class MessageReactionAdd extends EventListener {
             flags |= MessageReportFlag.HasSticker;
         }
 
-        const jumpUrl = hyperlink("Jump to message", message.url);
         const alert = new EmbedBuilder()
-            .setDescription(jumpUrl)
+            .setColor(Colors.Yellow)
             .setThumbnail(message.author.displayAvatarURL())
             .setFields([
                 {
@@ -175,10 +174,21 @@ export default class MessageReactionAdd extends EventListener {
                 },
                 {
                     name: "Message Content",
-                    value: formatMessageContentForLog(message.content)
+                    value: formatMessageContentForLog(message.content, message.url)
                 }
             ])
             .setTimestamp();
+
+        const reference = message.reference && await message.fetchReference()
+            .catch(() => null);
+
+        if (reference) {
+            // Insert the reference content before the actual message content
+            alert.spliceFields(2, 0, {
+                name: `Reference from @${reference.author.username} (${reference.author.id})`,
+                value: formatMessageContentForLog(reference.content, reference.url)
+            });
+        }
 
         // Add flags to the embed if there are any
         if (mappedFlags.length) {
@@ -243,8 +253,11 @@ export default class MessageReactionAdd extends EventListener {
         });
 
         // Store the report
-        await prisma.messageReport.create({
-            data: {
+        await prisma.messageReport.upsert({
+            where: {
+                message_id: message.id
+            },
+            create: {
                 id: report.id,
                 message_id: message.id,
                 guild_id: message.guildId,
@@ -253,7 +266,22 @@ export default class MessageReactionAdd extends EventListener {
                 content: message.content,
                 reporter_id: message.author.id,
                 flags
+            },
+            update: {
+                status: MessageReportStatus.Unresolved,
+                created_at: new Date(),
+                resolved_by: null,
+                id: report.id
             }
+        });
+
+        alert.setTitle("New Message Report");
+
+        log({
+            event: LoggingEvent.MessageReportCreate,
+            channel: message.channel,
+            message: { embeds: [alert] },
+            config
         });
     }
 

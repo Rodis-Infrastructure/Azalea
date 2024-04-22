@@ -1,9 +1,13 @@
-import { ButtonInteraction } from "discord.js";
+import { ButtonInteraction, Colors, EmbedBuilder } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
 import { MessageReportStatus } from "@utils/reports";
 import { prisma } from "./..";
+import { log } from "@utils/logging";
+import { LoggingEvent } from "@managers/config/schema";
+import { userMentionWithId } from "@/utils";
 
 import Component from "@managers/components/Component";
+import ConfigManager from "@managers/config/ConfigManager";
 
 export default class MessageReportResolve extends Component {
     constructor() {
@@ -29,7 +33,29 @@ export default class MessageReportResolve extends Component {
             });
         }
 
+        MessageReportResolve.log(interaction);
         await interaction.message.delete();
         return null;
+    }
+
+    // Format: Resolved by {executor} (action: {action})
+    static log(interaction: ButtonInteraction<"cached">, action?: string): void {
+        const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+        const [alert] = interaction.message.embeds;
+
+        const embed = new EmbedBuilder(alert.toJSON())
+            .setColor(Colors.Green)
+            .setTitle("Message Report Resolved");
+
+        log({
+            event: LoggingEvent.MessageReportResolve,
+            channel: null,
+            config,
+            message: {
+                content: `Resolved by ${userMentionWithId(interaction.user.id)}${action ? ` (action: ${action})` : ""}`,
+                embeds: [embed],
+                allowedMentions: { parse: [] }
+            }
+        });
     }
 }

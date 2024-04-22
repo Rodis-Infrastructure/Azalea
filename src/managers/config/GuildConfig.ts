@@ -21,7 +21,7 @@ export default class GuildConfig {
      * @returns Parsed instance of the guild's configuration
      */
     static async from(guildId: Snowflake, data: unknown): Promise<GuildConfig> {
-        const config = GuildConfig._parse(guildId, data);
+        const config = GuildConfig.parse(guildId, data);
         const guild = await client.guilds.fetch(guildId).catch(() => {
             throw new Error("Failed to load config, unknown guild ID");
         });
@@ -37,7 +37,7 @@ export default class GuildConfig {
      * @returns The guild configuration with default values set
      * @private
      */
-    private static _parse(guildId: Snowflake, data: unknown): RawGuildConfig {
+    static parse(guildId: Snowflake, data: unknown): RawGuildConfig {
         const parseResult = rawGuildConfigSchema.safeParse(data);
 
         if (!parseResult.success) {
@@ -71,6 +71,10 @@ export default class GuildConfig {
             new CronJob(scheduledMessage.cron, () => {
                 channel.send(scheduledMessage.content);
             }).start();
+
+            Logger.log("SCHEDULED_MESSAGES", "Cron job started", {
+                color: AnsiColor.Purple
+            });
         }
     }
 
@@ -108,7 +112,7 @@ export default class GuildConfig {
 
             // Start the cron job for the alert
             new CronJob(alertConfig.cron, async () => {
-                const unresolvedRequests = await prisma.request.findMany({
+                const unresolvedRequests = await prisma.moderationRequest.findMany({
                     where: {
                         status: MessageReportStatus.Unresolved,
                         guild_id: this.guild.id
@@ -196,6 +200,55 @@ export default class GuildConfig {
         }).start();
 
         Logger.log("MESSAGE_REPORT_ALERT", "Cron job started", {
+            color: AnsiColor.Purple
+        });
+    }
+
+    async startMessageReportRemovalCronJob(): Promise<void> {
+        const ttl = this.data.message_reports?.alert_ttl;
+        const alertChannelId = this.data.message_reports?.alert_channel;
+
+        if (!ttl || !alertChannelId) return;
+
+        const alertChannel = await this.guild.channels
+            .fetch(alertChannelId)
+            .catch(() => null);
+
+        if (!alertChannel || !alertChannel.isTextBased()) {
+            Logger.error(`Failed to start message report removal cron job, unknown channel: ${alertChannelId}`);
+            return;
+        }
+
+        // Every hour on the hour
+        new CronJob("0 * * * *", async () => {
+            const expiresAt = new Date(Date.now() - ttl);
+            const [expiredMessageReports] = await prisma.$transaction([
+                prisma.messageReport.findMany({
+                    where: {
+                        created_at: { lte: expiresAt },
+                        status: MessageReportStatus.Unresolved
+                    }
+                }),
+                prisma.messageReport.updateMany({
+                    where: {
+                        created_at: { lte: expiresAt },
+                        status: MessageReportStatus.Unresolved
+                    },
+                    data: {
+                        status: MessageReportStatus.Expired
+                    }
+                })
+            ]);
+
+            for (const messageReport of expiredMessageReports) {
+                const alert = await alertChannel.messages.fetch(messageReport.id)
+                    .catch(() => null);
+
+                alert?.delete().catch(() => null);
+            }
+        }).start();
+
+        Logger.log("MESSAGE_REPORT_REMOVAL", "Cron job started", {
             color: AnsiColor.Purple
         });
     }

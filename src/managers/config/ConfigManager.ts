@@ -64,12 +64,12 @@ export default class ConfigManager {
 
         // Load and parse the global config from the azalea.cfg.yml file
         const rawConfig = readYamlFile<GlobalConfig>("azalea.cfg.yml");
-        ConfigManager.globalConfig = ConfigManager._parseGlobalConfig(rawConfig);
+        ConfigManager.globalConfig = ConfigManager.parseGlobalConfig(rawConfig);
 
         Logger.info("Cached global configuration");
     }
 
-    private static _parseGlobalConfig(data: unknown): GlobalConfig {
+    static parseGlobalConfig(data: unknown): GlobalConfig {
         const parseResult = globalConfigSchema.safeParse(data);
 
         if (!parseResult.success) {

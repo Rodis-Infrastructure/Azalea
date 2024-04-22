@@ -82,16 +82,14 @@ export default class MessageUpdate extends EventListener {
         reference: Message | null,
         oldContent: string
     ): Promise<MessageCreateOptions | null> {
-        const maskedJumpURL = hyperlink("Jump to message", message.url);
         const embed = new EmbedBuilder()
             .setColor(Colors.Orange)
             .setAuthor({ name: "Message Updated" })
-            .setDescription(maskedJumpURL)
             .setFields([
                 { name: "Author", value: `${message.author} (\`${message.author.id}\`)` },
                 { name: "Channel", value: `${message.channel} (\`#${message.channel.name}\`)` },
-                { name: "Content (Before)", value: formatMessageContentForLog(oldContent) },
-                { name: "Content (After)", value: formatMessageContentForLog(message.content) }
+                { name: "Content (Before)", value: formatMessageContentForLog(oldContent, message.url) },
+                { name: "Content (After)", value: formatMessageContentForLog(message.content, message.url) }
             ])
             .setTimestamp();
 

@@ -29,6 +29,7 @@ export default class Ready extends EventListener {
             config.startScheduledMessageCronJobs();
             config.startRequestAlertCronJobs();
             config.startMessageReportAlertCronJob();
+            config.startMessageReportRemovalCronJob();
 
             if (config.data.role_requests) {
                 Ready._startRoleRequestRemovalCronJob();

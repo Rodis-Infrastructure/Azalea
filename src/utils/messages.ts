@@ -1,4 +1,5 @@
 import {
+    codeBlock,
     Collection,
     Colors,
     EmbedBuilder,
@@ -221,13 +222,10 @@ export async function prependReferenceLog(reference: Snowflake | Message, embeds
         reference = cachedReference;
     }
 
-    const referenceURL = messageLink(reference.channel_id, reference.id, reference.guild_id);
-    const maskedJumpURL = hyperlink("Jump to message", referenceURL);
-
+    const referenceUrl = messageLink(reference.channel_id, reference.id, reference.guild_id);
     const embed = new EmbedBuilder()
         .setColor(Colors.NotQuiteBlack)
         .setAuthor({ name: "Reference" })
-        .setDescription(maskedJumpURL)
         .setFields([
             {
                 name: "Author",
@@ -235,7 +233,7 @@ export async function prependReferenceLog(reference: Snowflake | Message, embeds
             },
             {
                 name: "Content",
-                value: formatMessageContentForLog(reference.content)
+                value: formatMessageContentForLog(reference.content, referenceUrl)
             }
         ])
         .setTimestamp(reference.created_at);
@@ -245,8 +243,11 @@ export async function prependReferenceLog(reference: Snowflake | Message, embeds
 }
 
 // Escape code blocks, truncate the content if it's too long, and wrap it in a code block
-export function formatMessageContentForLog(content: string | null): string {
-    return elipsify(content || EMPTY_MESSAGE_CONTENT, EMBED_FIELD_CHAR_LIMIT);
+export function formatMessageContentForLog(content: string | null, url: string): string {
+    const croppedContent = elipsify(content || EMPTY_MESSAGE_CONTENT, EMBED_FIELD_CHAR_LIMIT - 120);
+    const jumpUrl = hyperlink("Jump to messages", url);
+
+    return `${jumpUrl}\n${codeBlock(croppedContent)}`;
 }
 
 // Ignores messages that were sent in DMs. This function shouldn't be used on deleted messages

@@ -106,7 +106,7 @@ export function humanizeTimestamp(ms: number): string {
 
 export function elipsify(str: string, length: number): string {
     // Accounts for the length of the ellipsis
-    const croppedStr = str.slice(0, length - 25);
+    const croppedStr = str.slice(0, length);
 
     return str.length > length
         ? `${croppedStr}...(${str.length - croppedStr.length} more characters)`

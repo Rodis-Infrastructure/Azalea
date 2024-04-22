@@ -5,6 +5,7 @@ import { MessageReportStatus } from "@utils/reports";
 import { prisma } from "./..";
 
 import Component from "@managers/components/Component";
+import MessageReportResolve from "./MessageReportResolve";
 
 export default class MessageReportQuickMute30 extends Component {
     constructor() {
@@ -12,6 +13,7 @@ export default class MessageReportQuickMute30 extends Component {
     }
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+        MessageReportResolve.log(interaction, "quick mute (30m)");
         return handleMessageReportQuickMute(interaction, MuteDuration.Short);
     }
 }

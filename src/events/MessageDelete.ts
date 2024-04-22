@@ -91,9 +91,6 @@ export async function handleShortMessageDeleteLog(
     channel: GuildTextBasedChannel,
     config: GuildConfig
 ): Promise<DiscordMessage<true>[] | null> {
-    const messageURL = messageLink(message.channel_id, message.id, config.guild.id);
-    const maskedJumpURL = hyperlink("Jump to location", messageURL);
-
     const reference = message.reference_id
         ? await Messages.get(message.reference_id)
         : null;
@@ -101,7 +98,6 @@ export async function handleShortMessageDeleteLog(
     const embed = new EmbedBuilder()
         .setColor(Colors.Red)
         .setAuthor({ name: "Message Deleted" })
-        .setDescription(maskedJumpURL)
         .setFields([
             { name: "Author", value: userMentionWithId(message.author_id) },
             { name: "Channel", value: channelMentionWithName(channel) }
@@ -128,9 +124,11 @@ export async function handleShortMessageDeleteLog(
     }
 
     if (message.content) {
+        const messageUrl = messageLink(message.channel_id, message.id, config.guild.id);
+
         embed.addFields({
             name: "Content",
-            value: formatMessageContentForLog(message.content)
+            value: formatMessageContentForLog(message.content, messageUrl)
         });
     }
 
