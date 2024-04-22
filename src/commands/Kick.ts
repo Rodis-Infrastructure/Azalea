@@ -1,11 +1,21 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
+import { EMBED_FIELD_CHAR_LIMIT, EMPTY_INFRACTION_REASON } from "@utils/constants";
 import { handleInfractionCreate } from "@utils/infractions";
 import { Action, InteractionReplyData } from "@utils/types";
-import { EMBED_FIELD_CHAR_LIMIT, EMPTY_INFRACTION_REASON } from "@utils/constants";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 
+/**
+ * Kick a member from the server.
+ * The following requirements must be met for the command to be successful:
+ *
+ * 2. The target must be kickable by the client
+ * 3. The target must be in the guild
+ *
+ * Upon kicking the member, the command will log the action in the channel configured for
+ * {@link LoggingEvent.InfractionCreate} logs and store the infraction in the database
+ */
 export default class Kick extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
         super({
@@ -39,11 +49,6 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
             return "You can't kick someone who isn't in the server";
         }
 
-        // Compare roles to ensure the executor has permission to kick the target
-        if (member.roles.highest.position >= interaction.member.roles.highest.position) {
-            return "You can't kick someone with the same or higher role than you";
-        }
-
         if (!member.kickable) {
             return "I do not have permission to kick this user";
         }
@@ -51,6 +56,7 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
         // Kick the user
         await member.kick(reason);
 
+        // Log the infraction and store it in the database
         const infraction = await handleInfractionCreate({
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,

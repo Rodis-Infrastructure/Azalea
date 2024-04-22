@@ -1,4 +1,11 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, time, TimestampStyles } from "discord.js";
+import {
+    ApplicationCommandOptionType,
+    ChatInputCommandInteraction,
+    PermissionFlagsBits,
+    time,
+    TimestampStyles
+} from "discord.js";
+
 import { handleInfractionCreate } from "@utils/infractions";
 import { Action, InteractionReplyData } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT, EMPTY_INFRACTION_REASON } from "@utils/constants";
@@ -11,6 +18,20 @@ import ms from "ms";
 const ONE_WEEK = 1000 * 60 * 60 * 24 * 7;
 const DURATION_FORMAT = /^(\d+ *(days?|h(ou)?rs?|min(utes?)?|[mhd]) *)+$/gmi;
 
+/**
+ * Mute a member in the server.
+ * The following requirements must be met for the command to be successful:
+ *
+ * 1. The target must be in the guild
+ * 2. The target must be manageable by the client
+ * 3. Check if the client has the `ModerateMembers` permission
+ * 4. The target must not be muted
+ * 5. The passed duration must have a valid format
+ * 6. The duration must be greater than 0 and less than or equal to 1 week
+ *
+ * Upon muting the member, the command will log the action in the channel configured for
+ * {@link LoggingEvent.InfractionCreate} logs and store the infraction in the database
+ */
 export default class Mute extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
         super({
@@ -51,13 +72,8 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             return "You can't mute someone who isn't in the server";
         }
 
-        // Compare roles to ensure the executor has permission to mute the target
-        if (member.roles.highest.position >= interaction.member.roles.highest.position) {
-            return "You can't mute someone with the same or higher role than you";
-        }
-
         // Check if the bot has permission to mute the member
-        if (!member.manageable) {
+        if (!member.manageable || !interaction.guild.members.me?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
             return "I do not have permission to mute this user";
         }
 
@@ -72,18 +88,18 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         }
 
         // Convert the string duration to milliseconds
-        let parsedDuration = ms(duration);
+        let msDuration = ms(duration);
 
-        // Set the duration to 2 weeks if it exceeds that
-        if (parsedDuration > ONE_WEEK) parsedDuration = ONE_WEEK;
-        if (parsedDuration <= 0) return "Invalid duration. Please use a duration greater than `0`";
+        // Set the duration to 1 week if it exceeds that
+        if (msDuration > ONE_WEEK) msDuration = ONE_WEEK;
+        if (msDuration <= 0) return "Invalid duration. Please use a duration greater than `0`";
 
         // Mute the member
-        await member.timeout(parsedDuration, reason);
+        await member.timeout(msDuration, reason);
 
         // Calculate the expiration date
-        const expiresTimestamp = Date.now() + parsedDuration;
-        const expiresAt = new Date(expiresTimestamp);
+        const msExpiresAt = Date.now() + msDuration;
+        const expiresAt = new Date(msExpiresAt);
 
         // Create a relative expiration timestamp
         // This will be used to display the time left until the mute expires

@@ -6,6 +6,15 @@ import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 
+/**
+ * Add a note to a user's infraction history.
+ * The following requirements must be met:
+ *
+ * 1. The target must be manageable to the client
+ *
+ * Upon adding the note, the command will log the action in the channel configured for
+ * {@link LoggingEvent.InfractionCreate} logs and store the infraction in the database
+ */
 export default class Note extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
         super({
@@ -34,9 +43,8 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
         const note = interaction.options.getString("note", true);
         const member = interaction.options.getMember("user");
 
-        // Compare roles to ensure the executor has permission to add a note to the target
-        if (member && member.roles.highest.position >= interaction.member.roles.highest.position) {
-            return "You can't add a note to someone with the same or higher role than you";
+        if (member && !member.manageable) {
+            return "I cannot add a note to this user's infraction history.";
         }
 
         const user = member?.user ?? interaction.options.getUser("user", true);

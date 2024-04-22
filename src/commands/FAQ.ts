@@ -10,6 +10,7 @@ import GuildCommand from "@managers/commands/GuildCommand";
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 
+// A command that sends pre-configured responses.
 export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cached">> {
     constructor(config: GuildConfig) {
         super(config, {
@@ -32,7 +33,7 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
 
         if (!response) {
             return {
-                content: "Failed to find the response",
+                content: "Response not found",
                 ephemeral: true
             };
         }
@@ -40,6 +41,13 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
         return response;
     }
 
+    /**
+     * Get quick response choices to pass to the command's options.
+     *
+     * @param config - The guild config
+     * @returns The quick response choices
+     * @private
+     */
     private static _getChoices(config: GuildConfig): ApplicationCommandOptionChoiceData<string>[] | undefined {
         const choices = config.data.quick_responses.map(response => ({
             name: response.label,
