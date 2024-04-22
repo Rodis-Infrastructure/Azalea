@@ -4,10 +4,15 @@ import { z } from "zod";
 // Misc
 // ————————————————————————————————————————————————————————————————————————————————
 
+// Format: "*/5 * * * *" (every 5 minutes)
 const cronSchema = z.string().regex(/^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|µs|ms|s|m|h))+)|((((\d+,)+\d+|([\d*]+[/-]\d+)|\d+|\*) ?){5,7})$/gm);
+// Format: "123456789012345678"
 const snowflakeSchema = z.string().regex(/^\d{17,19}$/gm);
 const emojiSchema = z.union([z.string().emoji(), snowflakeSchema]);
-const messageContentSchema = z.string().max(4000);
+const stringSchema = z.string().min(1);
+const messageContentSchema = stringSchema.max(4000);
+// Format: "#123456" or "#123" or 0x123456 or 0x123
+const colorSchema = z.union([z.string().regex(/^#([A-F\d]{6}|[A-F\d]{3})$/gmi), z.number()]);
 
 // ————————————————————————————————————————————————————————————————————————————————
 // Global Config
@@ -30,18 +35,18 @@ export type GlobalConfig = z.infer<typeof globalConfigSchema>;
 // ————————————————————————————————————————————————————————————————————————————————
 
 const embedFooterSchema = z.object({
-    text: z.string().max(2048),
+    text: stringSchema.max(2048),
     icon_url: z.string().url().optional()
 });
 
 const embedFieldSchema = z.object({
-    name: z.string().max(256),
-    value: z.string().max(1024),
+    name: stringSchema.max(256),
+    value: stringSchema.max(1024),
     inline: z.boolean().optional()
 });
 
 const embedAuthorSchema = z.object({
-    name: z.string().max(256),
+    name: stringSchema.max(256),
     url: z.string().url().optional(),
     icon_url: z.string().url().optional()
 });
@@ -51,10 +56,10 @@ const embedMediaSchema = z.object({
 });
 
 const embedSchema = z.object({
-    title: z.string().max(256).optional(),
-    description: z.string().max(4096).optional(),
+    title: stringSchema.max(256).optional(),
+    description: stringSchema.max(4096).optional(),
     url: z.string().url().optional(),
-    color: z.number().optional(),
+    color: colorSchema.optional(),
     footer: embedFooterSchema.optional(),
     author: embedAuthorSchema.optional(),
     fields: z.array(embedFieldSchema).max(25).optional(),
@@ -152,14 +157,14 @@ const alertSchema = z.object({
     // Cron expression for when to send the alert
     cron: cronSchema,
     // Number of unreviewed items required to trigger an alert
-    count_threshold: z.number().positive(),
+    count_threshold: z.number().min(1),
     // Role(s) mentioned in the alert
-    mentioned_roles: z.array(snowflakeSchema).default([])
+    mentioned_roles: z.array(snowflakeSchema).max(100).default([])
 });
 
 const userFlagSchema = z.object({
     // The name of the flag
-    label: z.string(),
+    label: stringSchema.max(50),
     // The user must have at least one of these roles to set the flag
     roles: z.array(snowflakeSchema).nonempty()
 });
@@ -186,7 +191,7 @@ const messageReportsSchema = z.object({
     // Channel to send message reports to
     alert_channel: snowflakeSchema,
     // How long an alert will stay in the alert channel before being removed (in milliseconds)
-    alert_ttl: z.number().positive().optional(),
+    alert_ttl: z.number().min(1000).optional(),
     alert: alertSchema.optional(),
     // Roles mentioned in new alerts
     mentioned_roles: z.array(snowflakeSchema).nonempty().optional(),
@@ -243,8 +248,11 @@ const interactionReplyOptionsSchema = z.object({
 
 const quickResponseSchema = z.object({
     // The label displayed in the command's dropdown
-    label: z.string().max(100),
-    value: z.string().regex(/^\w{1,100}$/gm),
+    label: stringSchema.max(100),
+    value: z.union([
+        z.string().regex(/^[\w-]{1,100}$/gm),
+        z.number().positive()
+    ]),
     // The response to send when the command is executed
     response: z.union([messageContentSchema, interactionReplyOptionsSchema])
 });
@@ -254,7 +262,7 @@ const requestedRoleSchema = z.object({
     id: snowflakeSchema,
     // How long the role should be kept for (in milliseconds)
     // Indefinite if not set
-    ttl: z.number().positive().optional()
+    ttl: z.number().min(1000).optional()
 });
 
 const roleRequestsSchema = z.object({
@@ -273,11 +281,11 @@ export const rawGuildConfigSchema = z.object({
     auto_reactions: z.array(autoReactionSchema).default([]),
     notification_channel: snowflakeSchema.optional(),
     media_conversion_channel: snowflakeSchema.optional(),
-    quick_responses: z.array(quickResponseSchema).default([]),
+    quick_responses: z.array(quickResponseSchema).max(25).default([]),
     role_requests: roleRequestsSchema.optional(),
     scheduled_messages: z.array(scheduledMessageSchema).default([]),
     // Flags displayed in the user info message
-    user_flags: z.array(userFlagSchema).default([]),
+    user_flags: z.array(userFlagSchema).max(18).default([]),
     // Channels that require messages to have an attachment
     media_channels: z.array(snowflakeSchema).default([]),
     permissions: z.array(permissionsSchema).default([]),
@@ -285,7 +293,7 @@ export const rawGuildConfigSchema = z.object({
     ephemeral_scoping: channelScopingSchema.default(defaultChannelScoping),
     // Lifetime of non-ephemeral responses (milliseconds)
     // default: 3 seconds (3000ms)
-    response_ttl: z.number().positive().default(3000),
+    response_ttl: z.number().min(1000).default(3000),
     emojis: emojisSchema.optional(),
     // Value must be between 1 and 100 (inclusive) - Default: 100
     default_purge_amount: z.number()
