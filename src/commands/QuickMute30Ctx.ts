@@ -3,6 +3,7 @@ import {
     GuildMember,
     Message,
     MessageContextMenuCommandInteraction,
+    PermissionFlagsBits,
     time,
     TimestampStyles
 } from "discord.js";
@@ -20,7 +21,8 @@ export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInt
     constructor() {
         super({
             name: "Quick Mute (30m)",
-            type: ApplicationCommandType.Message
+            type: ApplicationCommandType.Message,
+            defaultMemberPermissions: [PermissionFlagsBits.ModerateMembers]
         });
     }
 

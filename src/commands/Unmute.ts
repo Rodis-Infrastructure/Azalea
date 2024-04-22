@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, PermissionFlagsBits } from "discord.js";
 import { handleInfractionCreate, handleInfractionExpirationChange } from "@utils/infractions";
 import { EMBED_FIELD_CHAR_LIMIT, EMPTY_INFRACTION_REASON } from "@utils/constants";
 import { Action, InteractionReplyData } from "@utils/types";
@@ -11,6 +11,7 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
         super({
             name: "unmute",
             description: "Unmute a member in the server",
+            defaultMemberPermissions: [PermissionFlagsBits.ModerateMembers],
             options: [
                 {
                     name: "member",

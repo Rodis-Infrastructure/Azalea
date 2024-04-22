@@ -13,7 +13,8 @@ import {
     User,
     Snowflake,
     GuildTextBasedChannel,
-    InteractionReplyOptions
+    InteractionReplyOptions,
+    PermissionFlagsBits
 } from "discord.js";
 
 import { Action, InteractionReplyData } from "@utils/types";
@@ -30,6 +31,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
         super({
             name: "user-info",
             description: "Get information about a user",
+            defaultMemberPermissions: [PermissionFlagsBits.ModerateMembers],
             options: [{
                 name: "user",
                 type: ApplicationCommandOptionType.User,

@@ -1,4 +1,4 @@
-import { ApplicationCommandType, MessageContextMenuCommandInteraction } from "discord.js";
+import { ApplicationCommandType, MessageContextMenuCommandInteraction, PermissionFlagsBits } from "discord.js";
 import { InteractionReplyData, MuteDuration } from "@utils/types";
 import { handleQuickMute } from "./QuickMute30Ctx";
 
@@ -8,7 +8,8 @@ export default class QuickMute60Ctx extends Command<MessageContextMenuCommandInt
     constructor() {
         super({
             name: "Quick Mute (1h)",
-            type: ApplicationCommandType.Message
+            type: ApplicationCommandType.Message,
+            defaultMemberPermissions: [PermissionFlagsBits.ModerateMembers]
         });
     }
 

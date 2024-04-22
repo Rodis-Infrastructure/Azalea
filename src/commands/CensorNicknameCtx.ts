@@ -1,4 +1,4 @@
-import { ApplicationCommandType, UserContextMenuCommandInteraction } from "discord.js";
+import { ApplicationCommandType, PermissionFlagsBits, UserContextMenuCommandInteraction } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
 
 import CensorNickname from "./CensorNickname";
@@ -20,7 +20,8 @@ export default class CensorNicknameCtx extends Command<UserContextMenuCommandInt
     constructor() {
         super({
             name: "Censor Nickname",
-            type: ApplicationCommandType.User
+            type: ApplicationCommandType.User,
+            defaultMemberPermissions: [PermissionFlagsBits.ManageNicknames]
         });
     }
 

@@ -2,7 +2,8 @@ import {
     ApplicationCommandOptionType,
     ChatInputCommandInteraction,
     Message as DiscordMessage,
-    GuildTextBasedChannel
+    GuildTextBasedChannel,
+    PermissionFlagsBits
 } from "discord.js";
 
 import { Messages, prepareMessageForStorage } from "@utils/messages";
@@ -23,6 +24,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
         super({
             name: "purge",
             description: "Purge messages in a channel",
+            defaultMemberPermissions: [PermissionFlagsBits.ManageMessages],
             options: [
                 {
                     name: PurgeSubcommand.User,
