@@ -19,7 +19,7 @@ database:
 > [!NOTE]
 > ❗ Properties marked with an exclamation mark are required
 
-Each guild must have a configuration file in the `configs` directory (see the [example file](/configs/example.cfg.yml) for more info). The file must be named `<guild_id>.cfg.yml` and must contain the following properties:
+Each guild must have a configuration file in the `configs` directory (see the [example file](/configs/example.yml) for more info). The file must be named `<guild_id>.yml` and must contain the following properties:
 
 ### Surface-level properties
 
