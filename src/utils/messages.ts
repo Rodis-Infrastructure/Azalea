@@ -212,8 +212,13 @@ export function prepareMessageForStorage(message: DiscordMessage<true>): Message
     };
 }
 
-// Prepend a reference embed to an embed array passed by reference
-export async function prependReferenceLog(reference: Snowflake | Message, embeds: EmbedBuilder[]): Promise<void> {
+/**
+ * Prepend a reference embed to an embed array passed by reference
+ *
+ * @param reference - The reference message or its ID
+ * @param embeds - The embed(s) to prepend the reference to
+ */
+export async function prependReferenceLog(reference: string | Message, embeds: EmbedBuilder[]): Promise<void> {
     // Fetch the reference if an ID is passed
     if (typeof reference === "string") {
         const cachedReference = await Messages.get(reference);

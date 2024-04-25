@@ -56,6 +56,7 @@ export default class Ready extends EventListener {
 
             // Map the expired requests to their respective guilds
             const expiredRequestsByGuild = expiredRequests.reduce((acc, request) => {
+                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
                 if (!acc[request.guild_id]) {
                     acc[request.guild_id] = [];
                 }
