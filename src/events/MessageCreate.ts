@@ -18,6 +18,7 @@ import EventListener from "@managers/events/EventListener";
 import Sentry from "@sentry/node";
 import StoreMediaCtx from "@/commands/StoreMediaCtx";
 import GuildConfig from "@managers/config/GuildConfig";
+import { RoleRequestNoteAction } from "@/components/RoleRequestNote";
 
 export default class MessageCreate extends EventListener {
     constructor() {
@@ -110,7 +111,7 @@ export default class MessageCreate extends EventListener {
             .setComponents(roleSelectMenu);
 
         const addNoteButton = new ButtonBuilder()
-            .setCustomId("role-request-add-note")
+            .setCustomId(`role-request-note-${RoleRequestNoteAction.Add}`)
             .setLabel("Add Note")
             .setStyle(ButtonStyle.Secondary);
 
