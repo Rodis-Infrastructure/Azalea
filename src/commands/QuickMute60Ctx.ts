@@ -7,7 +7,7 @@ import Command from "@managers/commands/Command";
 export default class QuickMute60Ctx extends Command<MessageContextMenuCommandInteraction<"cached">> {
     constructor() {
         super({
-            name: "Quick Mute (1h)",
+            name: "Quick mute (1h)",
             type: ApplicationCommandType.Message,
             defaultMemberPermissions: [PermissionFlagsBits.ModerateMembers]
         });

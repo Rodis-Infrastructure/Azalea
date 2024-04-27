@@ -20,7 +20,7 @@ import Purge from "./Purge";
 export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInteraction<"cached">> {
     constructor() {
         super({
-            name: "Quick Mute (30m)",
+            name: "Quick mute (30m)",
             type: ApplicationCommandType.Message,
             defaultMemberPermissions: [PermissionFlagsBits.ModerateMembers]
         });

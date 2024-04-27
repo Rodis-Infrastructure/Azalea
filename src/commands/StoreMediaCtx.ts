@@ -21,7 +21,7 @@ import Sentry from "@sentry/node";
 export default class StoreMediaCtx extends Command<MessageContextMenuCommandInteraction<"cached">> {
     constructor() {
         super({
-            name: "Store Media",
+            name: "Store media",
             type: ApplicationCommandType.Message,
             defaultMemberPermissions: [PermissionFlagsBits.ModerateMembers]
         });

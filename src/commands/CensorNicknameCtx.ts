@@ -19,7 +19,7 @@ import Command from "@managers/commands/Command";
 export default class CensorNicknameCtx extends Command<UserContextMenuCommandInteraction<"cached">> {
     constructor() {
         super({
-            name: "Censor Nickname",
+            name: "Censor nickname",
             type: ApplicationCommandType.User,
             defaultMemberPermissions: [PermissionFlagsBits.ManageNicknames]
         });

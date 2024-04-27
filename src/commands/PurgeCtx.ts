@@ -1,4 +1,9 @@
-import { ApplicationCommandType, MessageContextMenuCommandInteraction, PermissionFlagsBits } from "discord.js";
+import {
+    ApplicationCommandType,
+    PermissionFlagsBits,
+    UserContextMenuCommandInteraction
+} from "discord.js";
+
 import { InteractionReplyData } from "@utils/types";
 import { pluralize } from "@/utils";
 
@@ -6,29 +11,29 @@ import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import Purge from "./Purge";
 
-export default class PurgeCtx extends Command<MessageContextMenuCommandInteraction<"cached">> {
+export default class PurgeCtx extends Command<UserContextMenuCommandInteraction<"cached">> {
     constructor() {
         super({
-            name: "Purge Messages",
-            type: ApplicationCommandType.Message,
+            name: "Purge messages",
+            type: ApplicationCommandType.User,
             defaultMemberPermissions: [PermissionFlagsBits.ManageMessages]
         });
     }
 
-    async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+    async execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-        const target = interaction.targetMessage.member;
+        const member = interaction.targetMember;
 
         if (!interaction.channel) {
             return Promise.resolve("Failed to get the channel.");
         }
 
-        if (target && target.roles.highest.position! >= interaction.member.roles.highest.position) {
+        if (member && member.roles.highest.position! >= interaction.member.roles.highest.position) {
             return Promise.resolve("You cannot purge messages from a user with a higher role than you.");
         }
 
         const messages = await Purge.purgeUser(
-            interaction.targetMessage.author.id,
+            interaction.targetUser.id,
             interaction.channel,
             config.data.default_purge_amount
         );
@@ -39,7 +44,7 @@ export default class PurgeCtx extends Command<MessageContextMenuCommandInteracti
 
 
         const logURLs = await Purge.log(messages, interaction.channel, config);
-        const response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")} by ${interaction.targetMessage.author}`;
+        const response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")} by ${interaction.targetUser}`;
 
         return `${response}: ${logURLs.join(", ")}`;
     }

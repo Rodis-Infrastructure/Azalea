@@ -107,11 +107,11 @@ export default class MessageReactionAdd extends EventListener {
 
         // Handle message reports
         if (emojiId === config.data.emojis.report_message && !message.author.bot) {
-            await MessageReactionAdd._createMessageReport(user.id, message, config);
+            await MessageReactionAdd.createMessageReport(user.id, message, config);
         }
     }
 
-    private static async _createMessageReport(reporterId: Snowflake, message: Message<true>, config: GuildConfig): Promise<void> {
+    static async createMessageReport(reporterId: Snowflake, message: Message<true>, config: GuildConfig): Promise<void> {
         // Message reports have not been configured
         if (!config.data.message_reports) return;
 
