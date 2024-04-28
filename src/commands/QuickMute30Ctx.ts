@@ -11,7 +11,7 @@ import {
 import { Action, Flag, InteractionReplyData, MuteDuration } from "@utils/types";
 import { handleInfractionCreate } from "@utils/infractions";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { elipsify } from "@/utils";
+import { cropLines, elipsify } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -98,7 +98,8 @@ export async function handleQuickMute(data: {
 
     // Replace the message preview placeholder with the actual message content
     // to account for the added character limit
-    reason = reason.replace("$MESSAGE_PREVIEW", elipsify(content, EMBED_FIELD_CHAR_LIMIT - reason.length + 16));
+    const croppedContent = cropLines(content, 5);
+    reason = reason.replace("$MESSAGE_PREVIEW", elipsify(croppedContent, EMBED_FIELD_CHAR_LIMIT - reason.length + 16));
 
     const infraction = await handleInfractionCreate({
         executor_id: executor.id,

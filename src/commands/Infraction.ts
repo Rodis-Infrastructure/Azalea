@@ -285,7 +285,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             if (msExpiresAt > Date.now()) {
                 // The infraction is still active
                 const expiresAt = Math.floor(msExpiresAt / 1000);
-                embed.data.title += ` (expires ${time(expiresAt)})`;
+                embed.data.title += ` (expires ${time(expiresAt, TimestampStyles.RelativeTime)})`;
             } else {
                 // The infraction has expired
                 const msCreatedAt = infraction.created_at.getTime();

@@ -113,13 +113,11 @@ export default class InteractionCreate extends EventListener {
             .setFields([
                 {
                     name: "Executor",
-                    value: `${interaction.user} (\`${interaction.user.id}\`)`,
-                    inline: true
+                    value: `${interaction.user} (\`${interaction.user.id}\`)`
                 },
                 {
                     name: "Interaction",
-                    value: `\`${interactionName}\``,
-                    inline: true
+                    value: `\`${interactionName}\``
                 }
             ])
             .setTimestamp();

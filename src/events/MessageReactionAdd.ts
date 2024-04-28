@@ -26,7 +26,7 @@ import {
 import { handleQuickMute } from "@/commands/QuickMute30Ctx";
 import { log, mapLogEntriesToFile } from "@utils/logging";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { pluralize, userMentionWithId } from "@/utils";
+import { cropLines, pluralize, userMentionWithId } from "@/utils";
 import { Snowflake, ButtonStyle } from "discord-api-types/v10";
 import { approveModerationRequest, denyModerationRequest } from "@utils/requests";
 import { prisma } from "./..";
@@ -143,6 +143,7 @@ export default class MessageReactionAdd extends EventListener {
 
         // Flags mapped by their names for the report
         const mappedFlags = [];
+        const croppedContent = cropLines(message.content, 5);
         // Bitwise flags for storage
         let flags = 0;
 
@@ -174,7 +175,7 @@ export default class MessageReactionAdd extends EventListener {
                 },
                 {
                     name: "Message Content",
-                    value: formatMessageContentForLog(message.content, message.url)
+                    value: formatMessageContentForLog(croppedContent, message.url)
                 }
             ])
             .setTimestamp();
@@ -183,10 +184,12 @@ export default class MessageReactionAdd extends EventListener {
             .catch(() => null);
 
         if (reference) {
+            const croppedReference = cropLines(reference.content, 5);
+
             // Insert the reference content before the actual message content
             alert.spliceFields(2, 0, {
                 name: `Reference from @${reference.author.username} (${reference.author.id})`,
-                value: formatMessageContentForLog(reference.content, reference.url)
+                value: formatMessageContentForLog(croppedReference, reference.url)
             });
         }
 
@@ -384,6 +387,6 @@ export default class MessageReactionAdd extends EventListener {
     }
 
     private static _getEmojiId(emoji: GuildEmoji | ReactionEmoji): string | null {
-        return emoji.name || emoji.id;
+        return emoji.id ?? emoji.name;
     }
 }

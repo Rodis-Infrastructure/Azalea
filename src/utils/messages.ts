@@ -43,26 +43,38 @@ export class Messages {
      * @param channelId - The source channel's ID
      * @param limit - The maximum number of messages to return
      */
-    static async getByUser(userId: Snowflake, channelId: Snowflake, limit: number): Promise<Message[]> {
+    static async deleteMessagesByUser(userId: Snowflake, channelId: Snowflake, limit: number): Promise<Message[]> {
         // Get cached non-deleted messages by the specified user in the specified channel
-        const cachedMessages = this.dbQueue.filter(message =>
-            message.author_id === userId &&
-            message.channel_id === channelId &&
-            !message.deleted
-        );
+        const cachedMessages = this.dbQueue
+            .filter(message =>
+                message.author_id === userId &&
+                message.channel_id === channelId &&
+                !message.deleted
+            );
 
-        const messages = Array.from(cachedMessages.values());
+        const messages = [];
+
+        for (const message of cachedMessages.values()) {
+            if (messages.length === limit) break;
+
+            message.deleted = true;
+            messages.push(message);
+        }
 
         // Fetch remaining messages from the database if an insufficient amount was cached
         if (messages.length < limit) {
+            // @formatter:off
             const stored = await prisma.$queryRaw<Message[]>`
-                SELECT *
-                FROM message
-                WHERE author_id = ${userId}
-                  AND channel_id = ${channelId}
-                  AND deleted = false
-                ORDER BY created_at DESC
-                    LIMIT ${limit - messages.length};
+                UPDATE Message
+                SET deleted = true
+                WHERE id IN (
+                    SELECT id FROM Message
+                    WHERE author_id = ${userId}
+                        AND channel_id = ${channelId}
+                        AND deleted = false
+                    ORDER BY created_at DESC
+                    LIMIT ${limit - messages.length}
+                );
             `;
 
             // Combined cached and stored messages

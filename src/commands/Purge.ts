@@ -177,7 +177,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
      */
     static async purgeUser(targetId: Snowflake, channel: GuildTextBasedChannel, amount: number): Promise<Message[]> {
         // Get the user's messages from cache or the database
-        const messages = await Messages.getByUser(targetId, channel.id, amount);
+        const messages = await Messages.deleteMessagesByUser(targetId, channel.id, amount);
         // Map the messages by their IDs
         const messageIds = messages.map(message => message.id);
 

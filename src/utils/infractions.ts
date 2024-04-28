@@ -194,8 +194,8 @@ export async function handleInfractionExpirationChange(
             where: { id },
             data: {
                 updated_at: new Date(),
-                updated_by,
-                expires_at
+                expires_at: expires_at ?? new Date(),
+                updated_by
             }
         });
     } catch (error) {

@@ -358,7 +358,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
                 return;
             }
 
-            if (reviewer && !config.hasPermission(reviewer, Permission.ManageMuteRequests)) {
+            if (!reviewer || !config.hasPermission(reviewer, Permission.ManageMuteRequests)) {
                 config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, you do not have permission to manage mute requests.`);
                 return;
             }
@@ -376,7 +376,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
                 return;
             }
 
-            if (reviewer && !config.hasPermission(reviewer, Permission.ManageBanRequests)) {
+            if (!reviewer || !config.hasPermission(reviewer, Permission.ManageBanRequests)) {
                 config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, you do not have permission to manage ban requests.`);
                 return;
             }
@@ -459,15 +459,27 @@ export async function denyModerationRequest(message: Message<true>, reviewerId: 
         });
     };
 
-    config.sendNotification(`${message.author} ${requestLink} against ${targetMention} has been denied by ${reviewerMention}.`);
+    const reviewer = await config.guild.members
+        .fetch(reviewerId)
+        .catch(() => null);
 
     switch (request.punishment_type) {
         case ModerationRequestType.Mute: {
+            if (!reviewer || !config.hasPermission(reviewer, Permission.ManageMuteRequests)) {
+                config.sendNotification(`${reviewerMention} Failed to deny the request, you do not have permission to manage mute requests.`);
+                return;
+            }
+
             handleModerationRequestDenyLog(LoggingEvent.MuteRequestDeny, "Mute");
             break;
         }
 
         case ModerationRequestType.Ban: {
+            if (!reviewer || !config.hasPermission(reviewer, Permission.ManageBanRequests)) {
+                config.sendNotification(`${reviewerMention} Failed to deny the request, you do not have permission to manage ban requests.`);
+                return;
+            }
+
             const target = await config.guild.members.fetch(request.target_id).catch(() => null);
 
             // Unmute the target user
@@ -486,6 +498,8 @@ export async function denyModerationRequest(message: Message<true>, reviewerId: 
             break;
         }
     }
+
+    config.sendNotification(`${message.author} ${requestLink} against ${targetMention} has been denied by ${reviewerMention}.`);
 }
 
 enum RequestStatus {

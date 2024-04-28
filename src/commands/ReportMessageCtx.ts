@@ -22,7 +22,12 @@ export default class ReportMessageCtx extends Command<MessageContextMenuCommandI
             return Promise.resolve("You cannot report bots");
         }
 
-        await MessageReactionAdd.createMessageReport(user.id, interaction.targetMessage, config);
+        await MessageReactionAdd.createMessageReport(
+            interaction.user.id,
+            interaction.targetMessage,
+            config
+        );
+
         return Promise.resolve(`Successfully reported ${user}, thank you for your report!`);
     }
 }

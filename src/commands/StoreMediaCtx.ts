@@ -66,6 +66,12 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
      * @returns - The media log URLs
      */
     static async storeMedia(executorId: Snowflake, targetId: Snowflake, media: Attachment[], config: GuildConfig): Promise<string[]> {
+        const size = media.reduce((acc, file) => acc + file.size, 0);
+
+        if (size > 10_000_000) {
+            throw new MediaStoreError("Cannot store media larger than 10MB.");
+        }
+
         const loggedMessages = await log({
             event: LoggingEvent.MediaStore,
             message: {

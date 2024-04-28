@@ -7,7 +7,7 @@ import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 
 // Constants
-const TWO_WEEKS = 1000 * 60 * 60 * 24 * 7 * 2;
+const ONE_WEEK = 1000 * 60 * 60 * 24 * 7;
 
 /**
  * Bans a user from the server.
@@ -53,7 +53,7 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
     async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         // Delete 2 weeks' worth of messages if the option is true
-        const deleteMessageSeconds = interaction.options.getBoolean("delete_messages") ? TWO_WEEKS : 0;
+        const deleteMessageSeconds = interaction.options.getBoolean("delete_messages") ? ONE_WEEK : 0;
         const reason = interaction.options.getString("reason") ?? EMPTY_INFRACTION_REASON;
         const member = interaction.options.getMember("user");
 

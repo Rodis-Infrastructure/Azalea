@@ -198,16 +198,15 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
      * @private
      */
     private static async _getReceivedInfractions(embed: EmbedBuilder, userId: Snowflake, guildId: Snowflake): Promise<void> {
-        const infractions = await prisma.$queryRaw<InfractionCount>`
-        SELECT SUM(action = ${Action.Ban})  as ban_count,
-               SUM(action = ${Action.Kick}) as kick_count,
-               SUM(action = ${Action.Mute}) as mute_count,
-               SUM(action = ${Action.Note}) as note_count
-        FROM Infraction
-        WHERE target_id = ${userId}
-          AND guild_id = ${guildId};
-    `;
-
+        const [infractions] = await prisma.$queryRaw<InfractionCount[]>`
+            SELECT SUM(action = ${Action.Ban})  as ban_count,
+                   SUM(action = ${Action.Kick}) as kick_count,
+                   SUM(action = ${Action.Mute}) as mute_count,
+                   SUM(action = ${Action.Note}) as note_count
+            FROM Infraction
+            WHERE target_id = ${userId}
+              AND guild_id = ${guildId};
+        `;
 
         embed.addFields({
             name: "Infractions Received",
@@ -228,15 +227,15 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
      * @private
      */
     private static async _getDealtInfractions(embed: EmbedBuilder, userId: Snowflake, guildId: Snowflake): Promise<void> {
-        const infractions = await prisma.$queryRaw<InfractionCount>`
-        SELECT SUM(action = ${Action.Ban})  as ban_count,
-               SUM(action = ${Action.Kick}) as kick_count,
-               SUM(action = ${Action.Mute}) as mute_count,
-               SUM(action = ${Action.Note}) as note_count
-        FROM Infraction
-        WHERE (executor_id = ${userId} or request_author_id = ${userId})
-          AND guild_id = ${guildId};
-    `;
+        const [infractions] = await prisma.$queryRaw<InfractionCount[]>`
+            SELECT SUM(action = ${Action.Ban})  as ban_count,
+                   SUM(action = ${Action.Kick}) as kick_count,
+                   SUM(action = ${Action.Mute}) as mute_count,
+                   SUM(action = ${Action.Note}) as note_count
+            FROM Infraction
+            WHERE (executor_id = ${userId} or request_author_id = ${userId})
+              AND guild_id = ${guildId};
+        `;
 
         embed.addFields({
             name: "Infractions Dealt",

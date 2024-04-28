@@ -44,7 +44,8 @@ export default class MessageCreate extends EventListener {
                 const media = Array.from(message.attachments.values());
                 const logUrls = await StoreMediaCtx.storeMedia(message.author.id, message.author.id, media, config);
 
-                message.reply(`Stored \`${media.length}\` ${pluralize(media.length, "attachment")} - ${logUrls.join(" ")}`);
+                await message.reply(`Stored \`${media.length}\` ${pluralize(media.length, "attachment")} - ${logUrls.join(" ")}`);
+                message.delete().catch(() => null);
             } catch (error) {
                 if (error instanceof MediaStoreError) {
                     temporaryReply(message, error.message, config.data.response_ttl);

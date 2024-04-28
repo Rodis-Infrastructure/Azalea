@@ -20,6 +20,18 @@ export function readYamlFile<T>(path: string): T {
     return YAML.parse(raw);
 }
 
+export function cropLines(str: string, maxLines: number): string {
+    const lines = str.split("\n");
+    const lineCount = lines.length;
+    const croppedLines = lines.slice(0, maxLines);
+
+    if (lineCount > maxLines) {
+        croppedLines.push(`(${lineCount - maxLines} more lines)`);
+    }
+
+    return croppedLines.join("\n");
+}
+
 // Stores cached messages and terminates the database connection
 export async function handleProcessExit(event: string): Promise<void> {
     Logger.log(event, "Starting cleanup operations...", {
