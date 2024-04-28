@@ -76,12 +76,8 @@ export default class InteractionCreate extends EventListener {
             response = await ComponentManager.handle(interaction);
         }
 
+        // The interaction's response was handled manually
         if (!response) {
-            await interaction.reply({
-                content: "Failed to fetch the interaction's response.",
-                ephemeral: true
-            });
-
             return;
         }
 

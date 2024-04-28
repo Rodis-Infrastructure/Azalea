@@ -1,5 +1,5 @@
 import { InteractionReplyData } from "@utils/types";
-import { EmbedBuilder, GuildMember, StringSelectMenuInteraction, time, userMention } from "discord.js";
+import { EmbedBuilder, GuildMember, StringSelectMenuInteraction, time, TimestampStyles, userMention } from "discord.js";
 import { prisma } from "./..";
 
 import Component from "@managers/components/Component";
@@ -97,7 +97,7 @@ export default class RoleRequestSelectRole extends Component {
                 };
             }
 
-            embed.data.title += ` (expires ${time(expiresAt)})`;
+            embed.data.title += ` (expires ${time(expiresAt, TimestampStyles.RelativeTime)})`;
         }
 
         // Add the role to the members
