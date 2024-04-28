@@ -23,6 +23,9 @@ import ConfigManager from "@managers/config/ConfigManager";
 export class Messages {
     // Cache for messages that haven't been stored in the database yet
     private static dbQueue = new Collection<Snowflake, Message>();
+    // The most recent message deletion audit log.
+    // Used to improve the accuracy of blaming
+    private static messageDeleteAuditLog?: MessageDeleteAuditLog;
     // Queue for messages that need to be purged
     static purgeQueue: PurgeOptions[] = [];
 
@@ -34,6 +37,37 @@ export class Messages {
         }
 
         return message;
+    }
+
+    // @returns The ID of the user responsible for the deletion
+    static getBlame(data: MessageDeleteAuditLog): Snowflake | null {
+        const log = Messages.messageDeleteAuditLog;
+        const logHasChanged = !log
+            || log.channelId !== data.channelId
+            || log.targetId !== data.targetId
+            || log.executorId !== data.executorId;
+
+        // A new audit log has been created
+        // Meaning the count of the previous log was reset and is no longer needed
+        if (logHasChanged) {
+            Messages.messageDeleteAuditLog = data;
+            const dateDiff = Date.now() - data.createdAt.getTime();
+
+            // The log is new and the count is 1
+            if (data.count === 1 && dateDiff < 3000) {
+                return data.executorId;
+            }
+
+            return null;
+        }
+
+        // The log is the same and the count has increased by one
+        if (data.count === log.count + 1) {
+            log.count++;
+            return data.executorId;
+        }
+
+        return null;
     }
 
     /**
@@ -321,4 +355,12 @@ export async function formatMessageLogEntry(message: Message): Promise<string> {
 interface PurgeOptions {
     channelId: Snowflake;
     messages: Message[];
+}
+
+interface MessageDeleteAuditLog {
+    executorId: Snowflake;
+    targetId: Snowflake;
+    channelId: Snowflake;
+    createdAt: Date;
+    count: number;
 }

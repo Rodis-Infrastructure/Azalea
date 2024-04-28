@@ -1,13 +1,16 @@
 import {
+    AuditLogEvent,
     Colors,
     EmbedBuilder,
     Events,
+    Guild,
     GuildTextBasedChannel,
     hyperlink,
     Message as DiscordMessage,
     messageLink,
-    PartialMessage,
-    StickerFormatType
+    PartialMessage, Snowflake,
+    StickerFormatType,
+    User
 } from "discord.js";
 
 import {
@@ -21,13 +24,14 @@ import { channelMentionWithName, userMentionWithId } from "@/utils";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { log } from "@utils/logging";
 import { Message } from "@prisma/client";
-import { client } from "./..";
+import { client, prisma } from "./..";
 import { LoggingEvent } from "@managers/config/schema";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import MessageBulkDelete from "./MessageBulkDelete";
+import { MessageReportStatus } from "@utils/reports";
 
 export default class MessageDelete extends EventListener {
     constructor() {
@@ -55,6 +59,32 @@ export default class MessageDelete extends EventListener {
         if (!config) return;
 
         this.handleMessageDeleteLog(message, config).catch(() => null);
+    }
+
+    // Fetch the user responsible for deleting the message
+    static async getBlame(guild: Guild): Promise<User | null> {
+        const auditLogEntry = await guild.fetchAuditLogs({
+            type: AuditLogEvent.MessageDelete,
+            limit: 1
+        })
+            .then(audit => audit.entries.first())
+            .catch(() => null);
+
+        if (!auditLogEntry) return null;
+
+        const executorId = Messages.getBlame({
+            executorId: auditLogEntry.executorId!,
+            targetId: auditLogEntry.target.id,
+            channelId: auditLogEntry.extra.channel.id,
+            createdAt: auditLogEntry.createdAt,
+            count: auditLogEntry.extra.count
+        });
+
+        if (!executorId) return null;
+
+        return client.users
+            .fetch(executorId)
+            .catch(() => null);
     }
 
     async handleMessageDeleteLog(message: Message, config: GuildConfig): Promise<void> {
@@ -104,6 +134,17 @@ export async function handleShortMessageDeleteLog(
         ])
         .setTimestamp(message.created_at);
 
+    const executor = await MessageDelete.getBlame(channel.guild);
+
+    if (executor) {
+        embed.setFooter({
+            text: `Deleted by @${executor.username} - ${executor.id}`,
+            iconURL: executor.displayAvatarURL()
+        });
+
+        await updateMessageReportState(message.id, executor.id, config);
+    }
+
     if (message.sticker_id) {
         const sticker = await client.fetchSticker(message.sticker_id).catch(() => null);
 
@@ -143,5 +184,40 @@ export async function handleShortMessageDeleteLog(
         message: { embeds },
         channel,
         config
+    });
+}
+
+async function updateMessageReportState(messageId: Snowflake, executorId: Snowflake, config: GuildConfig): Promise<void> {
+    if (!config.data.message_reports) return;
+
+    const messageReport = await prisma.messageReport.findUnique({
+        where: {
+            message_id: messageId,
+            status: MessageReportStatus.Unresolved,
+            guild_id: config.guild.id
+        }
+    });
+
+    if (!messageReport) return;
+
+    const alertChannel = await config.guild.channels
+        .fetch(config.data.message_reports.alert_channel)
+        .catch(() => null);
+
+    if (!alertChannel || !alertChannel.isTextBased()) return;
+
+    const alert = await alertChannel.messages
+        .fetch(messageReport.id)
+        .catch(() => null);
+
+    if (!alert) return;
+
+    const newContent = `${alert.content}\n\nThe report is being handled by ${userMentionWithId(executorId)}`;
+    const [rawEmbed] = alert.embeds;
+    const embed = new EmbedBuilder(rawEmbed.toJSON()).setColor(0x9C84EF); // Light purple
+
+    alert.edit({
+        content: newContent,
+        embeds: [embed]
     });
 }
