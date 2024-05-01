@@ -68,7 +68,7 @@ export default class RoleRequestSelectRole extends Component {
         if (selectedRole.ttl) {
             const expiresAt = new Date(Date.now() + selectedRole.ttl);
             const isTransactionSuccessful = await prisma.$transaction(members.map(member =>
-                prisma.roleRequest.upsert({
+                prisma.temporaryRole.upsert({
                     where: {
                         guild_id: interaction.guildId,
                         member_id_role_id: {

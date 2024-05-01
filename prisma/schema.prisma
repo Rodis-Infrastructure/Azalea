@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["darwin-arm64", "darwin"]
 }
 
 datasource db {
@@ -8,18 +9,17 @@ datasource db {
 }
 
 model ModerationRequest {
-  id              String   @id
-  author_id       String
-  target_id       String
-  guild_id        String
-  reason          String
-  punishment_type String
-  status          String   @default("pending")
-  created_at      DateTime @default(now())
-  /// ID of the auto-mute infraction - only applicable to ban requests
-  mute_id         Int?
-  /// Duration of the mute - only applicable to mute requests
-  duration        Int?
+  id         String   @id
+  author_id  String
+  target_id  String
+  guild_id   String
+  reason     String
+  type       String
+  status     String   @default("pending")
+  created_at DateTime @default(now())
+  /// ID of the auto-mute infraction
+  mute_id    Int?
+  duration   Int?
 }
 
 model Message {
@@ -27,14 +27,12 @@ model Message {
   author_id    String
   channel_id   String
   guild_id     String
-  /// Epoch timestamp in milliseconds
   created_at   DateTime
+  deleted      Boolean  @default(false)
   content      String?
   sticker_id   String?
   /// ID of the message this message is replying to
   reference_id String?
-  category_id  String?
-  deleted      Boolean  @default(false)
 }
 
 model Infraction {
@@ -59,28 +57,16 @@ model MessageReport {
   message_id  String   @unique
   channel_id  String
   author_id   String
-  reporter_id String
-  guild_id    String
-  flags       Int
+  reported_by String
   created_at  DateTime @default(now())
   status      String   @default("unresolved")
-  /// ID of the moderator that resolved the report
+  flags       Int
+  /// ID of the user that resolved the report
   resolved_by String?
   content     String?
 }
 
-model UserReport {
-  id          String  @id
-  target_id   String
-  reporter_id String
-  guild_id    String
-  reason      String
-  status      String  @default("unresolved")
-  /// ID of the moderator that resolved the report
-  resolved_by String?
-}
-
-model RoleRequest {
+model TemporaryRole {
   member_id  String
   role_id    String
   guild_id   String

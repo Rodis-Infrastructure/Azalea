@@ -46,10 +46,10 @@ export default class Ready extends EventListener {
 
             // Fetch and delete all expired role requests
             const [expiredRequests] = await prisma.$transaction([
-                prisma.roleRequest.findMany({
+                prisma.temporaryRole.findMany({
                     where: { expires_at: { lte: new Date() } }
                 }),
-                prisma.roleRequest.deleteMany({
+                prisma.temporaryRole.deleteMany({
                     where: { expires_at: { lte: new Date() } }
                 })
             ]);
@@ -63,7 +63,7 @@ export default class Ready extends EventListener {
 
                 acc[request.guild_id].push(request);
                 return acc;
-            }, {} as Record<string, Prisma.RoleRequestCreateInput[]>);
+            }, {} as Record<string, Prisma.TemporaryRoleCreateInput[]>);
 
             let removalCount = 0;
 

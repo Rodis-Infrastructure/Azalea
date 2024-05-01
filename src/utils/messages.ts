@@ -251,7 +251,6 @@ export function prepareMessageForStorage(message: DiscordMessage<true>): Message
         guild_id: message.guildId,
         created_at: message.createdAt,
         content: message.content,
-        category_id: message.channel.parentId,
         sticker_id: stickerId,
         reference_id: referenceId,
         deleted: false

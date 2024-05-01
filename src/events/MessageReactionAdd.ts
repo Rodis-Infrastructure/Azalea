@@ -263,11 +263,10 @@ export default class MessageReactionAdd extends EventListener {
             create: {
                 id: report.id,
                 message_id: message.id,
-                guild_id: message.guildId,
                 author_id: message.author.id,
                 channel_id: message.channelId,
                 content: message.content,
-                reporter_id: message.author.id,
+                reported_by: message.author.id,
                 flags
             },
             update: {

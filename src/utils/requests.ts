@@ -179,7 +179,7 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
         select: { id: true },
         where: {
             target_id: matches.targetId,
-            punishment_type: ModerationRequestType.Mute,
+            type: ModerationRequestType.Mute,
             guild_id: config.guild.id,
             status: RequestStatus.Pending
         }
@@ -213,7 +213,7 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
         author_id: request.author.id,
         target_id: target.id,
         guild_id: config.guild.id,
-        punishment_type: ModerationRequestType.Mute,
+        type: ModerationRequestType.Mute,
         reason: matches.reason,
         status: RequestStatus.Pending,
         duration: msDuration
@@ -253,7 +253,7 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
         select: { id: true },
         where: {
             target_id: matches.targetId,
-            punishment_type: ModerationRequestType.Ban,
+            type: ModerationRequestType.Ban,
             guild_id: config.guild.id,
             status: RequestStatus.Pending
         }
@@ -282,7 +282,7 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
         author_id: request.author.id,
         target_id: matches.targetId,
         guild_id: config.guild.id,
-        punishment_type: ModerationRequestType.Ban,
+        type: ModerationRequestType.Ban,
         reason: matches.reason,
         status: RequestStatus.Pending
     }];
@@ -301,7 +301,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
         data: { status: RequestStatus.Approved },
         select: {
             id: true,
-            punishment_type: true,
+            type: true,
             target_id: true,
             duration: true,
             reason: true,
@@ -349,7 +349,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
         .fetch(reviewerId)
         .catch(() => null);
 
-    switch (request.punishment_type) {
+    switch (request.type) {
         case ModerationRequestType.Mute: {
             const target = await guild.members.fetch(request.target_id).catch(() => null);
 
@@ -387,7 +387,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
         }
     }
 
-    const action = request.punishment_type === ModerationRequestType.Mute
+    const action = request.type === ModerationRequestType.Mute
         ? Action.Mute
         : Action.Ban;
 
@@ -422,7 +422,7 @@ export async function denyModerationRequest(message: Message<true>, reviewerId: 
             author_id: true,
             guild_id: true,
             target_id: true,
-            punishment_type: true
+            type: true
         }
     }).catch(() => null);
 
@@ -463,7 +463,7 @@ export async function denyModerationRequest(message: Message<true>, reviewerId: 
         .fetch(reviewerId)
         .catch(() => null);
 
-    switch (request.punishment_type) {
+    switch (request.type) {
         case ModerationRequestType.Mute: {
             if (!reviewer || !config.hasPermission(reviewer, Permission.ManageMuteRequests)) {
                 config.sendNotification(`${reviewerMention} Failed to deny the request, you do not have permission to manage mute requests.`);
