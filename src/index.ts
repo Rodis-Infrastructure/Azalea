@@ -29,6 +29,10 @@ if (!process.env.DISCORD_TOKEN) {
     throw new Error("No token provided! Configure the DISCORD_TOKEN environment variable.");
 }
 
+if (!process.env.SENTRY_DSN) {
+    throw new Error("No sentry DSN provided! Configure the SENTRY_DSN environment variable.");
+}
+
 // Database client
 export const prisma = new PrismaClient();
 

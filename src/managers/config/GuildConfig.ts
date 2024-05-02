@@ -8,6 +8,7 @@ import { fromZodError } from "zod-validation-error";
 import { InteractionReplyData } from "@utils/types";
 
 import Logger, { AnsiColor } from "@utils/logger";
+import { pluralize, startCronJob } from "@/utils";
 
 export default class GuildConfig {
     private constructor(public readonly data: RawGuildConfig, public readonly guild: Guild) {
@@ -57,23 +58,22 @@ export default class GuildConfig {
                 .fetch(scheduledMessage.channel_id)
                 .catch(() => null);
 
+            const stringifiedData = JSON.stringify(scheduledMessage);
+
             if (!channel) {
-                Logger.error(`Failed to mount scheduled message, unknown channel: ${scheduledMessage.channel_id}`);
+                Logger.error(`Failed to mount scheduled message, unknown channel.\ndata: ${stringifiedData}`);
                 continue;
             }
 
             if (!channel.isTextBased()) {
-                Logger.error(`Failed to mount scheduled message, channel is not text-based: ${channel.id}`);
+                Logger.error(`Failed to mount scheduled message, channel is not text-based.\ndata: ${stringifiedData}`);
                 continue;
             }
 
             // Start the cron job for the scheduled message
-            new CronJob(scheduledMessage.cron, () => {
+            startCronJob("SCHEDULED_MESSAGE", scheduledMessage.cron, () => {
+                Logger.info(`Sending message: ${stringifiedData}`);
                 channel.send(scheduledMessage.content);
-            }).start();
-
-            Logger.log("SCHEDULED_MESSAGES", "Cron job started", {
-                color: AnsiColor.Purple
             });
         }
     }
@@ -82,25 +82,24 @@ export default class GuildConfig {
         return this.data.quick_responses.find(response => response.value === value)?.response ?? null;
     }
 
-    async startRequestAlertCronJobs(): Promise<void> {
-        Logger.info("Starting cron jobs for moderation request alerts...");
-
+    async startRequestReviewReminderCronJobs(): Promise<void> {
         for (const request of this.data.moderation_requests) {
             const alertConfig = request.alert;
-
             if (!alertConfig) return;
 
             const channel = await this.guild.channels
                 .fetch(alertConfig.channel_id)
                 .catch(() => null);
 
+            const stringifiedData = JSON.stringify(request);
+
             if (!channel) {
-                Logger.error(`Failed to mount moderation request alert, unknown channel: ${alertConfig.channel_id}`);
+                Logger.error(`Failed to mount moderation request alert, unknown channel: ${stringifiedData}`);
                 continue;
             }
 
             if (!channel.isTextBased()) {
-                Logger.error(`Failed to mount moderation request alert, channel is not text-based: ${channel.id}`);
+                Logger.error(`Failed to mount moderation request alert, channel is not text-based: ${stringifiedData}`);
                 continue;
             }
 
@@ -110,8 +109,10 @@ export default class GuildConfig {
                 .setDescription(`There are currently \`${unresolvedRequestCount}\` unresolved ${request.type} requests starting from ${oldestRequestUrl}`)
                 .setFooter({ text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved ${request.type} requests` });
 
+            const monitorSlug = `${request.type.toUpperCase()}_REQUEST_REVIEW_REMINDER`;
+
             // Start the cron job for the alert
-            new CronJob(alertConfig.cron, async () => {
+            startCronJob(monitorSlug, alertConfig.cron, async () => {
                 const unresolvedRequests = await prisma.moderationRequest.findMany({
                     where: {
                         status: MessageReportStatus.Unresolved,
@@ -122,9 +123,15 @@ export default class GuildConfig {
                     }
                 });
 
+                Logger.info(`Count: ${unresolvedRequests.length}`);
+                Logger.info(`Threshold: ${alertConfig.count_threshold}`);
+
                 if (unresolvedRequests.length < alertConfig.count_threshold) {
+                    Logger.info("Count is below the threshold, no actions need to be taken");
                     return;
                 }
+
+                Logger.info("Count exceeds the threshold, sending reminder");
 
                 const [oldestRequest] = unresolvedRequests;
                 const oldestRequestUrl = messageLink(request.channel_id, oldestRequest.id, this.guild.id);
@@ -139,32 +146,27 @@ export default class GuildConfig {
                     content: mentionedRoles || undefined,
                     embeds: [alert]
                 });
-            }).start();
-
-            Logger.log(`${request.type.toUpperCase()}_REQUEST_ALERT`, "Cron job started", {
-                color: AnsiColor.Purple
             });
         }
-
-        Logger.info("Finished starting moderation request alert cron jobs");
     }
 
-    async startMessageReportAlertCronJob(): Promise<void> {
-        Logger.info("Starting cron job for message report alerts...");
-
+    async startMessageReportReviewReminderCronJob(): Promise<void> {
         const alertConfig = this.data.message_reports?.alert;
-
-        if (!alertConfig) {
-            Logger.error("Failed to mount message report alert, missing alert configuration");
-            return;
-        }
+        if (!alertConfig) return;
 
         const channel = await this.guild.channels
             .fetch(alertConfig.channel_id)
             .catch(() => null);
 
-        if (!channel || !channel.isTextBased()) {
-            Logger.error(`Failed to mount message report alert, unknown channel: ${alertConfig.channel_id}`);
+        const stringifiedData = JSON.stringify(alertConfig);
+
+        if (!channel) {
+            Logger.error(`Failed to mount message report review reminders, unknown channel: ${stringifiedData}`);
+            return;
+        }
+
+        if (!channel.isTextBased()) {
+            Logger.error(`Failed to mount message report review reminders, channel is not text-based: ${stringifiedData}`);
             return;
         }
 
@@ -175,17 +177,22 @@ export default class GuildConfig {
             .setFooter({ text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved message reports` });
 
         // Start the cron job for the alert
-        new CronJob(alertConfig.cron, async () => {
+        startCronJob("MESSAGE_REPORT_REVIEW_REMINDER", alertConfig.cron, async () => {
             const unresolvedReportCount = await prisma.messageReport.count({
                 where: {
-                    status: MessageReportStatus.Unresolved,
-                    guild_id: this.guild.id
+                    status: MessageReportStatus.Unresolved
                 }
             });
 
+            Logger.info(`Count: ${unresolvedReportCount}`);
+            Logger.info(`Threshold: ${alertConfig.count_threshold}`);
+
             if (unresolvedReportCount < alertConfig.count_threshold) {
+                Logger.info("Count is below the threshold, no actions need to be taken");
                 return;
             }
+
+            Logger.info("Count exceeds the threshold, sending reminder");
 
             const alert = getAlertEmbed(unresolvedReportCount);
             const mentionedRoles = alertConfig.mentioned_roles
@@ -197,31 +204,36 @@ export default class GuildConfig {
                 content: mentionedRoles || undefined,
                 embeds: [alert]
             });
-        }).start();
-
-        Logger.log("MESSAGE_REPORT_ALERT", "Cron job started", {
-            color: AnsiColor.Purple
         });
     }
 
     async startMessageReportRemovalCronJob(): Promise<void> {
-        const ttl = this.data.message_reports?.alert_ttl;
-        const alertChannelId = this.data.message_reports?.alert_channel;
+        const ttl = this.data.message_reports?.report_ttl;
+        const reportChannelId = this.data.message_reports?.report_channel;
 
-        if (!ttl || !alertChannelId) return;
+        if (!ttl || !reportChannelId) return;
 
-        const alertChannel = await this.guild.channels
-            .fetch(alertChannelId)
+        const reportChannel = await this.guild.channels
+            .fetch(reportChannelId)
             .catch(() => null);
 
-        if (!alertChannel || !alertChannel.isTextBased()) {
-            Logger.error(`Failed to start message report removal cron job, unknown channel: ${alertChannelId}`);
+        const stringifiedData = JSON.stringify({ ttl, reportChannelId });
+
+        if (!reportChannel) {
+            Logger.error(`Failed to mount message report removal, unknown channel: ${stringifiedData}`);
             return;
         }
 
+        if (!reportChannel.isTextBased()) {
+            Logger.error(`Failed to mount message report removal, channel is not text-based: ${stringifiedData}`);
+            return;
+        }
+
+
         // Every hour on the hour
-        new CronJob("0 * * * *", async () => {
+        startCronJob("MESSAGE_REPORT_REMOVAL", "0 * * * *", async () => {
             const expiresAt = new Date(Date.now() - ttl);
+
             const [expiredMessageReports] = await prisma.$transaction([
                 prisma.messageReport.findMany({
                     where: {
@@ -240,16 +252,19 @@ export default class GuildConfig {
                 })
             ]);
 
+            if (!expiredMessageReports.length) {
+                Logger.info("No expired message reports found, no actions need to be taken");
+                return;
+            }
+
+            Logger.info(`Removing ${expiredMessageReports.length} expired message ${pluralize(expiredMessageReports.length, "report")}`);
+
             for (const messageReport of expiredMessageReports) {
-                const alert = await alertChannel.messages.fetch(messageReport.id)
+                const alert = await reportChannel.messages.fetch(messageReport.id)
                     .catch(() => null);
 
                 alert?.delete().catch(() => null);
             }
-        }).start();
-
-        Logger.log("MESSAGE_REPORT_REMOVAL", "Cron job started", {
-            color: AnsiColor.Purple
         });
     }
 

@@ -121,7 +121,7 @@ export default class MessageReactionAdd extends EventListener {
         // Don't report messages from users with excluded roles
         if (isExcluded) return;
 
-        const alertChannel = await config.guild.channels.fetch(config.data.message_reports.alert_channel);
+        const alertChannel = await config.guild.channels.fetch(config.data.message_reports.report_channel);
 
         // Ensure the alert channel exists and is a text channel
         // An error should be thrown since the bot shouldn't be started with an incomplete configuration

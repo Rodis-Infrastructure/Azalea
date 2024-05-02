@@ -2,7 +2,7 @@ import { Messages } from "@utils/messages";
 import { Client, Events } from "discord.js";
 import { client, prisma } from "./..";
 import { Prisma } from "@prisma/client";
-import { CronJob } from "cron";
+import { startCronJob } from "@/utils";
 
 import Logger, { AnsiColor } from "@utils/logger";
 import EventListener from "@managers/events/EventListener";
@@ -27,23 +27,19 @@ export default class Ready extends EventListener {
         // Start scheduled messages for all guilds
         ConfigManager.guildConfigs.forEach(config => {
             config.startScheduledMessageCronJobs();
-            config.startRequestAlertCronJobs();
-            config.startMessageReportAlertCronJob();
+            config.startRequestReviewReminderCronJobs();
+            config.startMessageReportReviewReminderCronJob();
             config.startMessageReportRemovalCronJob();
 
             if (config.data.role_requests) {
-                Ready._startRoleRequestRemovalCronJob();
+                Ready._startTemporaryRoleRemovalCronJob();
             }
         });
     }
 
-    private static _startRoleRequestRemovalCronJob(): void {
-        Logger.info("Starting role request removal cron job");
-
+    private static _startTemporaryRoleRemovalCronJob(): void {
         // Fetch and delete all expired role requests every day at midnight
-        new CronJob("0 0 * * *", async () => {
-            Logger.info("Running role request removal cron job");
-
+        startCronJob("TEMPORARY_ROLE_REMOVAL", "0 0 * * *", async () => {
             // Fetch and delete all expired role requests
             const [expiredRequests] = await prisma.$transaction([
                 prisma.temporaryRole.findMany({
@@ -76,15 +72,18 @@ export default class Ready extends EventListener {
                     const member = await guild.members.fetch(request.member_id);
 
                     if (member.roles.cache.has(request.role_id)) {
+                        Logger.info(`Removing role ${request.role_id} from @${member.user.username} (${member.id})`);
                         await member.roles.remove(request.role_id);
                         removalCount++;
                     }
                 }
             }
 
-            Logger.info(`Removed ${removalCount} expired role requests`);
-        }).start();
-
-        Logger.info("Role request removal cron job started");
+            if (removalCount > 0) {
+                Logger.info(`Removed ${removalCount} expired role requests`);
+            } else {
+                Logger.info("No roles need to be removed");
+            }
+        });
     }
 }

@@ -8,6 +8,7 @@ interface ColorOptions {
 export enum AnsiColor {
     Purple = "\x1b[35m",
     Green = "\x1b[32m",
+    Orange = "\x1b[38;5;208m",
     Yellow = "\x1b[33m",
     Reset = "\x1b[0m",
     Cyan = "\x1b[36m",
@@ -25,7 +26,7 @@ export default class Logger {
         } else if (options?.color && options.full) {
             console.log(`${timestampString} ${options.color}[${level}] ${message}${AnsiColor.Reset}`);
         } else {
-            console.log(`\x1b[32m${timestampString}${AnsiColor.Reset} [${level}] ${message}`);
+            console.log(`${timestampString} [${level}] ${message}`);
         }
     }
 

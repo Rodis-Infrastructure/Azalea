@@ -200,7 +200,7 @@ async function updateMessageReportState(messageId: Snowflake, executorId: Snowfl
     if (!messageReport) return;
 
     const alertChannel = await config.guild.channels
-        .fetch(config.data.message_reports.alert_channel)
+        .fetch(config.data.message_reports.report_channel)
         .catch(() => null);
 
     if (!alertChannel || !alertChannel.isTextBased()) return;

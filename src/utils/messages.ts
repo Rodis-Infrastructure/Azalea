@@ -13,9 +13,8 @@ import {
 import { EMBED_FIELD_CHAR_LIMIT, EMPTY_MESSAGE_CONTENT, LOG_ENTRY_DATE_FORMAT } from "./constants";
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
-import { elipsify, pluralize, userMentionWithId } from "./index";
+import { elipsify, pluralize, startCronJob, userMentionWithId } from "./index";
 import { client, prisma } from "./..";
-import { CronJob } from "cron";
 
 import Logger from "./logger";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -233,9 +232,9 @@ export class Messages {
     static startDbStorageCronJob(): void {
         const cron = ConfigManager.globalConfig.database.messages.insert_cron;
 
-        new CronJob(cron, async () => {
+        startCronJob("STORE_MESSAGES", cron, async () => {
             await this.clear();
-        }).start();
+        });
     }
 }
 

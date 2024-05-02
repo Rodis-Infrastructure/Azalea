@@ -1,7 +1,9 @@
 import { Snowflake } from "discord-api-types/v10";
 import { GuildBasedChannel, ThreadChannel } from "discord.js";
+import { CronJobParams } from "@sentry/node/types/cron/cron";
 import { Messages } from "./messages";
 import { ObjectDiff } from "./types";
+import { CronJob } from "cron";
 import { prisma } from "./..";
 
 import Logger, { AnsiColor } from "./logger";
@@ -9,6 +11,7 @@ import Logger, { AnsiColor } from "./logger";
 import YAML from "yaml";
 import _ from "lodash";
 import fs from "fs";
+import Sentry from "@sentry/node";
 
 export function pluralize(count: number, singular: string, plural?: string): string {
     plural ??= `${singular}s`;
@@ -130,4 +133,27 @@ export function stripLinks(str: string): string {
     return str
         .replaceAll(/https?:\/\/[^\s\n\r]+/gi, "")
         .replaceAll(/\s{2,}/g, " ");
+}
+
+export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronTime"], onTick: () => Promise<void> | void): void {
+    const CronJobWithCheckIn = Sentry.cron.instrumentCron(CronJob, monitorSlug);
+
+    CronJobWithCheckIn.from({
+        cronTime,
+        onTick: async () => {
+            Logger.log(monitorSlug, "Running cron job...", {
+                color: AnsiColor.Orange
+            });
+
+            await onTick();
+
+            Logger.log(monitorSlug, "Successfully ran cron job", {
+                color: AnsiColor.Orange
+            });
+        }
+    }).start();
+
+    Logger.log(monitorSlug, `Cron job started: ${cronTime}`, {
+        color: AnsiColor.Orange
+    });
 }

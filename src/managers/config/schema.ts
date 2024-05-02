@@ -185,9 +185,9 @@ const autoReactionSchema = z.object({
 
 const messageReportsSchema = z.object({
     // Channel to send message reports to
-    alert_channel: snowflakeSchema,
+    report_channel: snowflakeSchema,
     // How long an alert will stay in the alert channel before being removed (in milliseconds)
-    alert_ttl: z.number().min(1000).optional(),
+    report_ttl: z.number().min(1000).optional(),
     alert: alertSchema.optional(),
     // Roles mentioned in new alerts
     mentioned_roles: z.array(snowflakeSchema).nonempty().optional(),
