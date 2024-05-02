@@ -8,8 +8,8 @@ import {
     TimestampStyles
 } from "discord.js";
 
-import { Action, Flag, InteractionReplyData, MuteDuration } from "@utils/types";
-import { handleInfractionCreate } from "@utils/infractions";
+import { InteractionReplyData } from "@utils/types";
+import { Action, Flag, handleInfractionCreate, MuteDuration } from "@utils/infractions";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { cropLines, elipsify } from "@/utils";
 

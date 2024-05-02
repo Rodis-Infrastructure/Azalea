@@ -1,9 +1,10 @@
 import { handleMessageReportQuickMute } from "./MessageReportQuickMute30";
-import { InteractionReplyData, MuteDuration } from "@utils/types";
+import { InteractionReplyData } from "@utils/types";
 import { ButtonInteraction } from "discord.js";
 
 import Component from "@managers/components/Component";
 import MessageReportResolve from "./MessageReportResolve";
+import { MuteDuration } from "@utils/infractions";
 
 export default class MessageReportQuickMute60 extends Component {
     constructor() {

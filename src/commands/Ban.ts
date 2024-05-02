@@ -1,13 +1,13 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, PermissionFlagsBits } from "discord.js";
-import { EMBED_FIELD_CHAR_LIMIT, EMPTY_INFRACTION_REASON } from "@utils/constants";
-import { handleInfractionCreate } from "@utils/infractions";
-import { Action, InteractionReplyData } from "@utils/types";
+import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
+import { Action, handleInfractionCreate } from "@utils/infractions";
+import { InteractionReplyData } from "@utils/types";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 
 // Constants
-const ONE_WEEK = 1000 * 60 * 60 * 24 * 7;
+const DEFAULT_DELETE_MESSAGE_SECONDS = 1000 * 60 * 60 * 24 * 7;
 
 /**
  * Bans a user from the server.
@@ -52,10 +52,13 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
 
     async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-        // Delete 2 weeks' worth of messages if the option is true
-        const deleteMessageSeconds = interaction.options.getBoolean("delete_messages") ? ONE_WEEK : 0;
-        const reason = interaction.options.getString("reason") ?? EMPTY_INFRACTION_REASON;
+        const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const member = interaction.options.getMember("user");
+
+        // Delete 2 weeks' worth of messages if the option is true
+        const deleteMessageSeconds = interaction.options.getBoolean("delete_messages")
+            ? DEFAULT_DELETE_MESSAGE_SECONDS
+            : 0;
 
         if (member && !member.bannable) {
             return "I do not have permission to ban this user";
@@ -71,7 +74,7 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             .catch(() => null);
 
         if (ban) {
-            return `This user is already banned: \`${ban.reason ?? EMPTY_INFRACTION_REASON}\``;
+            return `This user is already banned: \`${ban.reason ?? DEFAULT_INFRACTION_REASON}\``;
         }
 
         // Ban the user

@@ -37,13 +37,13 @@ model Message {
 
 model Infraction {
   id                Int       @id @default(autoincrement())
+  action            Int
+  flag              Int       @default(0)
   guild_id          String
-  action            String
   executor_id       String
   target_id         String
-  reason            String
   created_at        DateTime  @default(now())
-  flag              String?
+  reason            String?
   request_author_id String?
   expires_at        DateTime?
   updated_at        DateTime?

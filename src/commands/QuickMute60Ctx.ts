@@ -1,8 +1,9 @@
 import { ApplicationCommandType, MessageContextMenuCommandInteraction, PermissionFlagsBits } from "discord.js";
-import { InteractionReplyData, MuteDuration } from "@utils/types";
+import { InteractionReplyData } from "@utils/types";
 import { handleQuickMute } from "./QuickMute30Ctx";
 
 import Command from "@managers/commands/Command";
+import { MuteDuration } from "@utils/infractions";
 
 export default class QuickMute60Ctx extends Command<MessageContextMenuCommandInteraction<"cached">> {
     constructor() {

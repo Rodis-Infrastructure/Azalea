@@ -1,6 +1,6 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, PermissionFlagsBits } from "discord.js";
-import { handleInfractionCreate } from "@utils/infractions";
-import { Action, InteractionReplyData } from "@utils/types";
+import { Action, handleInfractionCreate } from "@utils/infractions";
+import { InteractionReplyData } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 
 import ConfigManager from "@managers/config/ConfigManager";

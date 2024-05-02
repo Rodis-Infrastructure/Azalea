@@ -1,4 +1,4 @@
-import { InteractionReplyData, MuteDuration } from "@utils/types";
+import { InteractionReplyData } from "@utils/types";
 import { ButtonInteraction, GuildTextBasedChannel } from "discord.js";
 import { handleQuickMute } from "@/commands/QuickMute30Ctx";
 import { MessageReportStatus } from "@utils/reports";
@@ -6,6 +6,7 @@ import { prisma } from "./..";
 
 import Component from "@managers/components/Component";
 import MessageReportResolve from "./MessageReportResolve";
+import { MuteDuration } from "@utils/infractions";
 
 export default class MessageReportQuickMute30 extends Component {
     constructor() {

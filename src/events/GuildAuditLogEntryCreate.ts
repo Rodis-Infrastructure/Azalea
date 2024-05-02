@@ -9,9 +9,8 @@ import {
     User
 } from "discord.js";
 
-import { handleInfractionCreate } from "@utils/infractions";
-import { EMPTY_INFRACTION_REASON } from "@utils/constants";
-import { Action, Flag } from "@utils/types";
+import { Action, Flag, handleInfractionCreate } from "@utils/infractions";
+import { DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { client } from "./..";
 
 import EventListener from "@managers/events/EventListener";
@@ -33,7 +32,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
         const executor = await client.users.fetch(executorId).catch(() => null);
         if (!executor) return;
 
-        let notification = `${target} has been $ACTION by ${executor} (\`${reason ?? EMPTY_INFRACTION_REASON}\`)`;
+        let notification = `${target} has been $ACTION by ${executor} (\`${reason ?? DEFAULT_INFRACTION_REASON}\`)`;
         let action: Action | undefined;
 
         const setAction = (actionType: Action, str: string): void => {
@@ -74,7 +73,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
                                 action: Action.Mute,
                                 executor_id: executor.id,
                                 target_id: target.id,
-                                reason: EMPTY_INFRACTION_REASON,
+                                reason: DEFAULT_INFRACTION_REASON,
                                 flag: flag,
                                 expires_at: new Date(msDuration)
                             }, config);

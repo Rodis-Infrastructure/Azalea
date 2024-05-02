@@ -17,13 +17,20 @@ import {
     userMention
 } from "discord.js";
 
-import { Action, ActionEmbedColor, Flag, InteractionReplyData } from "@utils/types";
+import {
+    DEFAULT_INFRACTION_REASON,
+    DEFAULT_MUTE_DURATION,
+    EMBED_FIELD_CHAR_LIMIT,
+    MAX_MUTE_DURATION
+} from "@utils/constants";
+
+import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
 import { Prisma } from "@prisma/client";
 import { humanizeTimestamp, stripLinks, userMentionWithId } from "@/utils";
 import { log } from "@utils/logging";
-import { DEFAULT_MUTE_DURATION, EMBED_FIELD_CHAR_LIMIT, MAX_MUTE_DURATION } from "@utils/constants";
 import { LoggingEvent, Permission } from "@managers/config/schema";
+import { Action, getActionColor, parseInfractionType, Flag } from "@utils/infractions";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import Command from "@managers/commands/Command";
@@ -38,22 +45,10 @@ export enum InfractionSearchFilter {
     Automatic = "Automatic",
     // Only show non-automatic infractions (default)
     Manual = "Manual",
-    /** Only show infractions of with action {@link Action#Ban} */
-    Ban = Action.Ban,
-    /** Only show infractions of with action {@link Action#Unban} */
-    Unban = Action.Unban,
-    /** Only show infractions of with action {@link Action#Kick} */
-    Kick = Action.Kick,
-    /** Only show infractions of with action {@link Action#Mute} */
-    Mute = Action.Mute,
-    /** Only show infractions of with action {@link Action#Unmute} */
-    Unmute = Action.Unmute,
-    /** Only show infractions of with action {@link Action#Note} */
-    Note = Action.Note,
 }
 
-const infractionSearchFilterChoices: ApplicationCommandOptionChoiceData<string>[] = Object.entries(InfractionSearchFilter)
-    .map(([name, value]) => ({ name, value }));
+const infractionSearchFilterChoices: ApplicationCommandOptionChoiceData<string>[] = Object.keys(InfractionSearchFilter)
+    .map(key => ({ name: key, value: key }));
 
 export default class Infraction extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -261,9 +256,12 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             return `Infraction with ID \`#${infractionId}\` not found.`;
         }
 
+        const embedColor = getActionColor(infraction.action);
+        const embedTitle = parseInfractionType(infraction.action, infraction.flag);
+
         const embed = new EmbedBuilder()
-            .setColor(ActionEmbedColor[infraction.action])
-            .setTitle(`${infraction.flag ?? ""} ${infraction.action}`)
+            .setColor(embedColor)
+            .setTitle(embedTitle)
             .setDescription(infraction.reason)
             .setFields([
                 {
@@ -278,16 +276,15 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             .setFooter({ text: `#${infractionId}` })
             .setTimestamp(infraction.created_at);
 
-        // Append the expiration timestamp to the title
+        // Append the expiration timestamp to the embed title
         if (infraction.expires_at) {
             const msExpiresAt = infraction.expires_at.getTime();
 
+            // Use a timestamp if the infraction is still active
+            // otherwise, show a static duration
             if (msExpiresAt > Date.now()) {
-                // The infraction is still active
-                const expiresAt = Math.floor(msExpiresAt / 1000);
-                embed.data.title += ` (expires ${time(expiresAt, TimestampStyles.RelativeTime)})`;
+                embed.data.title += ` (expires ${time(infraction.expires_at, TimestampStyles.RelativeTime)})`;
             } else {
-                // The infraction has expired
                 const msCreatedAt = infraction.created_at.getTime();
                 const duration = humanizeTimestamp(msExpiresAt - msCreatedAt);
                 embed.data.title += `  •  ${duration}`;
@@ -297,30 +294,30 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         if (infraction.request_author_id) {
             // Insert the request author field after the "Executor" field
             embed.addFields({
-                name: "Request Author",
+                name: "Requested By",
                 value: userMentionWithId(infraction.request_author_id)
             });
         }
 
         // List of modification made to the infraction
-        const blame: string[] = [];
+        const changes: string[] = [];
 
         // The infraction's reason/duration was modified
         if (infraction.updated_at && infraction.updated_by) {
             const timestamp = time(infraction.updated_at, TimestampStyles.RelativeTime);
-            blame.push(`- Updated ${timestamp} by ${userMention(infraction.updated_by)}`);
+            changes.push(`- Updated ${timestamp} by ${userMention(infraction.updated_by)}`);
         }
 
         // The infraction was archived
         if (infraction.archived_at && infraction.archived_by) {
             const timestamp = time(infraction.archived_at, TimestampStyles.RelativeTime);
-            blame.push(`- Archived ${timestamp} by ${userMention(infraction.archived_by)}`);
+            changes.push(`- Archived ${timestamp} by ${userMention(infraction.archived_by)}`);
         }
 
-        if (blame.length) {
+        if (changes.length) {
             embed.addFields({
                 name: "Changes",
-                value: blame.join("\n")
+                value: changes.join("\n")
             });
         }
 
@@ -354,10 +351,12 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             return `Infraction with ID \`#${infractionId}\` not found.`;
         }
 
+        // Check whether the executor has permission to manage infractions
         if (infraction.executor_id !== executor.id && !config.hasPermission(executor, Permission.ManageInfractions)) {
             return "You do not have permission to archive this infraction.";
         }
 
+        // Check whether the infraction is active (if it's temporary)
         if (infraction.expires_at && infraction.expires_at > new Date()) {
             return "Cannot archive an active infraction.";
         }
@@ -370,10 +369,11 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             }
         });
 
+        const embedTitle = parseInfractionType(infraction.action, infraction.flag);
         const embed = new EmbedBuilder()
             .setColor(Colors.Red)
             .setAuthor({ name: "Infraction Archived" })
-            .setTitle(`${infraction.flag ?? ""} ${infraction.action}`)
+            .setTitle(embedTitle)
             .setFields([{
                 name: "Archived By",
                 value: userMentionWithId(executor.id)
@@ -421,10 +421,11 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             }
         });
 
+        const embedTitle = parseInfractionType(infraction.action, infraction.flag);
         const embed = new EmbedBuilder()
             .setColor(Colors.Green)
             .setAuthor({ name: "Infraction Restored" })
-            .setTitle(`${infraction.flag ?? ""} ${infraction.action}`)
+            .setTitle(embedTitle)
             .setFields([{
                 name: "Restored By",
                 value: userMentionWithId(executorId)
@@ -501,6 +502,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             return "Invalid duration provided. Please provide a valid duration.";
         }
 
+        // Prevent the duration from exceeding the threshold
         if (msDuration > MAX_MUTE_DURATION) msDuration = DEFAULT_MUTE_DURATION;
 
         await member.timeout(msDuration, `Duration change of infraction #${infractionId}`);
@@ -518,10 +520,12 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         });
 
         const msOldDuration = oldState.expires_at!.getTime() - oldState.created_at.getTime();
+        const embedTitle = parseInfractionType(Action.Mute, newState.flag);
+
         const embed = new EmbedBuilder()
             .setColor(Colors.Yellow)
             .setAuthor({ name: "Infraction Duration Changed" })
-            .setTitle(`${newState.flag ?? ""} Mute`)
+            .setTitle(embedTitle)
             .setFields([
                 {
                     name: "Updated By",
@@ -594,10 +598,11 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             }
         });
 
+        const embedTitle = parseInfractionType(newState.action, newState.flag);
         const embed = new EmbedBuilder()
             .setColor(Colors.Green)
             .setAuthor({ name: "Infraction Reason Changed" })
-            .setTitle(`${newState.flag ?? ""} ${newState.action}`)
+            .setTitle(embedTitle)
             .setFields([
                 {
                     name: "Updated By",
@@ -605,7 +610,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 },
                 {
                     name: "Old Reason",
-                    value: oldState.reason
+                    value: oldState.reason ?? DEFAULT_INFRACTION_REASON
                 },
                 {
                     name: "New Reason",
@@ -642,28 +647,20 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
     }): Promise<InteractionReplyData> {
         const { user, guildId, filter, page } = data;
 
-        const resultsPerPage = 5;
+        const RESULTS_PER_PAGE = 5;
         const skipMultiplier = page - 1;
-        const parsedFilter = Infraction._parseSearchFilter(filter);
+        const queryConditions = Infraction._parseSearchFilter(filter);
 
         const infractions = await prisma.infraction.findMany({
-            skip: skipMultiplier * resultsPerPage,
-            take: resultsPerPage,
+            skip: skipMultiplier * RESULTS_PER_PAGE,
+            take: RESULTS_PER_PAGE,
             where: {
                 target_id: user.id,
                 guild_id: guildId,
-                ...parsedFilter
+                ...queryConditions
             },
             orderBy: {
                 id: "desc"
-            },
-            select: {
-                id: true,
-                reason: true,
-                created_at: true,
-                action: true,
-                executor_id: true,
-                expires_at: true
             }
         });
 
@@ -676,26 +673,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             })
             .setFooter({ text: `ID: ${user.id}` });
 
-        const fields: APIEmbedField[] = infractions.map(infraction => {
-            const cleanReason = stripLinks(infraction.reason);
-            const entries = [
-                Infraction._formatInfractionSearchEntries("Created", time(infraction.created_at, TimestampStyles.RelativeTime)),
-                Infraction._formatInfractionSearchEntries("Executor", userMention(infraction.executor_id)),
-                Infraction._formatInfractionSearchEntries("Reason", cleanReason)
-            ];
-
-            if (infraction.expires_at) {
-                const durationEntry = Infraction._parseSearchDurationEntry(infraction.expires_at, infraction.created_at);
-                // Insert the duration entry after the "Created" entry
-                entries.splice(1, 0, durationEntry);
-            }
-
-            return {
-                // Format: Action #ID
-                name: `${infraction.action} #${infraction.id}`,
-                value: entries.join("\n")
-            };
-        });
+        const fields = Infraction._formatInfractionSearchFields(infractions);
 
         if (!fields.length) {
             embed.setDescription("No infractions found");
@@ -707,14 +685,15 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             where: {
                 target_id: user.id,
                 guild_id: guildId,
-                ...parsedFilter
+                ...queryConditions
             }
         });
 
         const components: ActionRowBuilder<ButtonBuilder>[] = [];
 
-        if (infractionCount > resultsPerPage) {
-            const totalPageCount = Math.ceil(infractionCount / resultsPerPage);
+        // Add pagination if there are more results than can be displayed
+        if (infractionCount > RESULTS_PER_PAGE) {
+            const totalPageCount = Math.ceil(infractionCount / RESULTS_PER_PAGE);
 
             const pageCountButton = new ButtonBuilder()
                 .setLabel(`${page} / ${totalPageCount}`)
@@ -725,12 +704,14 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             const nextPageButton = new ButtonBuilder()
                 .setLabel("Next")
                 .setCustomId("infraction-search-next")
+                // Disable if the current page is the last page
                 .setDisabled(page === totalPageCount)
                 .setStyle(ButtonStyle.Primary);
 
             const previousPageButton = new ButtonBuilder()
                 .setLabel("Back")
                 .setCustomId("infraction-search-back")
+                // Disable if the current page is the first page
                 .setDisabled(page === 1)
                 .setStyle(ButtonStyle.Primary);
 
@@ -746,21 +727,36 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         };
     }
 
-    private static _parseSearchFilter(filter?: InfractionSearchFilter): Prisma.InfractionWhereInput {
-        // The filter is an action
-        if (filter && Object.values(Action).includes(filter as unknown as Action)) {
-            return { action: filter };
-        }
+    private static _formatInfractionSearchFields(infractions: Prisma.$InfractionPayload["scalars"][]): APIEmbedField[] {
+        return infractions.map(infraction => {
+            const cleanReason = stripLinks(infraction.reason ?? DEFAULT_INFRACTION_REASON);
+            const entries = [
+                Infraction._formatInfractionSearchEntry("Created", time(infraction.created_at, TimestampStyles.RelativeTime)),
+                Infraction._formatInfractionSearchEntry("Executor", userMention(infraction.executor_id)),
+                Infraction._formatInfractionSearchEntry("Reason", cleanReason)
+            ];
 
+            if (infraction.expires_at) {
+                const durationEntry = Infraction._parseInfractionSearchDurationEntry(infraction.expires_at, infraction.created_at);
+                // Insert the duration entry after the "Created" entry
+                entries.splice(1, 0, durationEntry);
+            }
+
+            const fieldTitle = parseInfractionType(infraction.action, infraction.flag);
+
+            return {
+                // Format: Action #ID
+                name: `${fieldTitle} #${infraction.id}`,
+                value: entries.join("\n")
+            };
+        });
+    }
+
+    /** @returns Database query conditions */
+    private static _parseSearchFilter(filter?: InfractionSearchFilter): Prisma.InfractionWhereInput {
         switch (filter) {
             case InfractionSearchFilter.Manual:
-                return {
-                    OR: [{
-                        flag: { not: Flag.Automatic }
-                    }, {
-                        flag: null
-                    }]
-                };
+                return { flag: { not: Flag.Automatic } };
 
             case InfractionSearchFilter.Automatic:
                 return { flag: Flag.Automatic };
@@ -778,17 +774,17 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
      * @returns A timestamp if the expiration date in the future, a static string otherwise
      * @private
      */
-    private static _parseSearchDurationEntry(expiresAt: Date, createdAt: Date): ReturnType<typeof Infraction._formatInfractionSearchEntries> {
+    private static _parseInfractionSearchDurationEntry(expiresAt: Date, createdAt: Date): ReturnType<typeof Infraction._formatInfractionSearchEntry> {
         const msTimestamp = expiresAt.getTime();
         const msDuration = expiresAt.getTime() - createdAt.getTime();
         const timestamp = Math.floor(msTimestamp / 1000);
 
         return msTimestamp > Date.now()
-            ? Infraction._formatInfractionSearchEntries("Expires", time(timestamp, TimestampStyles.RelativeTime))
-            : Infraction._formatInfractionSearchEntries("Duration", humanizeTimestamp(msDuration));
+            ? Infraction._formatInfractionSearchEntry("Expires", time(timestamp, TimestampStyles.RelativeTime))
+            : Infraction._formatInfractionSearchEntry("Duration", humanizeTimestamp(msDuration));
     }
 
-    private static _formatInfractionSearchEntries(name: string, value: string): `> \`${string}\` | ${string}` {
+    private static _formatInfractionSearchEntry(name: string, value: string): `> \`${string}\` | ${string}` {
         return `> \`${name}\` | ${value}`;
     }
 }

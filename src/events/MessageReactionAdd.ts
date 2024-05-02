@@ -31,13 +31,13 @@ import { Snowflake, ButtonStyle } from "discord-api-types/v10";
 import { approveModerationRequest, denyModerationRequest } from "@utils/requests";
 import { prisma } from "./..";
 import { MessageReportFlag, MessageReportStatus } from "@utils/reports";
-import { MuteDuration } from "@utils/types";
 import { LoggingEvent } from "@managers/config/schema";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import Purge from "@/commands/Purge";
+import { MuteDuration } from "@utils/infractions";
 
 export default class MessageReactionAdd extends EventListener {
     constructor() {
@@ -375,7 +375,7 @@ export default class MessageReactionAdd extends EventListener {
         };
     }
 
-    // @returns The emoji ID and URL if the emoji is a custom emoji, otherwise the emoji name
+    /** @returns The emoji ID and URL if the emoji is a custom emoji, otherwise the emoji name */
     private static _parseEmoji(emoji: GuildEmoji | ReactionEmoji): string {
         if (emoji.id) {
             const maskedEmojiURL = hyperlink("view", `<${emoji.imageURL()}>`);

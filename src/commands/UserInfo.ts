@@ -17,14 +17,15 @@ import {
     PermissionFlagsBits
 } from "discord.js";
 
-import { Action, InteractionReplyData } from "@utils/types";
-import { BLANK_EMBED_FIELD, EMPTY_INFRACTION_REASON } from "@utils/constants";
+import { InteractionReplyData } from "@utils/types";
+import { BLANK_EMBED_FIELD, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { prisma } from "./..";
 import { Permission, UserFlag } from "@managers/config/schema";
 
 import Command from "@managers/commands/Command";
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
+import { Action } from "@utils/infractions";
 
 export default class UserInfo extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -118,7 +119,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
                     guild_id: config.guild.id
                 }
             }) ?? {
-                reason: EMPTY_INFRACTION_REASON
+                reason: DEFAULT_INFRACTION_REASON
             };
 
             embed.setColor(Colors.Red);

@@ -13,7 +13,7 @@ export const LOG_ENTRY_DATE_FORMAT: Intl.DateTimeFormatOptions = {
 
 export const EMPTY_MESSAGE_CONTENT = "No message content";
 
-export const EMPTY_INFRACTION_REASON = "No infraction reason";
+export const DEFAULT_INFRACTION_REASON = "No infraction reason";
 
 export const EMBED_FIELD_CHAR_LIMIT = 1000;
 

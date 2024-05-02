@@ -193,8 +193,7 @@ async function updateMessageReportState(messageId: Snowflake, executorId: Snowfl
     const messageReport = await prisma.messageReport.findUnique({
         where: {
             message_id: messageId,
-            status: MessageReportStatus.Unresolved,
-            guild_id: config.guild.id
+            status: MessageReportStatus.Unresolved
         }
     });
 

@@ -1,7 +1,7 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, PermissionFlagsBits } from "discord.js";
-import { handleInfractionCreate, handleInfractionExpirationChange } from "@utils/infractions";
-import { EMBED_FIELD_CHAR_LIMIT, EMPTY_INFRACTION_REASON } from "@utils/constants";
-import { Action, InteractionReplyData } from "@utils/types";
+import { Action, handleInfractionCreate, handleInfractionExpirationChange } from "@utils/infractions";
+import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
+import { InteractionReplyData } from "@utils/types";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -31,7 +31,7 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
 
     async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-        const reason = interaction.options.getString("reason") ?? EMPTY_INFRACTION_REASON;
+        const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const member = interaction.options.getMember("member");
 
         // Check if the member is in the server
