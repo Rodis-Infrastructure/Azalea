@@ -233,4 +233,6 @@ export enum Flag {
     Quick = 1,
     // Infractions carried out by bots
     Automatic = 2,
+    // Infractions carried out using discord's native tools
+    Native = 3,
 }

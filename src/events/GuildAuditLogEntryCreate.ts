@@ -40,7 +40,9 @@ export default class GuildAuditLogEntryCreate extends EventListener {
             action = actionType;
         };
 
-        const flag = executor.bot ? Flag.Automatic : undefined;
+        const flag = executor.bot
+            ? Flag.Automatic
+            : Flag.Native;
 
         switch (auditLog.action) {
             case AuditLogEvent.MemberKick:
