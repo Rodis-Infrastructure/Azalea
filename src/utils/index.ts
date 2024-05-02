@@ -140,6 +140,7 @@ export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronT
 
     CronJobWithCheckIn.from({
         cronTime,
+        timeZone: "UTC",
         onTick: async () => {
             Logger.log(monitorSlug, "Running cron job...", {
                 color: AnsiColor.Orange
