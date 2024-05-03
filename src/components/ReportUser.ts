@@ -191,7 +191,7 @@ export default class ReportUser extends Component {
         const logEmbed = new EmbedBuilder(report.embeds[0].toJSON())
             .setColor(Colors.Orange)
             .setTitle("User Report Reason Changed")
-            .spliceFields(2, 1, {
+            .spliceFields(-1, 1, {
                 name: "Old Reason",
                 value: initialReport!.reason
             }, {
