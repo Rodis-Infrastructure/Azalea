@@ -91,7 +91,10 @@ export enum LoggingEvent {
     MuteRequestApprove = "mute_request_approve",
     MuteRequestDeny = "mute_request_deny",
     MessageReportCreate = "message_report_create",
-    MessageReportResolve = "message_report_resolve"
+    MessageReportResolve = "message_report_resolve",
+    UserReportCreate = "user_report_create",
+    UserReportUpdate = "user_report_update",
+    UserReportResolve = "user_report_resolve"
 }
 
 const loggingEventEnum = z.nativeEnum(LoggingEvent);
@@ -183,15 +186,15 @@ const autoReactionSchema = z.object({
     emojis: z.array(emojiSchema).nonempty()
 });
 
-const messageReportsSchema = z.object({
-    // Channel to send message reports to
+const reportSchema = z.object({
+    // Channel to send reports to
     report_channel: snowflakeSchema,
     // How long an alert will stay in the alert channel before being removed (in milliseconds)
     report_ttl: z.number().min(1000).optional(),
     alert: alertSchema.optional(),
     // Roles mentioned in new alerts
     mentioned_roles: z.array(snowflakeSchema).nonempty().optional(),
-    // Users with these roles will be immune to message reports
+    // Users with these roles will be immune to reports
     excluded_roles: z.array(snowflakeSchema).default([])
 });
 
@@ -282,7 +285,8 @@ export const rawGuildConfigSchema = z.object({
     // Channels that require messages to have an attachment
     media_channels: z.array(snowflakeSchema).default([]),
     permissions: z.array(permissionsSchema).default([]),
-    message_reports: messageReportsSchema.optional(),
+    message_reports: reportSchema.optional(),
+    user_reports: reportSchema.optional(),
     ephemeral_scoping: channelScopingSchema.default(defaultChannelScoping),
     // Lifetime of non-ephemeral responses (milliseconds)
     // default: 3 seconds (3000ms)

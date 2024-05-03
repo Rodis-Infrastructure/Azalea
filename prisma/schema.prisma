@@ -66,6 +66,18 @@ model MessageReport {
   content     String?
 }
 
+model UserReport {
+  id          String   @id
+  target_id   String
+  guild_id    String
+  reported_by String
+  created_at  DateTime @default(now())
+  status      String   @default("unresolved")
+  reason      String
+  /// ID of the user that resolved the report
+  resolved_by String?
+}
+
 model TemporaryRole {
   member_id  String
   role_id    String
