@@ -5,7 +5,7 @@ import {
     channelMention, Colors,
     EmbedBuilder,
     GuildTextBasedChannel,
-    ModalSubmitInteraction,
+    ModalSubmitInteraction, roleMention,
     userMention
 } from "discord.js";
 
@@ -116,7 +116,13 @@ export default class ReportUser extends Component {
             });
         }
 
+        // Mention the roles that should be pinged when a message is reported
+        const mentionedRoles = config.data.user_reports!.mentioned_roles
+            ?.map(roleMention)
+            .join(" ");
+
         const { id } = await userReportChannel.send({
+            content: mentionedRoles,
             embeds: [embed],
             components: [actionRow]
         });
@@ -188,14 +194,13 @@ export default class ReportUser extends Component {
             .spliceFields(2, 1, {
                 name: "Old Reason",
                 value: initialReport!.reason
-            })
-            .addFields({
+            }, {
                 name: "New Reason",
                 value: reason
             });
 
         const embed = new EmbedBuilder(report.embeds[0].toJSON())
-            .spliceFields(2, 1, {
+            .spliceFields(-1, 1, {
                 name: "Reason",
                 value: reason
             });

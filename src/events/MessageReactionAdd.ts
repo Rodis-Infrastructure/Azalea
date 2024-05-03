@@ -247,7 +247,9 @@ export default class MessageReactionAdd extends EventListener {
         );
 
         // Mention the roles that should be pinged when a message is reported
-        const mentionedRoles = config.data.message_reports.mentioned_roles?.map(roleMention).join(" ");
+        const mentionedRoles = config.data.message_reports.mentioned_roles
+            ?.map(roleMention)
+            .join(" ");
 
         const report = await alertChannel.send({
             content: mentionedRoles,
