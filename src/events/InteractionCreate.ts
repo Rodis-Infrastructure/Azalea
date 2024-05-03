@@ -50,7 +50,7 @@ export default class InteractionCreate extends EventListener {
                 extra: {
                     channel: interaction.channel?.id,
                     guild: interaction.guild.id,
-                    command: interaction.isCommand() ? interaction.commandName : interaction.customId
+                    command: InteractionCreate._parseInteractionName(interaction)
                 }
             });
 
@@ -140,6 +140,6 @@ export default class InteractionCreate extends EventListener {
             return interaction.commandName;
         }
 
-        return interaction.customId;
+        return ComponentManager.parseCustomId(interaction.customId);
     }
 }

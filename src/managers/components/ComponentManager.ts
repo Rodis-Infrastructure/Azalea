@@ -43,8 +43,9 @@ export default class ComponentManager {
 
                 // Cache the component
                 ComponentManager._cache.set(component.customId, component);
+                const parsedCustomId = ComponentManager.parseCustomId(component.customId);
 
-                Logger.log("GLOBAL", `Cached component "${component.customId}"`, {
+                Logger.log("GLOBAL", `Cached component "${parsedCustomId}"`, {
                     color: AnsiColor.Purple
                 });
 
@@ -79,12 +80,38 @@ export default class ComponentManager {
         });
     }
 
+    /**
+     * Parses a string/object custom ID to a string.
+     *
+     * @param customId - The custom ID to parse.
+     * @returns The parsed custom ID as a string.
+     */
+    static parseCustomId(customId: CustomID): string {
+        if (typeof customId === "string") {
+            return customId;
+        }
+
+        switch (true) {
+            case "matches" in customId:
+                return `matches(${customId.matches.toString()})`;
+            case "startsWith" in customId:
+                return `startsWith(${customId.startsWith})`;
+            case "endsWith" in customId:
+                return `endsWith(${customId.endsWith})`;
+            case "includes" in customId:
+                return `includes(${customId.includes})`;
+            default:
+                return "unknown";
+        }
+    }
+
     static handle(interaction: ComponentInteraction): Promise<InteractionReplyData> | InteractionReplyData {
         // Retrieve the component's instance from cache by its custom ID
         const component = ComponentManager.getComponent(interaction.customId);
 
         if (!component) {
-            throw new Error(`Component "${interaction.customId}" not found`);
+            const parsedCustomId = ComponentManager.parseCustomId(interaction.customId);
+            throw new Error(`Component "${parsedCustomId}" not found`);
         }
 
         return component.execute(interaction);
