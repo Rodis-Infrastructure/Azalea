@@ -314,13 +314,6 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
         return;
     }
 
-    const guild = await client.guilds.fetch(request.guild_id).catch(() => null);
-
-    if (!guild) {
-        config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, the guild was not found.`);
-        return;
-    }
-
     const handleModerationRequestApproveLog = (event: LoggingEvent, action: string): void => {
         const embed = new EmbedBuilder()
             .setColor(Colors.Green)
@@ -350,7 +343,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
 
     switch (request.type) {
         case ModerationRequestType.Mute: {
-            const target = await guild.members.fetch(request.target_id).catch(() => null);
+            const target = await config.guild.members.fetch(request.target_id).catch(() => null);
 
             if (!target) {
                 config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, the offender may have left the guild.`);
@@ -380,7 +373,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
                 return;
             }
 
-            await guild.members.ban(target, { reason: request.reason });
+            await config.guild.members.ban(target, { reason: request.reason });
             handleModerationRequestApproveLog(LoggingEvent.BanRequestApprove, "Banned");
             break;
         }
