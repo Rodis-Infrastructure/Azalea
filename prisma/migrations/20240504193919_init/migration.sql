@@ -5,7 +5,7 @@ CREATE TABLE "ModerationRequest" (
     "target_id" TEXT NOT NULL,
     "guild_id" TEXT NOT NULL,
     "reason" TEXT NOT NULL,
-    "punishment_type" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'pending',
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "mute_id" INTEGER,
@@ -19,23 +19,22 @@ CREATE TABLE "Message" (
     "channel_id" TEXT NOT NULL,
     "guild_id" TEXT NOT NULL,
     "created_at" DATETIME NOT NULL,
+    "deleted" BOOLEAN NOT NULL DEFAULT false,
     "content" TEXT,
     "sticker_id" TEXT,
-    "reference_id" TEXT,
-    "category_id" TEXT,
-    "deleted" BOOLEAN NOT NULL DEFAULT false
+    "reference_id" TEXT
 );
 
 -- CreateTable
 CREATE TABLE "Infraction" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "action" INTEGER NOT NULL,
+    "flag" INTEGER NOT NULL DEFAULT 0,
     "guild_id" TEXT NOT NULL,
-    "action" TEXT NOT NULL,
     "executor_id" TEXT NOT NULL,
     "target_id" TEXT NOT NULL,
-    "reason" TEXT NOT NULL,
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "flag" TEXT,
+    "reason" TEXT,
     "request_author_id" TEXT,
     "expires_at" DATETIME,
     "updated_at" DATETIME,
@@ -50,11 +49,10 @@ CREATE TABLE "MessageReport" (
     "message_id" TEXT NOT NULL,
     "channel_id" TEXT NOT NULL,
     "author_id" TEXT NOT NULL,
-    "reporter_id" TEXT NOT NULL,
-    "guild_id" TEXT NOT NULL,
-    "flags" INTEGER NOT NULL,
+    "reported_by" TEXT NOT NULL,
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "status" TEXT NOT NULL DEFAULT 'unresolved',
+    "flags" INTEGER NOT NULL,
     "resolved_by" TEXT,
     "content" TEXT
 );
@@ -63,15 +61,16 @@ CREATE TABLE "MessageReport" (
 CREATE TABLE "UserReport" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "target_id" TEXT NOT NULL,
-    "reporter_id" TEXT NOT NULL,
     "guild_id" TEXT NOT NULL,
-    "reason" TEXT NOT NULL,
+    "reported_by" TEXT NOT NULL,
+    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "status" TEXT NOT NULL DEFAULT 'unresolved',
+    "reason" TEXT NOT NULL,
     "resolved_by" TEXT
 );
 
 -- CreateTable
-CREATE TABLE "RoleRequest" (
+CREATE TABLE "TemporaryRole" (
     "member_id" TEXT NOT NULL,
     "role_id" TEXT NOT NULL,
     "guild_id" TEXT NOT NULL,
