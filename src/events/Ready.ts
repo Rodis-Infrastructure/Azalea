@@ -30,6 +30,8 @@ export default class Ready extends EventListener {
             config.startRequestReviewReminderCronJobs();
             config.startMessageReportReviewReminderCronJob();
             config.startMessageReportRemovalCronJob();
+            config.startUserReportReviewReminderCronJob();
+            config.startUserReportRemovalCronJob();
 
             if (config.data.role_requests) {
                 Ready._startTemporaryRoleRemovalCronJob();

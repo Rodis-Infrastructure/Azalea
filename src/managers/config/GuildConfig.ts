@@ -2,13 +2,12 @@ import { Snowflake } from "discord-api-types/v10";
 import { Colors, EmbedBuilder, Guild, GuildBasedChannel, GuildMember, messageLink, roleMention } from "discord.js";
 import { ChannelScoping, Permission, RawGuildConfig, rawGuildConfigSchema } from "./schema";
 import { client, prisma } from "@/index";
-import { CronJob } from "cron";
-import { MessageReportStatus } from "@utils/reports";
+import { MessageReportStatus, UserReportStatus } from "@utils/reports";
 import { fromZodError } from "zod-validation-error";
 import { InteractionReplyData } from "@utils/types";
-
-import Logger, { AnsiColor } from "@utils/logger";
 import { pluralize, startCronJob } from "@/utils";
+
+import Logger from "@utils/logger";
 
 export default class GuildConfig {
     private constructor(public readonly data: RawGuildConfig, public readonly guild: Guild) {
@@ -172,7 +171,7 @@ export default class GuildConfig {
 
         const getAlertEmbed = (unresolvedReportCount: number): EmbedBuilder => new EmbedBuilder()
             .setColor(Colors.Red)
-            .setTitle("Unresolved Message Report Alert")
+            .setTitle("Message Report Review Reminder")
             .setDescription(`There are currently \`${unresolvedReportCount}\` unresolved message reports`)
             .setFooter({ text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved message reports` });
 
@@ -181,6 +180,124 @@ export default class GuildConfig {
             const unresolvedReportCount = await prisma.messageReport.count({
                 where: {
                     status: MessageReportStatus.Unresolved
+                }
+            });
+
+            Logger.info(`Count: ${unresolvedReportCount}`);
+            Logger.info(`Threshold: ${alertConfig.count_threshold}`);
+
+            if (unresolvedReportCount < alertConfig.count_threshold) {
+                Logger.info("Count is below the threshold, no actions need to be taken");
+                return;
+            }
+
+            Logger.info("Count exceeds the threshold, sending reminder");
+
+            const alert = getAlertEmbed(unresolvedReportCount);
+            const mentionedRoles = alertConfig.mentioned_roles
+                .map(roleMention)
+                .join(" ");
+
+            // Send the alert to the channel
+            channel.send({
+                content: mentionedRoles || undefined,
+                embeds: [alert]
+            });
+        });
+    }
+
+    async startUserReportRemovalCronJob(): Promise<void> {
+        const ttl = this.data.user_reports?.report_ttl;
+        const reportChannelId = this.data.user_reports?.report_channel;
+
+        if (!ttl || !reportChannelId) return;
+
+        const reportChannel = await this.guild.channels
+            .fetch(reportChannelId)
+            .catch(() => null);
+
+        const stringifiedData = JSON.stringify({ ttl, reportChannelId });
+
+        if (!reportChannel) {
+            Logger.error(`Failed to mount user report removal, unknown channel: ${stringifiedData}`);
+            return;
+        }
+
+        if (!reportChannel.isTextBased()) {
+            Logger.error(`Failed to mount user report removal, channel is not text-based: ${stringifiedData}`);
+            return;
+        }
+
+
+        // Every hour on the hour
+        startCronJob("USER_REPORT_REMOVAL", "0 * * * *", async () => {
+            const expiresAt = new Date(Date.now() - ttl);
+
+            const [expiredUserReports] = await prisma.$transaction([
+                prisma.userReport.findMany({
+                    where: {
+                        created_at: { lte: expiresAt },
+                        status: UserReportStatus.Unresolved
+                    }
+                }),
+                prisma.userReport.updateMany({
+                    where: {
+                        created_at: { lte: expiresAt },
+                        status: UserReportStatus.Unresolved
+                    },
+                    data: {
+                        status: UserReportStatus.Expired
+                    }
+                })
+            ]);
+
+            if (!expiredUserReports.length) {
+                Logger.info("No expired user reports found, no actions need to be taken");
+                return;
+            }
+
+            Logger.info(`Removing ${expiredUserReports.length} expired user ${pluralize(expiredUserReports.length, "report")}`);
+
+            for (const userReport of expiredUserReports) {
+                const alert = await reportChannel.messages.fetch(userReport.id)
+                    .catch(() => null);
+
+                alert?.delete().catch(() => null);
+            }
+        });
+    }
+
+    async startUserReportReviewReminderCronJob(): Promise<void> {
+        const alertConfig = this.data.user_reports?.alert;
+        if (!alertConfig) return;
+
+        const channel = await this.guild.channels
+            .fetch(alertConfig.channel_id)
+            .catch(() => null);
+
+        const stringifiedData = JSON.stringify(alertConfig);
+
+        if (!channel) {
+            Logger.error(`Failed to mount user report review reminders, unknown channel: ${stringifiedData}`);
+            return;
+        }
+
+        if (!channel.isTextBased()) {
+            Logger.error(`Failed to mount user report review reminders, channel is not text-based: ${stringifiedData}`);
+            return;
+        }
+
+        const getAlertEmbed = (unresolvedReportCount: number): EmbedBuilder => new EmbedBuilder()
+            .setColor(Colors.Red)
+            .setTitle("User Report Review Reminder")
+            .setDescription(`There are currently \`${unresolvedReportCount}\` unresolved user reports`)
+            .setFooter({ text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved user reports` });
+
+        // Start the cron job for the alert
+        startCronJob("USER_REPORT_REVIEW_REMINDER", alertConfig.cron, async () => {
+            const unresolvedReportCount = await prisma.userReport.count({
+                where: {
+                    status: UserReportStatus.Unresolved
                 }
             });
 
@@ -267,7 +384,6 @@ export default class GuildConfig {
             }
         });
     }
-
     /**
      * **All** of the following conditions must be met:
      *
