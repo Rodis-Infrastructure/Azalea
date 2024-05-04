@@ -19,7 +19,7 @@ import ConfigManager from "@managers/config/ConfigManager";
 export default class ReportUser extends Command<UserContextMenuCommandInteraction<"cached">> {
     constructor() {
         super({
-            name: "Report User",
+            name: "Report user",
             type: ApplicationCommandType.User,
             defaultMemberPermissions: [PermissionFlagsBits.AddReactions]
         });

@@ -2,10 +2,12 @@ import {
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
-    channelMention, Colors,
+    channelMention,
+    Colors,
     EmbedBuilder,
     GuildTextBasedChannel,
-    ModalSubmitInteraction, roleMention,
+    ModalSubmitInteraction,
+    roleMention,
     userMention
 } from "discord.js";
 
@@ -13,11 +15,11 @@ import { InteractionReplyData } from "@utils/types";
 import { userMentionWithId } from "@/utils";
 import { UserReportStatus } from "@utils/reports";
 import { prisma } from "./..";
+import { log } from "@utils/logging";
+import { LoggingEvent } from "@managers/config/schema";
 
 import Component from "@managers/components/Component";
 import ConfigManager from "@managers/config/ConfigManager";
-import { log } from "@utils/logging";
-import { LoggingEvent } from "@managers/config/schema";
 import GuildConfig from "@managers/config/GuildConfig";
 
 export default class ReportUser extends Component {
@@ -27,9 +29,18 @@ export default class ReportUser extends Component {
     }
 
     async execute(interaction: ModalSubmitInteraction<"cached">): Promise<InteractionReplyData> {
+        const reason = interaction.fields.getTextInputValue("reason");
+
+        // Check if the reason is made up of at least one word character
+        if (!reason.match(/\w/g)) {
+            return {
+                content: "Please provide a valid reason for reporting the user.",
+                ephemeral: true
+            };
+        }
+
         const targetId = interaction.customId.split("-")[2];
         const reportExists = interaction.customId.split("-")[3] === "true";
-        const reason = interaction.fields.getTextInputValue("reason");
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
         // The existence of the user_reports key is checked before prompting the modal
