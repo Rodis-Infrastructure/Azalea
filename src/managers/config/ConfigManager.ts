@@ -42,6 +42,8 @@ export default class ConfigManager {
                 process.exit(1);
             });
 
+            if (!config) continue;
+
             // Validate the config and cache it
             ConfigManager.addGuildConfig(guildId, config);
 

@@ -20,12 +20,17 @@ export default class GuildConfig {
      * @param data - The raw config data
      * @returns Parsed instance of the guild's configuration
      */
-    static async from(guildId: Snowflake, data: unknown): Promise<GuildConfig> {
-        const config = GuildConfig.parse(guildId, data);
-        const guild = await client.guilds.fetch(guildId).catch(() => {
-            throw new Error("Failed to load config, unknown guild ID");
-        });
+    static async from(guildId: Snowflake, data: unknown): Promise<GuildConfig | null> {
+        const guild = await client.guilds
+            .fetch(guildId)
+            .catch(() => null);
 
+        if (!guild) {
+            Logger.warn(`GUILD_CONFIG: ${guildId} | Failed to fetch guild`);
+            return null;
+        }
+
+        const config = GuildConfig.parse(guildId, data);
         return new GuildConfig(config, guild);
     }
 
