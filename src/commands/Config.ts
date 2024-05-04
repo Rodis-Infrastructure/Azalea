@@ -5,6 +5,7 @@ import { Snowflake } from "discord-api-types/v10";
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import YAML from "yaml";
+import path from "path";
 
 /**
  * Displays the global or guild configuration in a YAML file.
@@ -82,11 +83,12 @@ export default class Config extends Command<ChatInputCommandInteraction<"cached"
             return "This guild doesn't have a configuration.";
         }
 
+        const fullPath = path.resolve(`configs/${guildConfig.guild.id}.yml`);
         const stringifiedConfig = YAML.stringify(guildConfig.data);
         const buffer = Buffer.from(stringifiedConfig);
 
         const file = new AttachmentBuilder(buffer, {
-            name: `${guildConfig.guild.id}.cfg.yml`
+            name: fullPath
         });
 
         return { files: [file] };
