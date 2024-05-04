@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, PermissionFlagsBits } from "discord.js";
+import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
@@ -20,7 +20,6 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
         super({
             name: "note",
             description: "Add a note to a user's infraction history",
-            defaultMemberPermissions: [PermissionFlagsBits.ModerateMembers],
             options: [
                 {
                     name: "user",

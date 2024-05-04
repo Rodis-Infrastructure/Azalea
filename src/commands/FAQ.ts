@@ -1,8 +1,7 @@
 import {
     ApplicationCommandOptionChoiceData,
     ApplicationCommandOptionType,
-    ChatInputCommandInteraction,
-    PermissionFlagsBits
+    ChatInputCommandInteraction
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
@@ -17,7 +16,6 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
         super(config, {
             name: "faq",
             description: "Send quick responses",
-            defaultMemberPermissions: [PermissionFlagsBits.ManageMessages],
             options: [{
                 name: "query",
                 description: "The response to send",

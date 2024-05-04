@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, PermissionFlagsBits } from "discord.js";
+import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
@@ -21,7 +21,6 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
         super({
             name: "kick",
             description: "Kick a member from the server",
-            defaultMemberPermissions: [PermissionFlagsBits.KickMembers],
             options: [
                 {
                     name: "member",

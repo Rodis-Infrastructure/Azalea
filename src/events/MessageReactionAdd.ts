@@ -1,6 +1,7 @@
 import {
     ActionRowBuilder,
-    ButtonBuilder, Colors,
+    ButtonBuilder,
+    Colors,
     EmbedBuilder,
     Events,
     GuildEmoji,
@@ -17,7 +18,8 @@ import {
 } from "discord.js";
 
 import {
-    formatMessageContentForLog, formatMessageLogEntry,
+    formatMessageContentForLog,
+    formatMessageLogEntry,
     prepareMessageForStorage,
     prependReferenceLog,
     resolvePartialMessage
@@ -27,11 +29,11 @@ import { handleQuickMute } from "@/commands/QuickMute30Ctx";
 import { log, mapLogEntriesToFile } from "@utils/logging";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { cropLines, pluralize, userMentionWithId } from "@/utils";
-import { Snowflake, ButtonStyle } from "discord-api-types/v10";
+import { ButtonStyle, Snowflake } from "discord-api-types/v10";
 import { approveModerationRequest, denyModerationRequest } from "@utils/requests";
 import { prisma } from "./..";
 import { MessageReportFlag, MessageReportStatus } from "@utils/reports";
-import { LoggingEvent } from "@managers/config/schema";
+import { LoggingEvent, Permission } from "@managers/config/schema";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -67,7 +69,7 @@ export default class MessageReactionAdd extends EventListener {
         if (!config.data.emojis || !emojiId) return;
 
         // Handle a 30-minute quick mute
-        if (emojiId === config.data.emojis.quick_mute_30) {
+        if (emojiId === config.data.emojis.quick_mute_30 && config.hasPermission(executor, Permission.QuickMute)) {
             await MessageReactionAdd._quickMute({
                 duration: MuteDuration.Short,
                 targetMessage: message,
@@ -78,7 +80,7 @@ export default class MessageReactionAdd extends EventListener {
         }
 
         // Handle a one-hour quick mute
-        if (emojiId === config.data.emojis.quick_mute_60) {
+        if (emojiId === config.data.emojis.quick_mute_60 && config.hasPermission(executor, Permission.QuickMute)) {
             await MessageReactionAdd._quickMute({
                 targetMessage: message,
                 duration: MuteDuration.Long,
@@ -89,25 +91,30 @@ export default class MessageReactionAdd extends EventListener {
         }
 
         // Handle message purging
-        if (emojiId === config.data.emojis.purge_messages) {
+        if (emojiId === config.data.emojis.purge_messages && config.hasPermission(executor, Permission.PurgeMessages)) {
             await MessageReactionAdd._purgeUser(message, user.id, config);
             return;
         }
 
+        // Handle message reports
+        if (emojiId === config.data.emojis.report_message && config.hasPermission(executor, Permission.ReportMessages)) {
+            await MessageReactionAdd.createMessageReport(user.id, message, config);
+        }
+
+        const isModerationRequestChannel = config.data.moderation_requests
+            .some(requestConfig => requestConfig.channel_id === message.channelId);
+
         // Handle moderation request approvals
-        if (emojiId === config.data.emojis.approve) {
+        // Permission checks are performed in approval function
+        if (isModerationRequestChannel && emojiId === config.data.emojis.approve) {
             await approveModerationRequest(message.id, user.id, config);
             return;
         }
 
         // Handle moderation request denials
-        if (emojiId === config.data.emojis.deny) {
+        // Permission checks are performed in denial function
+        if (isModerationRequestChannel && emojiId === config.data.emojis.deny) {
             await denyModerationRequest(message, user.id, config);
-        }
-
-        // Handle message reports
-        if (emojiId === config.data.emojis.report_message && !message.author.bot) {
-            await MessageReactionAdd.createMessageReport(user.id, message, config);
         }
     }
 
@@ -119,7 +126,7 @@ export default class MessageReactionAdd extends EventListener {
         const isExcluded = message.member?.roles.cache.some(role => excludedRoles.includes(role.id));
 
         // Don't report messages from users with excluded roles
-        if (isExcluded) return;
+        if (isExcluded || message.author.bot) return;
 
         const alertChannel = await config.guild.channels.fetch(config.data.message_reports.report_channel);
 

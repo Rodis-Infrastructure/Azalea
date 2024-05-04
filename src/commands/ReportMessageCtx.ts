@@ -1,4 +1,4 @@
-import { ApplicationCommandType, MessageContextMenuCommandInteraction, PermissionFlagsBits } from "discord.js";
+import { ApplicationCommandType, MessageContextMenuCommandInteraction } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
 
 import Command from "@managers/commands/Command";
@@ -9,8 +9,7 @@ export default class ReportMessageCtx extends Command<MessageContextMenuCommandI
     constructor() {
         super({
             name: "Report message",
-            type: ApplicationCommandType.Message,
-            defaultMemberPermissions: [PermissionFlagsBits.AddReactions]
+            type: ApplicationCommandType.Message
         });
     }
 

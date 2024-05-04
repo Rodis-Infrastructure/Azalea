@@ -1,9 +1,4 @@
-import {
-    ApplicationCommandType,
-    PermissionFlagsBits,
-    UserContextMenuCommandInteraction
-} from "discord.js";
-
+import { ApplicationCommandType, UserContextMenuCommandInteraction } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
 import { pluralize } from "@/utils";
 
@@ -15,8 +10,7 @@ export default class PurgeCtx extends Command<UserContextMenuCommandInteraction<
     constructor() {
         super({
             name: "Purge messages",
-            type: ApplicationCommandType.User,
-            defaultMemberPermissions: [PermissionFlagsBits.ManageMessages]
+            type: ApplicationCommandType.User
         });
     }
 

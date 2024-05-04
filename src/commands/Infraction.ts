@@ -9,7 +9,6 @@ import {
     Colors,
     EmbedBuilder,
     GuildMember,
-    PermissionFlagsBits,
     Snowflake,
     time,
     TimestampStyles,
@@ -55,7 +54,6 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         super({
             name: "infraction",
             description: "Manage a user's infractions",
-            defaultMemberPermissions: [PermissionFlagsBits.ModerateMembers],
             options: [
                 {
                     name: InfractionSubcommand.Search,

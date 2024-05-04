@@ -1,4 +1,4 @@
-import { ApplicationCommandType, PermissionFlagsBits, UserContextMenuCommandInteraction } from "discord.js";
+import { ApplicationCommandType, UserContextMenuCommandInteraction } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
 
 import Command from "@managers/commands/Command";
@@ -9,8 +9,7 @@ export default class UserInfoCtx extends Command<UserContextMenuCommandInteracti
     constructor() {
         super({
             name: "User info",
-            type: ApplicationCommandType.User,
-            defaultMemberPermissions: [PermissionFlagsBits.ModerateMembers]
+            type: ApplicationCommandType.User
         });
     }
 

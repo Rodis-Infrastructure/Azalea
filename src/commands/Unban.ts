@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, PermissionFlagsBits } from "discord.js";
+import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
@@ -11,7 +11,6 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
         super({
             name: "unban",
             description: "Unban a user from the server",
-            defaultMemberPermissions: [PermissionFlagsBits.BanMembers],
             options: [
                 {
                     name: "user",

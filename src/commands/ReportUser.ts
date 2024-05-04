@@ -2,7 +2,6 @@ import {
     ActionRowBuilder,
     ApplicationCommandType,
     ModalBuilder,
-    PermissionFlagsBits,
     TextInputBuilder,
     TextInputStyle,
     UserContextMenuCommandInteraction
@@ -20,8 +19,7 @@ export default class ReportUser extends Command<UserContextMenuCommandInteractio
     constructor() {
         super({
             name: "Report user",
-            type: ApplicationCommandType.User,
-            defaultMemberPermissions: [PermissionFlagsBits.AddReactions]
+            type: ApplicationCommandType.User
         });
     }
 

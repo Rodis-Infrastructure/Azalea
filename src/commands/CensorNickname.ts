@@ -3,8 +3,7 @@ import {
     ChatInputCommandInteraction,
     Colors,
     EmbedBuilder,
-    GuildMember,
-    PermissionFlagsBits
+    GuildMember
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
@@ -33,7 +32,6 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
         super({
             name: "censor",
             description: "Censors a member's nickname",
-            defaultMemberPermissions: [PermissionFlagsBits.ManageNicknames],
             options: [{
                 name: "nickname",
                 description: "Censors a member's nickname",

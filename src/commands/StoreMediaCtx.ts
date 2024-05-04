@@ -2,7 +2,6 @@ import {
     ApplicationCommandType,
     Attachment,
     MessageContextMenuCommandInteraction,
-    PermissionFlagsBits,
     Snowflake,
     userMention
 } from "discord.js";
@@ -22,8 +21,7 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
     constructor() {
         super({
             name: "Store media",
-            type: ApplicationCommandType.Message,
-            defaultMemberPermissions: [PermissionFlagsBits.ModerateMembers]
+            type: ApplicationCommandType.Message
         });
     }
 

@@ -13,26 +13,24 @@ import {
     User,
     Snowflake,
     GuildTextBasedChannel,
-    InteractionReplyOptions,
-    PermissionFlagsBits
+    InteractionReplyOptions
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
 import { BLANK_EMBED_FIELD, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { prisma } from "./..";
 import { Permission, UserFlag } from "@managers/config/schema";
+import { Action } from "@utils/infractions";
 
 import Command from "@managers/commands/Command";
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
-import { Action } from "@utils/infractions";
 
 export default class UserInfo extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
         super({
             name: "user-info",
             description: "Get information about a user",
-            defaultMemberPermissions: [PermissionFlagsBits.ModerateMembers],
             options: [{
                 name: "user",
                 type: ApplicationCommandOptionType.User,

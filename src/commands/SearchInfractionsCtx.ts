@@ -1,4 +1,4 @@
-import { ApplicationCommandType, PermissionFlagsBits, UserContextMenuCommandInteraction } from "discord.js";
+import { ApplicationCommandType, UserContextMenuCommandInteraction } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
 
 import Infraction, { InfractionSearchFilter } from "./Infraction";
@@ -8,8 +8,7 @@ export default class SearchInfractionsCtx extends Command<UserContextMenuCommand
     constructor() {
         super({
             name: "Search infractions",
-            type: ApplicationCommandType.User,
-            defaultMemberPermissions: [PermissionFlagsBits.ModerateMembers]
+            type: ApplicationCommandType.User
         });
     }
 

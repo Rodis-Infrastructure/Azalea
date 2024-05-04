@@ -126,7 +126,13 @@ export enum Permission {
      * Grants access to viewing the moderation activity of
      * users with the {@link Permission#ViewInfractions} permission
      */
-    ViewModerationActivity = "view_moderation_activity"
+    ViewModerationActivity = "view_moderation_activity",
+    // Grants access to purging messages using a reaction
+    PurgeMessages = "purge_messages",
+    // Grants access to quick muting users using reactions
+    QuickMute = "quick_mute",
+    // Grants access to reporting messages using a reaction
+    ReportMessages = "report_messages",
 }
 
 const permissionEnum = z.nativeEnum(Permission);
@@ -270,6 +276,12 @@ const roleRequestsSchema = z.object({
     roles: z.array(requestedRoleSchema).nonempty()
 });
 
+const mediaChannelSchema = z.object({
+    channel_id: snowflakeSchema,
+    allowed_roles: z.array(snowflakeSchema).min(1).optional(),
+    fallback_response: messageContentSchema.optional()
+});
+
 // Guild config schema exported for validation
 export const rawGuildConfigSchema = z.object({
     logging: loggingSchema.default(defaultLogging),
@@ -283,7 +295,7 @@ export const rawGuildConfigSchema = z.object({
     // Flags displayed in the user info message
     user_flags: z.array(userFlagSchema).max(18).default([]),
     // Channels that require messages to have an attachment
-    media_channels: z.array(snowflakeSchema).default([]),
+    media_channels: z.array(mediaChannelSchema).default([]),
     permissions: z.array(permissionsSchema).default([]),
     message_reports: reportSchema.optional(),
     user_reports: reportSchema.optional(),
