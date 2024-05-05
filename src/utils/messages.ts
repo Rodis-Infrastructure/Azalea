@@ -322,10 +322,10 @@ export async function temporaryReply(message: DiscordMessage, content: string, t
         // Only allow the replied user to be mentioned
         allowedMentions: { parse: [], repliedUser: true },
         content
-    });
+    }).catch(() => null);
 
-    setTimeout(async () => {
-        await reply.delete().catch(() => null);
+    setTimeout(() => {
+        reply?.delete().catch(() => null);
     }, ttl);
 }
 
