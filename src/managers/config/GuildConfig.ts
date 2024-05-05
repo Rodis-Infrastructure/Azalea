@@ -109,9 +109,13 @@ export default class GuildConfig {
 
             const getAlertEmbed = (unresolvedRequestCount: number, oldestRequestUrl: string): EmbedBuilder => new EmbedBuilder()
                 .setColor(Colors.Red)
-                .setTitle("Unreviewed Request Alert")
+                .setTitle("Request Review Reminder")
                 .setDescription(`There are currently \`${unresolvedRequestCount}\` unresolved ${request.type} requests starting from ${oldestRequestUrl}`)
                 .setFooter({ text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved ${request.type} requests` });
+
+            const mentionedRoles = alertConfig.mentioned_roles
+                .map(roleMention)
+                .join(" ") || "";
 
             const monitorSlug = `${request.type.toUpperCase()}_REQUEST_REVIEW_REMINDER`;
 
@@ -139,16 +143,16 @@ export default class GuildConfig {
 
                 const [oldestRequest] = unresolvedRequests;
                 const oldestRequestUrl = messageLink(request.channel_id, oldestRequest.id, this.guild.id);
-                const alert = getAlertEmbed(unresolvedRequests.length, oldestRequestUrl);
+                const embeds = [];
 
-                const mentionedRoles = alertConfig.mentioned_roles
-                    .map(roleMention)
-                    .join(" ");
+                if (alertConfig.embed) {
+                    embeds.push(getAlertEmbed(unresolvedRequests.length, oldestRequestUrl));
+                }
 
                 // Send the alert to the channel
                 channel.send({
-                    content: mentionedRoles || undefined,
-                    embeds: [alert]
+                    content: `${mentionedRoles} Pending ${request.type} requests`,
+                    embeds
                 });
             });
         }
@@ -180,6 +184,10 @@ export default class GuildConfig {
             .setDescription(`There are currently \`${unresolvedReportCount}\` unresolved message reports`)
             .setFooter({ text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved message reports` });
 
+        const mentionedRoles = alertConfig.mentioned_roles
+            .map(roleMention)
+            .join(" ") || "";
+
         // Start the cron job for the alert
         startCronJob("MESSAGE_REPORT_REVIEW_REMINDER", alertConfig.cron, async () => {
             const unresolvedReportCount = await prisma.messageReport.count({
@@ -197,16 +205,16 @@ export default class GuildConfig {
             }
 
             Logger.info("Count exceeds the threshold, sending reminder");
+            const embeds = [];
 
-            const alert = getAlertEmbed(unresolvedReportCount);
-            const mentionedRoles = alertConfig.mentioned_roles
-                .map(roleMention)
-                .join(" ");
+            if (alertConfig.embed) {
+                embeds.push(getAlertEmbed(unresolvedReportCount));
+            }
 
             // Send the alert to the channel
             channel.send({
-                content: mentionedRoles || undefined,
-                embeds: [alert]
+                content: `${mentionedRoles} Pending message reports`,
+                embeds
             });
         });
     }
@@ -298,6 +306,10 @@ export default class GuildConfig {
             .setDescription(`There are currently \`${unresolvedReportCount}\` unresolved user reports`)
             .setFooter({ text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved user reports` });
 
+        const mentionedRoles = alertConfig.mentioned_roles
+            .map(roleMention)
+            .join(" ") || "";
+
         // Start the cron job for the alert
         startCronJob("USER_REPORT_REVIEW_REMINDER", alertConfig.cron, async () => {
             const unresolvedReportCount = await prisma.userReport.count({
@@ -315,16 +327,16 @@ export default class GuildConfig {
             }
 
             Logger.info("Count exceeds the threshold, sending reminder");
+            const embeds = [];
 
-            const alert = getAlertEmbed(unresolvedReportCount);
-            const mentionedRoles = alertConfig.mentioned_roles
-                .map(roleMention)
-                .join(" ");
+            if (alertConfig.embed) {
+                embeds.push(getAlertEmbed(unresolvedReportCount));
+            }
 
             // Send the alert to the channel
             channel.send({
-                content: mentionedRoles || undefined,
-                embeds: [alert]
+                content: `${mentionedRoles} Pending user reports`,
+                embeds
             });
         });
     }

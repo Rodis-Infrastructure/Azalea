@@ -161,11 +161,15 @@ const alertSchema = z.object({
     channel_id: snowflakeSchema,
     // Cron expression for when to send the alert
     cron: cronSchema,
+    // Whether the alert should contain an embed
+    embed: z.boolean().default(true),
     // Number of unreviewed items required to trigger an alert
     count_threshold: z.number().min(1),
     // Role(s) mentioned in the alert
     mentioned_roles: z.array(snowflakeSchema).max(100).default([])
 });
+
+export type Alert = z.infer<typeof alertSchema>;
 
 const userFlagSchema = z.object({
     // The name of the flag
