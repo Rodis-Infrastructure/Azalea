@@ -60,7 +60,7 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
 
         // Prepend the mention to the response content
         response.content = mention
-            ? `${mention} ${response.content}`
+            ? `${mention} ${response.content || ""}`
             : response.content;
 
         return {
