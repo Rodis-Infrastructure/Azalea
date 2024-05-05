@@ -38,8 +38,15 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
             };
         }
 
+        if (typeof response === "string") {
+            return {
+                content: response,
+                ephemeral: false
+            };
+        }
+
         return {
-            content: response,
+            ...response,
             ephemeral: false
         };
     }
