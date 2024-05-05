@@ -16,20 +16,28 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
         super(config, {
             name: "faq",
             description: "Send quick responses",
-            options: [{
-                name: "query",
-                description: "The response to send",
-                type: ApplicationCommandOptionType.String,
-                choices: FAQ._getChoices(config),
-                required: true
-            }]
+            options: [
+                {
+                    name: "query",
+                    description: "The response to send",
+                    type: ApplicationCommandOptionType.String,
+                    choices: FAQ._getChoices(config),
+                    required: true
+                },
+                {
+                    name: "mention",
+                    description: "The user to mention in the response",
+                    type: ApplicationCommandOptionType.User
+                }
+            ]
         });
     }
 
     execute(interaction: ChatInputCommandInteraction<"cached">): InteractionReplyData {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const choice = interaction.options.getString("query", true);
-        const response = config.getQuickResponse(choice);
+        const mention = interaction.options.getUser("mention");
+        let response = config.getQuickResponse(choice);
 
         if (!response) {
             return {
@@ -39,11 +47,21 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
         }
 
         if (typeof response === "string") {
+            // Prepend the mention to the response
+            response = mention
+                ? `${mention} ${response}`
+                : response;
+
             return {
                 content: response,
                 ephemeral: false
             };
         }
+
+        // Prepend the mention to the response content
+        response.content = mention
+            ? `${mention} ${response.content}`
+            : response.content;
 
         return {
             ...response,
