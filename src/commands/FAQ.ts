@@ -1,7 +1,7 @@
 import {
     ApplicationCommandOptionChoiceData,
     ApplicationCommandOptionType,
-    ChatInputCommandInteraction
+    ChatInputCommandInteraction, User
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
@@ -37,7 +37,7 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const choice = interaction.options.getString("query", true);
         const mention = interaction.options.getUser("mention");
-        let response = config.getQuickResponse(choice);
+        const response = config.getQuickResponse(choice);
 
         if (!response) {
             return {
@@ -46,27 +46,7 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
             };
         }
 
-        if (typeof response === "string") {
-            // Prepend the mention to the response
-            response = mention
-                ? `${mention} ${response}`
-                : response;
-
-            return {
-                content: response,
-                ephemeral: false
-            };
-        }
-
-        // Prepend the mention to the response content
-        response.content = mention
-            ? `${mention} ${response.content || ""}`
-            : response.content;
-
-        return {
-            ...response,
-            ephemeral: false
-        };
+        return FAQ._parseResponse(response, mention);
     }
 
     /**
@@ -83,5 +63,31 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
         }));
 
         return choices.length ? choices : undefined;
+    }
+
+    private static _parseResponse(response: Exclude<InteractionReplyData, null>, mention: User | null): InteractionReplyData {
+        if (typeof response === "string") {
+            // Prepend the mention to the response
+            response = mention
+                ? `${mention} ${response}`
+                : response;
+
+            return {
+                content: response,
+                allowedMentions: { parse: ["users"] },
+                ephemeral: false
+            };
+        }
+
+        // Prepend the mention to the response content
+        response.content = mention
+            ? `${mention} ${response.content || ""}`
+            : response.content;
+
+        return {
+            ...response,
+            allowedMentions: { parse: ["users"] },
+            ephemeral: false
+        };
     }
 }
