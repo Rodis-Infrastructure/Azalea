@@ -31,7 +31,7 @@ export default class VoiceStateUpdate extends EventListener {
         channel: VoiceBasedChannel,
         config: GuildConfig
     ): void {
-        let event!: LoggingEvent.VoiceJoin | LoggingEvent.VoiceLeave | LoggingEvent.VoiceSwitch;
+        let event!: LoggingEvent.VoiceJoin | LoggingEvent.VoiceLeave | LoggingEvent.VoiceMove;
         let embed!: EmbedBuilder;
 
         // User joined a voice channel
@@ -48,8 +48,8 @@ export default class VoiceStateUpdate extends EventListener {
 
         // User switched voice channels
         if (oldState.channelId && newState.channelId) {
-            event = LoggingEvent.VoiceSwitch;
-            embed = VoiceStateUpdate._getVoiceSwitchLogEmbed(oldState, newState);
+            event = LoggingEvent.VoiceMove;
+            embed = VoiceStateUpdate._getVoiceMoveLogEmbed(oldState, newState);
         }
 
         log({
@@ -96,7 +96,7 @@ export default class VoiceStateUpdate extends EventListener {
             .setTimestamp();
     }
 
-    private static _getVoiceSwitchLogEmbed(oldState: VoiceState, newState: VoiceState): EmbedBuilder {
+    private static _getVoiceMoveLogEmbed(oldState: VoiceState, newState: VoiceState): EmbedBuilder {
         return new EmbedBuilder()
             .setColor(Colors.Yellow)
             .setAuthor({ name: "Voice Switch" })

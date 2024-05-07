@@ -77,7 +77,7 @@ export enum LoggingEvent {
     InteractionCreate = "interaction_create",
     VoiceJoin = "voice_join",
     VoiceLeave = "voice_leave",
-    VoiceSwitch = "voice_switch",
+    VoiceMove = "voice_move",
     ThreadCreate = "thread_create",
     ThreadDelete = "thread_delete",
     ThreadUpdate = "thread_update",

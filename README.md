@@ -67,7 +67,7 @@ logging:
   * `interaction_create` - Interaction usage 
   * `voice_join` - Joining a voice channel
   * `voice_leave` - Leaving a voice channel
-  * `voice_switch` - Moving from one voice channel to another
+  * `voice_move` - Moving from one voice channel to another
   * `thread_create` - Thread creation
   * `thread_delete` - Thread deletion
   * `thread_update` - Modifying a thread's data
