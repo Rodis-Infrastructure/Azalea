@@ -88,11 +88,11 @@ export default class ReportUser extends Component {
             .setFields([
                 {
                     name: "Reported By",
-                    value: userMentionWithId(targetId)
+                    value: userMentionWithId(interaction.user.id)
                 },
                 {
                     name: "Target",
-                    value: userMentionWithId(interaction.user.id)
+                    value: userMentionWithId(targetId)
                 },
                 {
                     name: "Reason",
