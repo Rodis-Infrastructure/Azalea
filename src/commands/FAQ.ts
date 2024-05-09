@@ -67,25 +67,16 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
 
     private static _parseResponse(response: Exclude<InteractionReplyData, null>, mention: User | null): InteractionReplyData {
         if (typeof response === "string") {
-            // Prepend the mention to the response
-            response = mention
-                ? `${mention} ${response}`
-                : response;
-
             return {
-                content: response,
+                content: mention ? `${mention} ${response}` : response,
                 allowedMentions: { parse: ["users"] },
                 ephemeral: false
             };
         }
 
-        // Prepend the mention to the response content
-        response.content = mention
-            ? `${mention} ${response.content || ""}`
-            : response.content;
-
         return {
             ...response,
+            content: mention ? `${mention} ${response.content}` : response.content,
             allowedMentions: { parse: ["users"] },
             ephemeral: false
         };
