@@ -15,7 +15,7 @@ import { UserReportStatus } from "@utils/reports";
 import Command from "@managers/commands/Command";
 import ConfigManager from "@managers/config/ConfigManager";
 
-export default class ReportUser extends Command<UserContextMenuCommandInteraction<"cached">> {
+export default class ReportUserCtx extends Command<UserContextMenuCommandInteraction<"cached">> {
     constructor() {
         super({
             name: "Report user",
