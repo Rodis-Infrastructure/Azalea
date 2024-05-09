@@ -63,17 +63,20 @@ export default class MessageCreate extends EventListener {
             message.react(emoji).catch(() => null);
         }
 
-        const hasAttachments = message.attachments.size > 0;
         const mediaChannel = config.data.media_channels
             .find(mediaChannel => mediaChannel.channel_id === message.channel.id);
 
         // Remove message if it doesn't have an attachment in a media channel
-        if (mediaChannel && !hasAttachments) {
+        if (mediaChannel) {
+            const hasAttachments = message.attachments.size > 0 || message.content.includes("://");
             const canPostInMediaChannel = !mediaChannel.allowed_roles || mediaChannel.allowed_roles
                 .some(roleId => message.member?.roles.cache.has(roleId));
 
-            if (!canPostInMediaChannel) {
-                const response = mediaChannel.fallback_response ?? "This is a media-only channel, please include an attachment in your message.";
+            if (!hasAttachments) {
+                await temporaryReply(message, "This is a media-only channel, please include an attachment in your message.", config.data.response_ttl);
+                message.delete().catch(() => null);
+            } else if (!canPostInMediaChannel) {
+                const response = mediaChannel.fallback_response ?? "You do not have permission to post in this channel.";
                 await temporaryReply(message, response, config.data.response_ttl);
                 message.delete().catch(() => null);
             }
