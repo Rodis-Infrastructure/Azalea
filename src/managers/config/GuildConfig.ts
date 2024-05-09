@@ -423,8 +423,7 @@ export default class GuildConfig {
             channelData.categoryId = channel.parent.parentId;
         }
 
-        return this.channelIsIncludedInScope(channelData, scoping)
-            || (scoping.exclude_channels.length > 0 && !this.channelIsExcludedFromScope(channelData, scoping));
+        return this.channelIsIncludedInScope(channelData, scoping) && !this.channelIsExcludedFromScope(channelData, scoping);
     }
 
     /**
@@ -453,7 +452,7 @@ export default class GuildConfig {
     private channelIsIncludedInScope(channelData: ChannelScopingParams, scoping: ChannelScoping): boolean {
         const { channelId, threadId, categoryId } = channelData;
 
-        return scoping.include_channels.length === 0
+        return !scoping.include_channels.length
             || scoping.include_channels.includes(channelId)
             || (threadId !== null && scoping.include_channels.includes(threadId))
             || (categoryId !== null && scoping.include_channels.includes(categoryId));
