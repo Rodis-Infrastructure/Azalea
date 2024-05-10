@@ -16,7 +16,7 @@ export default class SearchInfractionsCtx extends Command<UserContextMenuCommand
         return Infraction.search({
             user: interaction.targetUser,
             guildId: interaction.guildId,
-            filter: InfractionSearchFilter.Manual,
+            filter: InfractionSearchFilter.All,
             page: 1
         });
     }
