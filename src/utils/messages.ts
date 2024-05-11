@@ -77,22 +77,22 @@ export class Messages {
      * @param limit - The maximum number of messages to return
      */
     static async deleteMessagesByUser(userId: Snowflake, channelId: Snowflake, limit: number): Promise<Message[]> {
-        // Get cached non-deleted messages by the specified user in the specified channel
-        const cachedMessages = this.dbQueue
-            .filter(message =>
-                message.author_id === userId &&
-                message.channel_id === channelId &&
-                !message.deleted
-            );
-
         const messages = [];
 
-        for (const message of cachedMessages.values()) {
-            if (messages.length === limit) break;
+        for (const message of Messages.dbQueue.values()) {
+            if (
+                message.author_id !== userId ||
+                message.channel_id !== channelId ||
+                messages.length === limit ||
+                message.deleted
+            ) break;
 
             message.deleted = true;
             messages.push(message);
         }
+
+        console.log("CACHED");
+        console.log(messages);
 
         // Fetch remaining messages from the database if an insufficient amount was cached
         if (messages.length < limit) {
@@ -107,8 +107,12 @@ export class Messages {
                         AND deleted = false
                     ORDER BY created_at DESC
                     LIMIT ${limit - messages.length}
-                );
+                )
+                RETURNING *;
             `;
+
+            console.log("STORED");
+            console.log(stored);
 
             // Combined cached and stored messages
             return messages.concat(stored);
