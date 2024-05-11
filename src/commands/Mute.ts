@@ -15,7 +15,7 @@ import Command from "@managers/commands/Command";
 import ms from "ms";
 
 // Constants
-const ONE_WEEK = 1000 * 60 * 60 * 24 * 7;
+const ONE_MONTH = 1000 * 60 * 60 * 24 * 28;
 const DURATION_FORMAT = /^(\d+ *(days?|h(ou)?rs?|min(utes?)?|[mhd]) *)+$/gmi;
 
 /**
@@ -91,7 +91,7 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         let msDuration = ms(duration);
 
         // Set the duration to 1 week if it exceeds that
-        if (msDuration > ONE_WEEK) msDuration = ONE_WEEK;
+        if (msDuration > ONE_MONTH) msDuration = ONE_MONTH;
         if (msDuration <= 0) return "Invalid duration. Please use a duration greater than `0`";
 
         // Mute the member
