@@ -8,14 +8,13 @@ import {
 
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
-import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
+import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON, MAX_MUTE_DURATION } from "@utils/constants";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import ms from "ms";
 
 // Constants
-const ONE_MONTH = 1000 * 60 * 60 * 24 * 28;
 const DURATION_FORMAT = /^(\d+ *(days?|h(ou)?rs?|min(utes?)?|[mhd]) *)+$/gmi;
 
 /**
@@ -91,7 +90,7 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         let msDuration = ms(duration);
 
         // Set the duration to 1 week if it exceeds that
-        if (msDuration > ONE_MONTH) msDuration = ONE_MONTH;
+        if (msDuration > MAX_MUTE_DURATION) msDuration = MAX_MUTE_DURATION;
         if (msDuration <= 0) return "Invalid duration. Please use a duration greater than `0`";
 
         // Mute the member
