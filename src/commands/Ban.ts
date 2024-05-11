@@ -7,7 +7,7 @@ import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 
 // Constants
-const DEFAULT_DELETE_MESSAGE_SECONDS = 1000 * 60 * 60 * 24 * 7;
+const DEFAULT_DELETE_MESSAGE_SECONDS = 604800;
 
 /**
  * Bans a user from the server.
