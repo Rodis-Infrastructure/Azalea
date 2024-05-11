@@ -27,12 +27,16 @@ export default class MessageCreate extends EventListener {
 
     async execute(newMessage: PartialMessage | Message): Promise<void> {
         const message = await resolvePartialMessage(newMessage);
-        if (!message || message.author.bot) return;
-
-        Messages.set(message);
+        if (!message) return;
 
         const config = ConfigManager.getGuildConfig(message.guild.id);
         if (!config) return;
+
+        // Source channel conditions are handled within the function
+        handleModerationRequest(message, config);
+
+        if (message.author.bot) return;
+        Messages.set(message);
 
         // Handle media conversion
         if (
@@ -85,9 +89,6 @@ export default class MessageCreate extends EventListener {
         if (config.data.role_requests?.channel_id === message.channel.id && message.mentions.users.size) {
             MessageCreate._createRoleRequest(message, config);
         }
-
-        // Source channel conditions are handled within the function
-        handleModerationRequest(message, config);
     }
 
     private static async _createRoleRequest(message: Message<true>, config: GuildConfig): Promise<void> {
