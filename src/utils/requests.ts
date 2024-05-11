@@ -177,6 +177,7 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
     const originalRequest = await prisma.moderationRequest.findFirst({
         select: { id: true },
         where: {
+            NOT: { id: request.id },
             target_id: matches.targetId,
             type: ModerationRequestType.Mute,
             guild_id: config.guild.id,
@@ -251,6 +252,7 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
     const originalRequest = await prisma.moderationRequest.findFirst({
         select: { id: true },
         where: {
+            NOT: { id: request.id },
             target_id: matches.targetId,
             type: ModerationRequestType.Ban,
             guild_id: config.guild.id,
