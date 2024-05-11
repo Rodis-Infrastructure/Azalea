@@ -12,13 +12,14 @@ import { Messages, resolvePartialMessage, temporaryReply } from "@utils/messages
 import { handleModerationRequest } from "@utils/requests";
 import { MediaStoreError } from "@utils/errors";
 import { pluralize, userMentionWithId } from "@/utils";
+import { RoleRequestNoteAction } from "@/components/RoleRequestNote";
+import { client } from "./..";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import Sentry from "@sentry/node";
 import StoreMediaCtx from "@/commands/StoreMediaCtx";
 import GuildConfig from "@managers/config/GuildConfig";
-import { RoleRequestNoteAction } from "@/components/RoleRequestNote";
 
 export default class MessageCreate extends EventListener {
     constructor() {
@@ -27,7 +28,7 @@ export default class MessageCreate extends EventListener {
 
     async execute(newMessage: PartialMessage | Message): Promise<void> {
         const message = await resolvePartialMessage(newMessage);
-        if (!message) return;
+        if (!message || message.author.id === client.user.id) return;
 
         const config = ConfigManager.getGuildConfig(message.guild.id);
         if (!config) return;
