@@ -21,8 +21,7 @@ import {
     formatMessageContentForLog,
     formatMessageLogEntry,
     prepareMessageForStorage,
-    prependReferenceLog,
-    resolvePartialMessage
+    prependReferenceLog
 } from "@utils/messages";
 
 import { handleQuickMute } from "@/commands/QuickMute30Ctx";
@@ -34,12 +33,12 @@ import { approveModerationRequest, denyModerationRequest } from "@utils/requests
 import { prisma } from "./..";
 import { MessageReportFlag, MessageReportStatus } from "@utils/reports";
 import { LoggingEvent, Permission } from "@managers/config/schema";
+import { MuteDuration } from "@utils/infractions";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import Purge from "@/commands/Purge";
-import { MuteDuration } from "@utils/infractions";
 
 export default class MessageReactionAdd extends EventListener {
     constructor() {
@@ -51,8 +50,9 @@ export default class MessageReactionAdd extends EventListener {
             ? await addedReaction.fetch()
             : addedReaction;
 
-        const message = await resolvePartialMessage(reaction.message);
-        if (!message) return;
+        const message = reaction.message.partial
+            ? await reaction.message.fetch() as Message<true>
+            : reaction.message as Message<true>;
 
         const config = ConfigManager.getGuildConfig(message.guildId);
         if (!config) return;
@@ -114,7 +114,7 @@ export default class MessageReactionAdd extends EventListener {
         // Handle moderation request denials
         // Permission checks are performed in denial function
         if (isModerationRequestChannel && emojiId === config.data.emojis.deny) {
-            await denyModerationRequest(message, user.id, config);
+            await denyModerationRequest(message.id, user.id, config);
         }
     }
 

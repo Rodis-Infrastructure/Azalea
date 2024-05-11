@@ -403,19 +403,20 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
 /**
  * Deny a moderation request.
  *
- * @param message - The request message.
+ * @param messageId - The request message.
  * @param reviewerId - The ID of the user denying the moderation request.
  * @param config - The guild configuration.
  */
-export async function denyModerationRequest(message: Message<true>, reviewerId: Snowflake, config: GuildConfig): Promise<void> {
+export async function denyModerationRequest(messageId: Snowflake, reviewerId: Snowflake, config: GuildConfig): Promise<void> {
     const request = await prisma.moderationRequest.update({
-        where: { id: message.id },
+        where: { id: messageId },
         data: { status: RequestStatus.Denied },
         select: {
             id: true,
             author_id: true,
             guild_id: true,
             target_id: true,
+            reason: true,
             type: true
         }
     }).catch(() => null);
@@ -428,7 +429,11 @@ export async function denyModerationRequest(message: Message<true>, reviewerId: 
     }
 
     const targetMention = userMention(request.target_id);
-    const requestLink = hyperlink("Your request", message.url);
+    const channelId = config.data.moderation_requests
+        .find(requestConfig => requestConfig.type === request.type)!.channel_id;
+
+    const url = messageLink(channelId, messageId, config.guild.id);
+    const requestLink = hyperlink("Your request", url);
 
     const handleModerationRequestDenyLog = (event: LoggingEvent, action: string): void => {
         const embed = new EmbedBuilder()
@@ -439,7 +444,7 @@ export async function denyModerationRequest(message: Message<true>, reviewerId: 
                 { name: "Reviewer", value: userMentionWithId(reviewerId) },
                 { name: "Request Author", value: userMentionWithId(request.author_id) },
                 { name: "Target", value: userMentionWithId(request.target_id) },
-                { name: "Request Content", value: message.content }
+                { name: "Request Content", value: request.reason }
             ])
             .setTimestamp();
 
@@ -493,7 +498,7 @@ export async function denyModerationRequest(message: Message<true>, reviewerId: 
         }
     }
 
-    config.sendNotification(`${message.author} ${requestLink} against ${targetMention} has been denied by ${reviewerMention}.`);
+    config.sendNotification(`${userMention(request.author_id)} ${requestLink} against ${targetMention} has been denied by ${reviewerMention}.`);
 }
 
 enum RequestStatus {
