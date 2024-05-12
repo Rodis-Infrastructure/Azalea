@@ -204,7 +204,9 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
                    SUM(action = ${Action.Note}) as note_count
             FROM Infraction
             WHERE target_id = ${userId}
-              AND guild_id = ${guildId};
+              AND guild_id = ${guildId}
+              AND archived_at IS NULL
+              AND archived_by IS NULL;
         `;
 
         embed.addFields({
@@ -233,7 +235,9 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
                    SUM(action = ${Action.Note}) as note_count
             FROM Infraction
             WHERE (executor_id = ${userId} or request_author_id = ${userId})
-              AND guild_id = ${guildId};
+              AND guild_id = ${guildId}
+              AND archived_at IS NULL
+              AND archived_by IS NULL;
         `;
 
         embed.addFields({
