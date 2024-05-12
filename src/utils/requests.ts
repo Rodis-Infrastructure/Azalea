@@ -165,7 +165,7 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
      * - `<@123456789012345678> Spamming`
      * - `123456789012345678 Spamming`
      */
-    const regex = TypedRegEx("^(?:<@!?)?(?<targetId>\\d{17,19})>? +(?<duration>\\d+[mhd])?[\\n\\r\\s]+(?<reason>.+)", "gmi");
+    const regex = TypedRegEx("^(?:<@!?)?(?<targetId>\\d{17,19})>? +(?<duration>\\d+[mhd])? +(?<reason>([\\n\\r]|.)+)", "gmi");
     const matches = regex.captures(request.content);
 
     // Validate the request format
@@ -240,7 +240,7 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
      * - `<@123456789012345678> Spamming`
      * - `123456789012345678 Spamming`
      */
-    const regex = TypedRegEx("^(?:<@!?)?(?<targetId>\\d{17,19})>? +(?<reason>.+)", "gmi");
+    const regex = TypedRegEx("^(?:<@!?)?(?<targetId>\\d{17,19})>? +(?<reason>([\\n\\r]|.)+)", "gmi");
     const matches = regex.captures(request.content);
 
     // Validate the request format
