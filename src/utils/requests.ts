@@ -389,6 +389,8 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
         ? new Date(Date.now() + request.duration)
         : null;
 
+    config.sendNotification(`${userMention(request.author_id)}'s ${request.type} request has been approved by ${userMention(reviewerId)}.`);
+
     await handleInfractionCreate({
         expires_at: expiresAt,
         guild_id: request.guild_id,
