@@ -44,6 +44,8 @@ export enum InfractionSearchFilter {
     Automatic = "Automatic",
     // Only show non-automatic infractions (default)
     Manual = "Manual",
+    // Only show archived infractions
+    Archived = "Archived"
 }
 
 const infractionSearchFilterChoices: ApplicationCommandOptionChoiceData<string>[] = Object.keys(InfractionSearchFilter)
@@ -760,6 +762,14 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
             case InfractionSearchFilter.Automatic:
                 return { flag: Flag.Automatic };
+
+            case InfractionSearchFilter.Archived:
+                return {
+                    AND: [
+                        { archived_at: { not: null } },
+                        { archived_by: { not: null } }
+                    ]
+                };
 
             default:
                 return {};
