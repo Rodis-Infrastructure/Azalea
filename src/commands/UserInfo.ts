@@ -29,13 +29,18 @@ import ConfigManager from "@managers/config/ConfigManager";
 export default class UserInfo extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
         super({
-            name: "user-info",
+            name: "user",
             description: "Get information about a user",
             options: [{
-                name: "user",
-                type: ApplicationCommandOptionType.User,
-                description: "The user to get information about",
-                required: true
+                name: "info",
+                description: "Get information about a user",
+                type: ApplicationCommandOptionType.Subcommand,
+                options: [{
+                    name: "user",
+                    type: ApplicationCommandOptionType.User,
+                    description: "The user to get information about",
+                    required: true
+                }]
             }]
         });
     }
