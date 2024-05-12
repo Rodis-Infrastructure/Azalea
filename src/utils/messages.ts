@@ -291,7 +291,9 @@ export async function prependReferenceLog(reference: string | Message, embeds: E
 
 // Escape code blocks, truncate the content if it's too long, and wrap it in a code block
 export function formatMessageContentForLog(content: string | null, url: string): string {
-    const croppedContent = elipsify(content || EMPTY_MESSAGE_CONTENT, EMBED_FIELD_CHAR_LIMIT - 120);
+    // Escape custom emoji
+    const escapedContent = content?.replace(/<(a?):([^:\n\r]+):(\d{17,19})>/g, "<$1\\:$2\\:$3>");
+    const croppedContent = elipsify(escapedContent || EMPTY_MESSAGE_CONTENT, EMBED_FIELD_CHAR_LIMIT - 120);
     const jumpUrl = hyperlink("Jump to message", url);
 
     return `${jumpUrl}\n${codeBlock(croppedContent)}`;
