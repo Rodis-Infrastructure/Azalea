@@ -87,6 +87,8 @@ export async function handleQuickMute(data: {
     const expiresTimestamp = Date.now() + duration;
     const expiresAt = new Date(expiresTimestamp);
 
+    await targetMessage.delete().catch(() => null);
+
     const messages = await Purge.purgeUser(member.id, channel, config.data.default_purge_amount);
     const [logUrl] = await Purge.log(messages, channel, config);
 

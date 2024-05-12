@@ -101,11 +101,11 @@ export default class GuildAuditLogEntryCreate extends EventListener {
 
         await handleInfractionCreate({
             guild_id: guild.id,
-            action: action,
+            action,
             executor_id: executor.id,
             target_id: target.id,
-            reason: "string",
-            flag: flag
+            reason: reason ?? DEFAULT_INFRACTION_REASON,
+            flag
         }, config);
 
         config.sendNotification(notification, false);

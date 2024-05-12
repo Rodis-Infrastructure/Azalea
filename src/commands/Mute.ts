@@ -61,7 +61,7 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
 
     async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-        const duration = interaction.options.getString("duration", true);
+        const duration = interaction.options.getString("duration", true).trim();
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const member = interaction.options.getMember("member");
 

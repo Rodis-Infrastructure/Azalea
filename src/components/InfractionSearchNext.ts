@@ -25,7 +25,7 @@ export async function handleInfractionSearchPagination(interaction: ButtonIntera
     // ID of the user that initiated the search
     const searchExecutorId = interaction.message.interaction!.user.id;
 
-    if (interaction.user.id !== searchExecutorId) {
+    if (interaction.user.id !== searchExecutorId && searchExecutorId !== client.user.id) {
         return {
             content: "You do not have permission to use pagination as you did not initiate this search",
             ephemeral: true

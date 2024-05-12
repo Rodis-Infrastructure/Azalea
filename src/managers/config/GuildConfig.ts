@@ -423,6 +423,10 @@ export default class GuildConfig {
             channelData.categoryId = channel.parent.parentId;
         }
 
+        if (!scoping.exclude_channels.length) {
+            return this.channelIsIncludedInScope(channelData, scoping);
+        }
+
         return this.channelIsIncludedInScope(channelData, scoping) && !this.channelIsExcludedFromScope(channelData, scoping);
     }
 

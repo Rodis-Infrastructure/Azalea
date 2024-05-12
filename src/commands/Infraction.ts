@@ -655,6 +655,8 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             where: {
                 target_id: user.id,
                 guild_id: guildId,
+                archived_by: null,
+                archived_at: null,
                 ...queryConditions
             },
             orderBy: {
