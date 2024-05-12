@@ -86,6 +86,9 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             return `Invalid duration format. Please use the following format: \`<number><unit>\` (e.g. \`1d\`, \`2h\`, \`15m\`)`;
         }
 
+        // Reset the regex index
+        DURATION_FORMAT.lastIndex = 0;
+
         // Convert the string duration to milliseconds
         let msDuration = ms(duration);
 
