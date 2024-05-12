@@ -74,7 +74,7 @@ export default class MessageReactionAdd extends EventListener {
                 duration: MuteDuration.Short,
                 targetMessage: message,
                 executor
-            }, config);
+            });
 
             return;
         }
@@ -85,7 +85,7 @@ export default class MessageReactionAdd extends EventListener {
                 targetMessage: message,
                 duration: MuteDuration.Long,
                 executor
-            }, config);
+            });
 
             return;
         }
@@ -309,9 +309,8 @@ export default class MessageReactionAdd extends EventListener {
         config.sendNotification(`${userMention(executorId)} ${response}: ${logUrls.join(" ")}`);
     }
 
-    private static async _quickMute(data: Parameters<typeof handleQuickMute>[number], config: GuildConfig): Promise<void> {
-        const response = await handleQuickMute(data);
-        config.sendNotification(`${data.executor} ${response}`);
+    private static async _quickMute(data: Exclude<Parameters<typeof handleQuickMute>[number], boolean | undefined>): Promise<void> {
+        await handleQuickMute(data, true);
     }
 
     private static async _log(

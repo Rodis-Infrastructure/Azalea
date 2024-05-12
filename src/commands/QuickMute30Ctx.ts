@@ -41,13 +41,14 @@ export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInt
  * @param data.executor The executor of the quick mute
  * @param data.targetMessage The message to mute the author of
  * @param data.duration The duration of the mute
+ * @param mention Whether to mention the target in the response
  * @returns The interaction response
  */
 export async function handleQuickMute(data: {
     executor: GuildMember,
     targetMessage: Message<true>,
     duration: MuteDuration
-}): Promise<string> {
+}, mention = false): Promise<string> {
     const { executor, targetMessage, duration } = data;
     const { content, member, channel } = targetMessage;
 
@@ -117,7 +118,10 @@ export async function handleQuickMute(data: {
 
     // Ensure a public log of the action is made
     if (config.inScope(channel, config.data.ephemeral_scoping)) {
-        config.sendNotification(`${executor} set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` (\`${reason}\`)`, false);
+        config.sendNotification(
+            `${executor} set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` (\`${reason}\`)`,
+            mention
+        );
     }
 
     return `Successfully set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` (\`${reason}\`)`;
