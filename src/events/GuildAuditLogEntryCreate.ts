@@ -32,7 +32,9 @@ export default class GuildAuditLogEntryCreate extends EventListener {
         const executor = await client.users.fetch(executorId).catch(() => null);
         if (!executor) return;
 
-        let notification = `${target} has been $ACTION by ${executor} (\`${reason ?? DEFAULT_INFRACTION_REASON}\`)`;
+        const parsedReason = reason ?? DEFAULT_INFRACTION_REASON;
+
+        let notification = `${target} has been $ACTION by ${executor} (\`${parsedReason}\`)`;
         let action: Action | undefined;
 
         const setAction = (actionType: Action, str: string): void => {
@@ -75,7 +77,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
                                 action: Action.Mute,
                                 executor_id: executor.id,
                                 target_id: target.id,
-                                reason: DEFAULT_INFRACTION_REASON,
+                                reason: parsedReason,
                                 flag: flag,
                                 expires_at: new Date(msDuration)
                             }, config);
@@ -104,7 +106,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
             action,
             executor_id: executor.id,
             target_id: target.id,
-            reason: reason ?? DEFAULT_INFRACTION_REASON,
+            reason: parsedReason,
             flag
         }, config);
 
