@@ -52,6 +52,10 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
         if (!member.kickable) {
             return "I do not have permission to kick this user";
         }
+        
+        if (member.roles.highest.position >= interaction.member.roles.highest.position) {
+            return "You cannot kick a user with a higher or equal role";
+        }
 
         // Kick the user
         await member.kick(reason);

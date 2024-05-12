@@ -76,6 +76,10 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             return "I do not have permission to mute this user";
         }
 
+        if (member.roles.highest.position >= interaction.member.roles.highest.position) {
+            return "You cannot mute a user with a higher or equal role";
+        }
+
         // Check if the member is already muted
         if (member.isCommunicationDisabled()) {
             return "You can't mute someone who is already muted";

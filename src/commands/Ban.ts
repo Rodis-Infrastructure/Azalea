@@ -63,6 +63,10 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             return "I do not have permission to ban this user";
         }
 
+        if (member && member.roles.highest.position >= interaction.member.roles.highest.position) {
+            return "You cannot ban a user with a higher or equal role";
+        }
+
         const user = member?.user ?? interaction.options.getUser("user", true);
 
         // Check if the user is already banned by fetching their ban

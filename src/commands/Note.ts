@@ -47,6 +47,10 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
             return "I cannot add a note to this user's infraction history.";
         }
 
+        if (member && member.roles.highest.position >= interaction.member.roles.highest.position) {
+            return "You cannot add a note to a user with a higher or equal role";
+        }
+
         const user = member?.user ?? interaction.options.getUser("user", true);
         const infraction = await handleInfractionCreate({
             executor_id: interaction.user.id,
