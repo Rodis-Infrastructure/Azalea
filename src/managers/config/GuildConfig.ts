@@ -499,7 +499,7 @@ export default class GuildConfig {
      * Send a notification to the notification channel of the guild
      *
      * @param message - The message to send
-     * @param allowMentions - Whether to allow mentions in the message
+     * @param allowMentions - Whether to allow mentions in the message (true by default)
      */
     sendNotification(message: string, allowMentions = true): void {
         if (!this.data.notification_channel) return;
