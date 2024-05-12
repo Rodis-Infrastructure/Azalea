@@ -65,10 +65,16 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
         return choices.length ? choices : undefined;
     }
 
+    private static _formatResponse(mention: User | null, response?: string): string | undefined {
+        return [mention, response]
+            .filter(Boolean)
+            .join(" ") || undefined;
+    }
+
     private static _parseResponse(response: Exclude<InteractionReplyData, null>, mention: User | null): InteractionReplyData {
         if (typeof response === "string") {
             return {
-                content: mention ? `${mention} ${response}` : response,
+                content: FAQ._formatResponse(mention, response),
                 allowedMentions: { parse: ["users"] },
                 ephemeral: false
             };
@@ -76,7 +82,7 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
 
         return {
             ...response,
-            content: mention ? `${mention} ${response.content}` : response.content,
+            content: FAQ._formatResponse(mention, response.content),
             allowedMentions: { parse: ["users"] },
             ephemeral: false
         };
