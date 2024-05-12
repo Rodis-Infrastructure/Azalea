@@ -91,9 +91,6 @@ export class Messages {
             messages.push(message);
         }
 
-        console.log("CACHED");
-        console.log(messages);
-
         // Fetch remaining messages from the database if an insufficient amount was cached
         if (messages.length < limit) {
             // @formatter:off
@@ -110,9 +107,6 @@ export class Messages {
                 )
                 RETURNING *;
             `;
-
-            console.log("STORED");
-            console.log(stored);
 
             // Combined cached and stored messages
             return messages.concat(stored);
