@@ -299,7 +299,7 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
 export async function approveModerationRequest(requestId: Snowflake, reviewerId: Snowflake, config: GuildConfig): Promise<void> {
     const request = await prisma.moderationRequest.update({
         where: { id: requestId },
-        data: { status: RequestStatus.Approved },
+        data: { status: RequestStatus.Pending },
         select: {
             id: true,
             type: true,
@@ -410,7 +410,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
 export async function denyModerationRequest(messageId: Snowflake, reviewerId: Snowflake, config: GuildConfig): Promise<void> {
     const request = await prisma.moderationRequest.update({
         where: { id: messageId },
-        data: { status: RequestStatus.Denied },
+        data: { status: RequestStatus.Pending },
         select: {
             id: true,
             author_id: true,
