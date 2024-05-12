@@ -765,10 +765,8 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
             case InfractionSearchFilter.Archived:
                 return {
-                    AND: [
-                        { archived_at: { not: null } },
-                        { archived_by: { not: null } }
-                    ]
+                    archived_at: { not: null },
+                    archived_by: { not: null }
                 };
 
             default:
