@@ -166,7 +166,7 @@ export class Messages {
         // Update whatever wasn't cached in the database
         if (messages.size !== deletedMessages.length) {
             const dbDeletedMessages = await prisma.$queryRaw<Message[]>`
-                UPDATE message
+                UPDATE Message
                 SET deleted = true
                 WHERE id IN (${ids.join(",")}) RETURNING *;
             `;
@@ -198,11 +198,11 @@ export class Messages {
 
         // Update the message in the database
         const { old_content } = await prisma.$queryRaw<{ old_content: string | null }>`
-            UPDATE message
+            UPDATE Message
             SET content = ${newContent}
             WHERE id = ${id} RETURNING (
                     SELECT content
-                    FROM message
+                    FROM Message
                     WHERE id = ${id}
                 ) AS old_content;
         `;
