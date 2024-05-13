@@ -28,7 +28,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
             description: "Create a reminder",
             options: [
                 {
-                    name: ReminderSubcommand.Create,
+                    name: ReminderSubcommand.Add,
                     description: "Create a reminder",
                     type: ApplicationCommandOptionType.Subcommand,
                     options: [
@@ -58,7 +58,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
                     type: ApplicationCommandOptionType.Subcommand
                 },
                 {
-                    name: ReminderSubcommand.Delete,
+                    name: ReminderSubcommand.Remove,
                     description: "Delete a reminder",
                     type: ApplicationCommandOptionType.Subcommand,
                     options: [
@@ -78,13 +78,13 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
         const subcommand = interaction.options.getSubcommand(true) as ReminderSubcommand;
 
         switch (subcommand) {
-            case ReminderSubcommand.Create:
+            case ReminderSubcommand.Add:
                 return Reminders._create(interaction);
             case ReminderSubcommand.List:
                 return Reminders._list(interaction);
             case ReminderSubcommand.Clear:
                 return Reminders._clear(interaction);
-            case ReminderSubcommand.Delete:
+            case ReminderSubcommand.Remove:
                 return Reminders._delete(interaction);
             default:
                 return Promise.resolve("Unknown subcommand");
@@ -242,8 +242,8 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 }
 
 enum ReminderSubcommand {
-    Create = "create",
+    Add = "add",
     List = "list",
     Clear = "clear",
-    Delete = "delete"
+    Remove = "remove"
 }
