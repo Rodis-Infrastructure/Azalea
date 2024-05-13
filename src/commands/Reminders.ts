@@ -135,7 +135,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
                 }
             });
 
-            setInterval(async () => {
+            setTimeout(async () => {
                 const reminderMessage = Reminders._formatReminder(interaction.user.id, reminder, createdAt);
 
                 await Promise.all([
@@ -192,7 +192,10 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
         const reminderId = interaction.options.getString("reminder_id", true);
 
         const deletedReminder = await prisma.reminder.delete({
-            where: { id: reminderId }
+            where: {
+                id: reminderId,
+                author_id: interaction.user.id
+            }
         }).catch(() => null);
 
         if (!deletedReminder) {
@@ -222,7 +225,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
         }
 
         for (const reminder of reminders) {
-            setInterval(async () => {
+            setTimeout(async () => {
                 const reminderMessage = Reminders._formatReminder(reminder.author_id, reminder.reminder, reminder.created_at);
                 const channel = await client.channels.fetch(reminder.channel_id) as GuildTextBasedChannel;
 
