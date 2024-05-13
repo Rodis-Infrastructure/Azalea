@@ -190,7 +190,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 const infractionId = interaction.options.getInteger("infraction_id", true);
                 const reason = interaction.options.getString("new_reason", true);
 
-                return Infraction._setReason({
+                return Infraction.setReason({
                     executor: interaction.member,
                     infractionId,
                     reason,
@@ -566,7 +566,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
      * @returns An interaction reply with the result of the operation
      * @private
      */
-    private static async _setReason(data: {
+    static async setReason(data: {
         infractionId: number;
         reason: string;
         executor: GuildMember;

@@ -15,6 +15,7 @@ import GuildConfig from "@managers/config/GuildConfig";
 import StoreMediaCtx from "@/commands/StoreMediaCtx";
 import Sentry from "@sentry/node";
 import ms from "ms";
+import Infraction from "@/commands/Infraction";
 
 export async function handleModerationRequest(message: Message<true>, config: GuildConfig): Promise<void> {
     const requestConfig = config.data.moderation_requests
@@ -54,13 +55,11 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
                     config
                 });
             } else if (request.mute_id) {
-                await prisma.infraction.update({
-                    where: { id: request.mute_id, guild_id: request.guild_id },
-                    data: {
-                        reason: request.reason,
-                        updated_by: message.author.id,
-                        updated_at: new Date()
-                    }
+                await Infraction.setReason({
+                    infractionId: request.mute_id,
+                    reason: request.reason,
+                    executor: message.member!,
+                    config
                 });
             }
         }
