@@ -576,7 +576,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
         const oldState = await prisma.infraction.findUnique({
             where: { id: infractionId },
-            select: { reason: true, executor_id: true }
+            select: { reason: true, executor_id: true, flag: true }
         }).catch(() => null);
 
         if (!oldState) {
@@ -594,6 +594,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             data: {
                 updated_at: new Date(),
                 updated_by: executor.id,
+                flag: oldState.flag === Flag.Quick ? 0 : undefined,
                 reason
             }
         });
