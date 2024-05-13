@@ -40,7 +40,7 @@ export default class Warn extends Command<ChatInputCommandInteraction<"cached">>
 
     async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-        const note = interaction.options.getString("warn", true);
+        const reason = interaction.options.getString("reason", true);
         const member = interaction.options.getMember("user");
 
         if (member && !member.manageable) {
@@ -57,7 +57,7 @@ export default class Warn extends Command<ChatInputCommandInteraction<"cached">>
             guild_id: interaction.guildId,
             action: Action.Warn,
             target_id: user.id,
-            reason: note
+            reason: reason
         }, config);
 
         if (!infraction) {
@@ -66,9 +66,9 @@ export default class Warn extends Command<ChatInputCommandInteraction<"cached">>
 
         // Ensure a public log of the action is made
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} warned ${user} - \`#${infraction.id}\` (\`${note}\`)`, false);
+            config.sendNotification(`${interaction.user} warned ${user} - \`#${infraction.id}\` (\`${reason}\`)`, false);
         }
 
-        return `Successfully warned ${user} - \`#${infraction.id}\` (\`${note}\`)`;
+        return `Successfully warned ${user} - \`#${infraction.id}\` (\`${reason}\`)`;
     }
 }
