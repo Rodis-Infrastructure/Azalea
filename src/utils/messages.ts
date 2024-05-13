@@ -83,9 +83,10 @@ export class Messages {
             if (
                 message.author_id !== userId ||
                 message.channel_id !== channelId ||
-                messages.length === limit ||
                 message.deleted
-            ) break;
+            ) continue;
+
+            if (messages.length === limit) break;
 
             message.deleted = true;
             messages.push(message);
