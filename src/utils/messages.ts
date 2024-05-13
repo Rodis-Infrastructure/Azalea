@@ -298,7 +298,7 @@ export async function formatMessageContentForLog(content: string | null, sticker
     if (!stickerId) {
         const escapedContent = content?.replace(/<(a?):([^:\n\r]+):(\d{17,19})>/g, "<$1\\:$2\\:$3>");
         const croppedContent = elipsify(escapedContent || EMPTY_MESSAGE_CONTENT, EMBED_FIELD_CHAR_LIMIT - 120);
-        
+
         return `${jumpUrl}\n${codeBlock(croppedContent)}`;
     }
 
@@ -307,12 +307,12 @@ export async function formatMessageContentForLog(content: string | null, sticker
 
     if (sticker) {
         if (sticker.format === StickerFormatType.Lottie) {
-            return `${jumpUrl}\n\`${sticker.name}\` (${hyperlink("view", sticker.url)})`;
+            return `${jumpUrl}\n\`${sticker.name}\``;
         }
 
-        return `${jumpUrl}\n\`${sticker.name}\``;
+        return `${jumpUrl}\n\`${sticker.name}\` (${hyperlink("view", sticker.url)})`;
     }
-    
+
     return "Sticker (failed to fetch)";
 }
 
