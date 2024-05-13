@@ -206,7 +206,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             SELECT SUM(action = ${Action.Ban})  as ban_count,
                    SUM(action = ${Action.Kick}) as kick_count,
                    SUM(action = ${Action.Mute}) as mute_count,
-                   SUM(action = ${Action.Note}) as note_count
+                   SUM(action = ${Action.Warn}) as note_count
             FROM Infraction
             WHERE target_id = ${userId}
               AND guild_id = ${guildId}
@@ -237,7 +237,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             SELECT SUM(action = ${Action.Ban})  as ban_count,
                    SUM(action = ${Action.Kick}) as kick_count,
                    SUM(action = ${Action.Mute}) as mute_count,
-                   SUM(action = ${Action.Note}) as note_count
+                   SUM(action = ${Action.Warn}) as note_count
             FROM Infraction
             WHERE (executor_id = ${userId} or request_author_id = ${userId})
               AND guild_id = ${guildId}

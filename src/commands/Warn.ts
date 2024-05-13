@@ -15,21 +15,21 @@ import Command from "@managers/commands/Command";
  * Upon adding the note, the command will log the action in the channel configured for
  * {@link LoggingEvent.InfractionCreate} logs and store the infraction in the database
  */
-export default class Note extends Command<ChatInputCommandInteraction<"cached">> {
+export default class Warn extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
         super({
-            name: "note",
-            description: "Add a note to a user's infraction history",
+            name: "warn",
+            description: "Warns the user",
             options: [
                 {
                     name: "user",
-                    description: "The user to add a note to",
+                    description: "The user to warn",
                     type: ApplicationCommandOptionType.User,
                     required: true
                 },
                 {
-                    name: "note",
-                    description: "The content of the note",
+                    name: "reason",
+                    description: "The reason of the warn",
                     type: ApplicationCommandOptionType.String,
                     maxLength: EMBED_FIELD_CHAR_LIMIT,
                     required: true
@@ -40,22 +40,22 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
 
     async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-        const note = interaction.options.getString("note", true);
+        const note = interaction.options.getString("warn", true);
         const member = interaction.options.getMember("user");
 
         if (member && !member.manageable) {
-            return "I cannot add a note to this user's infraction history.";
+            return "I cannot warn this user.";
         }
 
         if (member && member.roles.highest.position >= interaction.member.roles.highest.position) {
-            return "You cannot add a note to a user with a higher or equal role";
+            return "You cannot warn a user with a higher or equal role";
         }
 
         const user = member?.user ?? interaction.options.getUser("user", true);
         const infraction = await handleInfractionCreate({
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,
-            action: Action.Note,
+            action: Action.Warn,
             target_id: user.id,
             reason: note
         }, config);
@@ -66,9 +66,9 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
 
         // Ensure a public log of the action is made
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} added a note to ${user} - \`#${infraction.id}\` (\`${note}\`)`, false);
+            config.sendNotification(`${interaction.user} warned ${user} - \`#${infraction.id}\` (\`${note}\`)`, false);
         }
 
-        return `Successfully added a note to ${user}'s infraction history - \`#${infraction.id}\` (\`${note}\`)`;
+        return `Successfully warned ${user} - \`#${infraction.id}\` (\`${note}\`)`;
     }
 }

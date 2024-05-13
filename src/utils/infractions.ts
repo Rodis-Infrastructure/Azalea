@@ -178,7 +178,7 @@ export function getActionColor(action: Action): ColorResolvable {
             return Colors.Orange;
         case Action.Unmute:
             return Colors.Green;
-        case Action.Note:
+        case Action.Warn:
             return Colors.Yellow;
         default:
             return Colors.NotQuiteBlack;
@@ -212,7 +212,7 @@ type InfractionExpirationChangeData = {
 
 // The punishment associated with an infraction
 export enum Action {
-    Note = 1,
+    Warn = 1,
     Unmute = 2,
     Mute = 3,
     Kick = 4,
