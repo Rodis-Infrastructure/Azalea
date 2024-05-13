@@ -26,7 +26,7 @@ import {
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
 import { Prisma } from "@prisma/client";
-import { humanizeTimestamp, stripLinks, userMentionWithId } from "@/utils";
+import { elipsify, humanizeTimestamp, stripLinks, userMentionWithId } from "@/utils";
 import { log } from "@utils/logging";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { Action, getActionColor, parseInfractionType, Flag } from "@utils/infractions";
@@ -732,10 +732,12 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
     private static _formatInfractionSearchFields(infractions: Prisma.$InfractionPayload["scalars"][]): APIEmbedField[] {
         return infractions.map(infraction => {
             const cleanReason = stripLinks(infraction.reason ?? DEFAULT_INFRACTION_REASON);
+            const croppedReason = elipsify(cleanReason, 800);
+
             const entries = [
                 Infraction._formatInfractionSearchEntry("Created", time(infraction.created_at, TimestampStyles.RelativeTime)),
                 Infraction._formatInfractionSearchEntry("Executor", userMention(infraction.executor_id)),
-                Infraction._formatInfractionSearchEntry("Reason", cleanReason)
+                Infraction._formatInfractionSearchEntry("Reason", croppedReason)
             ];
 
             if (infraction.expires_at) {
