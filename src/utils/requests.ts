@@ -143,7 +143,7 @@ async function handleAutomaticMute(data: {
         reason
     }, config);
 
-    return infraction && infraction.id;
+    return infraction?.id ?? null;
 }
 
 /**
