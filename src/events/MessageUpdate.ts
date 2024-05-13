@@ -12,7 +12,6 @@ import {
     prependReferenceLog,
     formatMessageContentForLog,
     Messages,
-    resolvePartialMessage,
     prepareMessageForStorage,
     formatMessageLogEntry
 } from "@utils/messages";
