@@ -2,6 +2,7 @@ import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "disco
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
+import { client, prisma } from "./..";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -82,6 +83,20 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
 
         // Ban the user
         await interaction.guild.members.ban(user, { reason, deleteMessageSeconds });
+        const now = new Date();
+
+        await prisma.infraction.updateMany({
+            where: {
+                target_id: user.id,
+                guild_id: interaction.guildId,
+                expires_at: { gt: now }
+            },
+            data: {
+                expires_at: now,
+                updated_at: now,
+                updated_by: client.user.id
+            }
+        });
 
         // Log the infraction and store it in the database
         const infraction = await handleInfractionCreate({
