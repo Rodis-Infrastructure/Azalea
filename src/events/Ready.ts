@@ -7,6 +7,7 @@ import { startCronJob } from "@/utils";
 import Logger, { AnsiColor } from "@utils/logger";
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
+import Reminders from "@/commands/Reminders";
 
 export default class Ready extends EventListener {
     constructor() {
@@ -23,6 +24,7 @@ export default class Ready extends EventListener {
 
         // Operations that require the global config
         Messages.startDbStorageCronJob();
+        Reminders.mount();
 
         // Start scheduled messages for all guilds
         ConfigManager.guildConfigs.forEach(config => {

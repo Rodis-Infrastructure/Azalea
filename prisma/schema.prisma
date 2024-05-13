@@ -86,3 +86,12 @@ model TemporaryRole {
 
   @@id([member_id, role_id])
 }
+
+model Reminder {
+  id         String   @id @default(uuid())
+  author_id  String
+  channel_id String
+  reminder   String
+  created_at DateTime @default(now())
+  expires_at DateTime
+}

@@ -1,0 +1,249 @@
+import {
+    APIEmbedField,
+    ApplicationCommandOptionType,
+    ChatInputCommandInteraction,
+    EmbedBuilder,
+    GuildTextBasedChannel,
+    Snowflake,
+    time,
+    TimestampStyles,
+    userMention
+} from "discord.js";
+
+import { InteractionReplyData } from "@utils/types";
+import { DURATION_FORMAT, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
+import { client, prisma } from "./..";
+import { pluralize } from "@/utils";
+
+import Command from "@managers/commands/Command";
+import ConfigManager from "@managers/config/ConfigManager";
+import ms from "ms";
+import Sentry from "@sentry/node";
+import Logger, { AnsiColor } from "@utils/logger";
+
+export default class Reminders extends Command<ChatInputCommandInteraction<"cached">> {
+    constructor() {
+        super({
+            name: "reminders",
+            description: "Create a reminder",
+            options: [
+                {
+                    name: ReminderSubcommand.Create,
+                    description: "Create a reminder",
+                    type: ApplicationCommandOptionType.Subcommand,
+                    options: [
+                        {
+                            name: "duration",
+                            description: "How long to wait before sending the reminder",
+                            type: ApplicationCommandOptionType.String,
+                            required: true
+                        },
+                        {
+                            name: "reminder",
+                            description: "The message to remind you",
+                            type: ApplicationCommandOptionType.String,
+                            max_length: EMBED_FIELD_CHAR_LIMIT,
+                            required: true
+                        }
+                    ]
+                },
+                {
+                    name: ReminderSubcommand.List,
+                    description: "List your reminders",
+                    type: ApplicationCommandOptionType.Subcommand
+                },
+                {
+                    name: ReminderSubcommand.Clear,
+                    description: "Clear all your reminders",
+                    type: ApplicationCommandOptionType.Subcommand
+                },
+                {
+                    name: ReminderSubcommand.Delete,
+                    description: "Delete a reminder",
+                    type: ApplicationCommandOptionType.Subcommand,
+                    options: [
+                        {
+                            name: "reminder_id",
+                            description: "The ID of the reminder to delete",
+                            type: ApplicationCommandOptionType.String,
+                            required: true
+                        }
+                    ]
+                }
+            ]
+        });
+    }
+
+    execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+        const subcommand = interaction.options.getSubcommand(true) as ReminderSubcommand;
+
+        switch (subcommand) {
+            case ReminderSubcommand.Create:
+                return Reminders._create(interaction);
+            case ReminderSubcommand.List:
+                return Reminders._list(interaction);
+            case ReminderSubcommand.Clear:
+                return Reminders._clear(interaction);
+            case ReminderSubcommand.Delete:
+                return Reminders._delete(interaction);
+            default:
+                return Promise.resolve("Unknown subcommand");
+        }
+    }
+
+    private static async _create(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+        const reminderCount = await prisma.reminder.count({
+            where: {
+                author_id: interaction.user.id
+            }
+        });
+
+        if (reminderCount === 10) {
+            return "You cannot create more than 10 reminders at a time";
+        }
+
+        if (!interaction.channel) {
+            return "Failed to fetch the channel";
+        }
+
+        const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+
+        if (config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
+            return "Reminders can only be created in non-ephemeral channels";
+        }
+
+        const duration = interaction.options.getString("duration", true);
+
+        if (!DURATION_FORMAT.test(duration)) {
+            return "Invalid duration format";
+        }
+
+        DURATION_FORMAT.lastIndex = 0;
+
+        const msExpiresAt = Date.now() + ms(duration);
+        const expiresAt = new Date(msExpiresAt);
+        const reminder = interaction.options.getString("reminder", true);
+        const createdAt = new Date();
+
+        try {
+            const { id } = await prisma.reminder.create({
+                data: {
+                    expires_at: expiresAt,
+                    channel_id: interaction.channel.id,
+                    author_id: interaction.user.id,
+                    reminder
+                }
+            });
+
+            setInterval(async () => {
+                const reminderMessage = Reminders._formatReminder(interaction.user.id, reminder, createdAt);
+
+                await Promise.all([
+                    prisma.reminder.delete({ where: { id } }),
+                    interaction.channel!.send(reminderMessage)
+                ]);
+            }, msExpiresAt - Date.now());
+        } catch (err) {
+            const errorId = Sentry.captureException(err);
+            return `An error occurred while creating the reminder (\`${errorId}\`)`;
+        }
+
+        const dateTimestamp = time(expiresAt, TimestampStyles.LongDateTime);
+        const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);
+
+        return `Successfully created a reminder for ${dateTimestamp} | ${relativeTimestamp} (\`${reminder}\`)`;
+    }
+
+    private static async _list(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+        const reminders = await prisma.reminder.findMany({
+            where: { author_id: interaction.user.id }
+        });
+
+        if (!reminders.length) {
+            return "You do not have any reminders";
+        }
+
+        const fields: APIEmbedField[] = reminders.map(reminder => ({
+            name: `${time(reminder.expires_at, TimestampStyles.LongDateTime)} | ${reminder.id}`,
+            value: reminder.reminder
+        }));
+
+        const embed = new EmbedBuilder()
+            .setAuthor({ name: `@${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
+            .setTitle("Reminders")
+            .setFields(fields);
+
+        return { embeds: [embed] };
+    }
+
+    private static async _clear(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+        const clearedReminders = await prisma.reminder.deleteMany({
+            where: { author_id: interaction.user.id }
+        });
+
+        if (!clearedReminders.count) {
+            return "You do not have any reminders to clear";
+        }
+
+        return `Successfully cleared \`${clearedReminders.count}\` ${pluralize(clearedReminders.count, "reminder")}`;
+    }
+
+    private static async _delete(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+        const reminderId = interaction.options.getString("reminder_id", true);
+
+        const deletedReminder = await prisma.reminder.delete({
+            where: { id: reminderId }
+        }).catch(() => null);
+
+        if (!deletedReminder) {
+            return `Reminder with ID \`${reminderId}\` not found`;
+        }
+
+        return `Successfully deleted reminder with ID \`${reminderId}\``;
+    }
+
+    private static _formatReminder(authorId: Snowflake, reminder: string, createdAt: Date): string {
+        const relativeTimestamp = time(createdAt, TimestampStyles.RelativeTime);
+        return `${userMention(authorId)} You asked me to remind you ${relativeTimestamp}\n\n> ${reminder}`;
+    }
+
+    static async mount(): Promise<void> {
+        Logger.log("REMINDERS", "Mounting reminders...", {
+            color: AnsiColor.Purple
+        });
+
+        const reminders = await prisma.reminder.findMany();
+
+        if (!reminders.length) {
+            Logger.log("REMINDERS", "No reminders to mount", {
+                color: AnsiColor.Purple
+            });
+            return;
+        }
+
+        for (const reminder of reminders) {
+            setInterval(async () => {
+                const reminderMessage = Reminders._formatReminder(reminder.author_id, reminder.reminder, reminder.created_at);
+                const channel = await client.channels.fetch(reminder.channel_id) as GuildTextBasedChannel;
+
+                await Promise.all([
+                    prisma.reminder.delete({ where: { id: reminder.id } }),
+                    channel.send(reminderMessage)
+                ]);
+            }, reminder.expires_at.getTime() - Date.now());
+
+            Logger.info(`Mounted reminder with ID ${reminder.id} for user ${reminder.author_id} in channel ${reminder.channel_id}`);
+        }
+
+        Logger.log("REMINDERS", `Successfully mounted ${reminders.length} ${pluralize(reminders.length, "reminder")}`, {
+            color: AnsiColor.Purple
+        });
+    }
+}
+
+enum ReminderSubcommand {
+    Create = "create",
+    List = "list",
+    Clear = "clear",
+    Delete = "delete"
+}

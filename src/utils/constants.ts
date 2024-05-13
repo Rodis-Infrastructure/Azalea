@@ -29,6 +29,8 @@ export const EXIT_EVENTS = ["SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", 
 // The default permissions required to use commands.
 export const DEFAULT_COMMAND_PERMISSIONS: readonly bigint[] = [PermissionFlagsBits.ManageGuild];
 
+export const DURATION_FORMAT = /^(\d+ *(days?|h(ou)?rs?|min(utes?)?|[mhd]) *)+$/gmi;
+
 // The default state of whether commands should be allowed in DMs.
 export const DEFAULT_DM_PERMISSION: boolean = false;
 

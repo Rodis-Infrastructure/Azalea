@@ -6,16 +6,19 @@ import {
     TimestampStyles
 } from "discord.js";
 
+import {
+    EMBED_FIELD_CHAR_LIMIT,
+    DEFAULT_INFRACTION_REASON,
+    MAX_MUTE_DURATION,
+    DURATION_FORMAT
+} from "@utils/constants";
+
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
-import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON, MAX_MUTE_DURATION } from "@utils/constants";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import ms from "ms";
-
-// Constants
-const DURATION_FORMAT = /^(\d+ *(days?|h(ou)?rs?|min(utes?)?|[mhd]) *)+$/gmi;
 
 /**
  * Mute a member in the server.
