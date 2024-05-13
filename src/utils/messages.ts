@@ -107,6 +107,7 @@ export class Messages {
                 )
                 RETURNING *;
             `;
+            // @formatter:on
 
             // Combined cached and stored messages
             return messages.concat(stored);
@@ -279,8 +280,8 @@ export async function prependReferenceLog(reference: string | Message, embeds: E
                 value: userMentionWithId(reference.author_id)
             },
             {
-                name: "Content",
-                value: formatMessageContentForLog(reference.content, referenceUrl)
+                name: reference.sticker_id ? "Sticker" : "Message Content",
+                value: await formatMessageContentForLog(reference.content, reference.sticker_id, referenceUrl)
             }
         ])
         .setTimestamp(reference.created_at);
@@ -290,13 +291,29 @@ export async function prependReferenceLog(reference: string | Message, embeds: E
 }
 
 // Escape code blocks, truncate the content if it's too long, and wrap it in a code block
-export function formatMessageContentForLog(content: string | null, url: string): string {
+export async function formatMessageContentForLog(content: string | null, stickerId: string | null, url: string): Promise<string> {
     // Escape custom emoji
-    const escapedContent = content?.replace(/<(a?):([^:\n\r]+):(\d{17,19})>/g, "<$1\\:$2\\:$3>");
-    const croppedContent = elipsify(escapedContent || EMPTY_MESSAGE_CONTENT, EMBED_FIELD_CHAR_LIMIT - 120);
     const jumpUrl = hyperlink("Jump to message", url);
 
-    return `${jumpUrl}\n${codeBlock(croppedContent)}`;
+    if (!stickerId) {
+        const escapedContent = content?.replace(/<(a?):([^:\n\r]+):(\d{17,19})>/g, "<$1\\:$2\\:$3>");
+        const croppedContent = elipsify(escapedContent || EMPTY_MESSAGE_CONTENT, EMBED_FIELD_CHAR_LIMIT - 120);
+        
+        return `${jumpUrl}\n${codeBlock(croppedContent)}`;
+    }
+
+    const sticker = await client.fetchSticker(stickerId)
+        .catch(() => null);
+
+    if (sticker) {
+        if (sticker.format === StickerFormatType.Lottie) {
+            return `${jumpUrl}\n\`${sticker.name}\` (${hyperlink("view", sticker.url)})`;
+        }
+
+        return `${jumpUrl}\n\`${sticker.name}\``;
+    }
+    
+    return "Sticker (failed to fetch)";
 }
 
 // Ignores messages that were sent in DMs. This function shouldn't be used on deleted messages

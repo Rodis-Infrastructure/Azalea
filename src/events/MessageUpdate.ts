@@ -88,8 +88,8 @@ export default class MessageUpdate extends EventListener {
             .setFields([
                 { name: "Author", value: `${message.author} (\`${message.author.id}\`)` },
                 { name: "Channel", value: `${message.channel} (\`#${message.channel.name}\`)` },
-                { name: "Content (Before)", value: formatMessageContentForLog(oldContent, message.url) },
-                { name: "Content (After)", value: formatMessageContentForLog(message.content, message.url) }
+                { name: "Content (Before)", value: await formatMessageContentForLog(oldContent, null, message.url) },
+                { name: "Content (After)", value: await formatMessageContentForLog(message.content, null, message.url) }
             ])
             .setTimestamp();
 

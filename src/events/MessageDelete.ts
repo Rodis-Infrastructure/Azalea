@@ -5,11 +5,10 @@ import {
     Events,
     Guild,
     GuildTextBasedChannel,
-    hyperlink,
     Message as DiscordMessage,
     messageLink,
-    PartialMessage, Snowflake,
-    StickerFormatType,
+    PartialMessage,
+    Snowflake,
     User
 } from "discord.js";
 
@@ -125,16 +124,27 @@ export async function handleShortMessageDeleteLog(
         ? await Messages.get(message.reference_id)
         : null;
 
+    const messageUrl = messageLink(message.channel_id, message.id, config.guild.id);
+    const executor = await MessageDelete.getBlame(channel.guild);
+
     const embed = new EmbedBuilder()
         .setColor(Colors.Red)
         .setAuthor({ name: "Message Deleted" })
         .setFields([
-            { name: "Author", value: userMentionWithId(message.author_id) },
-            { name: "Channel", value: channelMentionWithName(channel) }
+            {
+                name: "Author",
+                value: userMentionWithId(message.author_id)
+            },
+            {
+                name: "Channel",
+                value: channelMentionWithName(channel)
+            },
+            {
+                name: message.sticker_id ? "Sticker" : "Message Content",
+                value: await formatMessageContentForLog(message.content, message.sticker_id, messageUrl)
+            }
         ])
         .setTimestamp(message.created_at);
-
-    const executor = await MessageDelete.getBlame(channel.guild);
 
     if (executor) {
         embed.setFooter({
@@ -143,34 +153,6 @@ export async function handleShortMessageDeleteLog(
         });
 
         await updateMessageReportState(message.id, executor.id, config);
-    }
-
-    if (message.sticker_id) {
-        const sticker = await client.fetchSticker(message.sticker_id).catch(() => null);
-
-        if (sticker) {
-            let fieldValue = `\`${sticker.name}\``;
-
-            // Lottie stickers don't have a URL
-            if (sticker.format !== StickerFormatType.Lottie) {
-                const stickerURL = hyperlink("view", sticker.url);
-                fieldValue += ` (${stickerURL})`;
-            }
-
-            embed.addFields({
-                name: "Sticker",
-                value: fieldValue
-            });
-        }
-    }
-
-    if (message.content) {
-        const messageUrl = messageLink(message.channel_id, message.id, config.guild.id);
-
-        embed.addFields({
-            name: "Content",
-            value: formatMessageContentForLog(message.content, messageUrl)
-        });
     }
 
     const embeds = [embed];

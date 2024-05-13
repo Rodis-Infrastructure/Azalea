@@ -168,6 +168,7 @@ export default class MessageReactionAdd extends EventListener {
             flags |= MessageReportFlag.HasSticker;
         }
 
+        const stickerId = message.stickers.first()?.id ?? null;
         const alert = new EmbedBuilder()
             .setColor(Colors.Yellow)
             .setThumbnail(message.author.displayAvatarURL())
@@ -181,8 +182,8 @@ export default class MessageReactionAdd extends EventListener {
                     value: userMentionWithId(message.author.id)
                 },
                 {
-                    name: "Message Content",
-                    value: formatMessageContentForLog(croppedContent, message.url)
+                    name: stickerId ? "Sticker" : "Message Content",
+                    value: await formatMessageContentForLog(croppedContent, stickerId, message.url)
                 }
             ])
             .setTimestamp();
@@ -192,11 +193,12 @@ export default class MessageReactionAdd extends EventListener {
 
         if (reference) {
             const croppedReference = cropLines(reference.content, 5);
+            const referenceStickerId = reference.stickers.first()?.id ?? null;
 
             // Insert the reference content before the actual message content
             alert.spliceFields(2, 0, {
                 name: `Reference from @${reference.author.username} (${reference.author.id})`,
-                value: formatMessageContentForLog(croppedReference, reference.url)
+                value: await formatMessageContentForLog(croppedReference, referenceStickerId, reference.url)
             });
         }
 
