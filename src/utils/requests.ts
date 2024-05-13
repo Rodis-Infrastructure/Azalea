@@ -41,7 +41,7 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
             request = res[1];
 
             // Don't attempt to auto-mute if the target user is already muted
-            if (!target?.isCommunicationDisabled()) {
+            if (!target?.isCommunicationDisabled() && !request.mute_id) {
                 if (!message.member) {
                     await temporaryReply(message, "Failed to fetch author, unable to perform auto-mute.", config.data.response_ttl);
                     return;

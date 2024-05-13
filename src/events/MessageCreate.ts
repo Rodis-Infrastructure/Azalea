@@ -8,7 +8,7 @@ import {
     StringSelectMenuBuilder
 } from "discord.js";
 
-import { Messages, resolvePartialMessage, temporaryReply } from "@utils/messages";
+import { Messages, temporaryReply } from "@utils/messages";
 import { handleModerationRequest } from "@utils/requests";
 import { MediaStoreError } from "@utils/errors";
 import { pluralize, userMentionWithId } from "@/utils";
@@ -27,8 +27,11 @@ export default class MessageCreate extends EventListener {
     }
 
     async execute(newMessage: PartialMessage | Message): Promise<void> {
-        const message = await resolvePartialMessage(newMessage);
-        if (!message || message.author.id === client.user.id) return;
+        const message = newMessage.partial
+            ? await newMessage.fetch() as Message<true>
+            : newMessage as Message<true>;
+
+        if (message.author.id === client.user.id) return;
 
         const config = ConfigManager.getGuildConfig(message.guild.id);
         if (!config) return;
