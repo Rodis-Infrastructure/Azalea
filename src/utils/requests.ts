@@ -56,7 +56,11 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
             } else if (request.mute_id) {
                 await prisma.infraction.update({
                     where: { id: request.mute_id, guild_id: request.guild_id },
-                    data: { reason: request.reason }
+                    data: {
+                        reason: request.reason,
+                        updated_by: message.author.id,
+                        updated_at: new Date()
+                    }
                 });
             }
         }
