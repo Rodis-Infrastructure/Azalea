@@ -90,16 +90,19 @@ export async function handleQuickMute(data: {
 
     await targetMessage.delete().catch(() => null);
 
+    let reason = `QUICK MUTE BY ${executor.id} - $MESSAGE_PREVIEW`;
     const messages = await Purge.purgeUser(member.id, channel, config.data.default_purge_amount);
-    const [logUrl] = await Purge.log(messages, channel, config);
 
-    // Format the expiration date as a relative timestamp
-    const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);
-    let reason = `QUICK MUTE BY ${executor.id} - $MESSAGE_PREVIEW (Purge log: ${logUrl})`;
+    // Only append the purge logs if messages were purged
+    if (messages.length) {
+        const [logUrl] = await Purge.log(messages, channel, config);
+        reason += ` (Purge log: ${logUrl})`;
+    }
 
     // Replace the message preview placeholder with the actual message content
     // to account for the added character limit
     const croppedContent = cropLines(content, 5);
+    const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);
     reason = reason.replace("$MESSAGE_PREVIEW", elipsify(croppedContent, EMBED_FIELD_CHAR_LIMIT - reason.length + 16));
 
     const infraction = await handleInfractionCreate({

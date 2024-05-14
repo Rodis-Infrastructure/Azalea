@@ -69,22 +69,22 @@ export default class MessageReactionAdd extends EventListener {
 
         // Handle a 30-minute quick mute
         if (emojiId === config.data.emojis.quick_mute_30 && config.hasPermission(executor, Permission.QuickMute)) {
-            await MessageReactionAdd._quickMute({
+            await handleQuickMute({
                 duration: MuteDuration.Short,
                 targetMessage: message,
                 executor
-            });
+            }, true);
 
             return;
         }
 
         // Handle a one-hour quick mute
         if (emojiId === config.data.emojis.quick_mute_60 && config.hasPermission(executor, Permission.QuickMute)) {
-            await MessageReactionAdd._quickMute({
+            await handleQuickMute({
                 targetMessage: message,
                 duration: MuteDuration.Long,
                 executor
-            });
+            }, true);
 
             return;
         }
@@ -344,10 +344,6 @@ export default class MessageReactionAdd extends EventListener {
         const logUrls = await Purge.log(messages, message.channel, config);
 
         config.sendNotification(`${userMention(executorId)} ${response}: ${logUrls.join(" ")}`);
-    }
-
-    private static async _quickMute(data: Exclude<Parameters<typeof handleQuickMute>[number], boolean | undefined>): Promise<void> {
-        await handleQuickMute(data, true);
     }
 
     private static async _log(
