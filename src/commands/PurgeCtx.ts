@@ -36,7 +36,6 @@ export default class PurgeCtx extends Command<UserContextMenuCommandInteraction<
             return Promise.resolve("No messages were purged.");
         }
 
-
         const logURLs = await Purge.log(messages, interaction.channel, config);
         const response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")} by ${interaction.targetUser}`;
 

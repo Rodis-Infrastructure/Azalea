@@ -113,7 +113,6 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
 
         // Link to the log for ease of access
         const logURLs = await Purge.log(messages, interaction.channel, config);
-
         return `${response}: ${logURLs.join(" ")}`;
     }
 

@@ -335,6 +335,11 @@ export default class MessageReactionAdd extends EventListener {
             config.data.default_purge_amount
         );
 
+        if (!messages.length) {
+            config.sendNotification(`No messages were purged.`);
+            return;
+        }
+
         const response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")} by ${message.author}`;
         const logUrls = await Purge.log(messages, message.channel, config);
 
