@@ -6,6 +6,7 @@ import { MessageReportStatus, UserReportStatus } from "@utils/reports";
 import { fromZodError } from "zod-validation-error";
 import { InteractionReplyData } from "@utils/types";
 import { pluralize, startCronJob } from "@/utils";
+import { RequestStatus } from "@utils/requests";
 
 import Logger from "@utils/logger";
 
@@ -123,7 +124,7 @@ export default class GuildConfig {
             startCronJob(monitorSlug, alertConfig.cron, async () => {
                 const unresolvedRequests = await prisma.moderationRequest.findMany({
                     where: {
-                        status: MessageReportStatus.Unresolved,
+                        status: RequestStatus.Pending,
                         guild_id: this.guild.id
                     },
                     orderBy: {

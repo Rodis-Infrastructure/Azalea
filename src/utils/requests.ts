@@ -514,7 +514,7 @@ export async function denyModerationRequest(messageId: Snowflake, reviewerId: Sn
     config.sendNotification(`${userMention(request.author_id)} ${requestLink} against ${targetMention} has been denied by ${reviewerMention}.`);
 }
 
-enum RequestStatus {
+export enum RequestStatus {
     Pending = "pending",
     Approved = "approved",
     Denied = "denied"
