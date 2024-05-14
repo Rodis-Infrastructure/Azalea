@@ -159,12 +159,14 @@ export type ChannelScoping = z.infer<typeof channelScopingSchema>;
 
 const alertSchema = z.object({
     channel_id: snowflakeSchema,
-    // Cron expression for when to send the alert
-    cron: cronSchema,
+    // Cron expression for when to send the alert - Default: Every hour
+    cron: cronSchema.default("0 * * * *"),
     // Whether the alert should contain an embed
     embed: z.boolean().default(true),
-    // Number of unreviewed items required to trigger an alert
-    count_threshold: z.number().min(1),
+    // Number of unreviewed items required to trigger an alert - Default: 25
+    count_threshold: z.number().min(1).default(25),
+    // How old the oldest unreviewed item has to be to trigger an alert (in milliseconds) - Default: 1 hour
+    age_threshold: z.number().min(1000).default(3600000),
     // Role(s) mentioned in the alert
     mentioned_roles: z.array(snowflakeSchema).max(100).default([])
 });

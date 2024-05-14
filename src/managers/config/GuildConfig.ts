@@ -9,6 +9,7 @@ import { pluralize, startCronJob } from "@/utils";
 import { RequestStatus } from "@utils/requests";
 
 import Logger from "@utils/logger";
+import { LOG_ENTRY_DATE_FORMAT } from "@utils/constants";
 
 export default class GuildConfig {
     private constructor(public readonly data: RawGuildConfig, public readonly guild: Guild) {
@@ -123,20 +124,25 @@ export default class GuildConfig {
             // Start the cron job for the alert
             startCronJob(monitorSlug, alertConfig.cron, async () => {
                 const unresolvedRequests = await prisma.moderationRequest.findMany({
-                    where: {
-                        status: RequestStatus.Pending,
-                        guild_id: this.guild.id
-                    },
-                    orderBy: {
-                        created_at: "asc"
-                    }
+                    where: { status: RequestStatus.Pending, guild_id: this.guild.id },
+                    orderBy: { created_at: "asc" }
                 });
 
                 Logger.info(`Count: ${unresolvedRequests.length}`);
                 Logger.info(`Threshold: ${alertConfig.count_threshold}`);
 
-                if (unresolvedRequests.length < alertConfig.count_threshold) {
+                if (!unresolvedRequests.length || unresolvedRequests.length < alertConfig.count_threshold) {
                     Logger.info("Count is below the threshold, no actions need to be taken");
+                }
+
+                const createdAtThreshold = Date.now() - alertConfig.age_threshold;
+                const oldestReportCreatedAt = unresolvedRequests[0].created_at.getTime();
+
+                Logger.info(`Oldest request created at: ${new Date(oldestReportCreatedAt).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
+                Logger.info(`Created at threshold: ${new Date(createdAtThreshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
+
+                if (oldestReportCreatedAt < createdAtThreshold) {
+                    Logger.info("Oldest request is below the age threshold, no actions need to be taken");
                     return;
                 }
 
@@ -191,17 +197,26 @@ export default class GuildConfig {
 
         // Start the cron job for the alert
         startCronJob("MESSAGE_REPORT_REVIEW_REMINDER", alertConfig.cron, async () => {
-            const unresolvedReportCount = await prisma.messageReport.count({
-                where: {
-                    status: MessageReportStatus.Unresolved
-                }
+            const unresolvedReports = await prisma.messageReport.findMany({
+                where: { status: MessageReportStatus.Unresolved },
+                orderBy: { created_at: "asc" }
             });
 
-            Logger.info(`Count: ${unresolvedReportCount}`);
+            Logger.info(`Count: ${unresolvedReports.length}`);
             Logger.info(`Threshold: ${alertConfig.count_threshold}`);
 
-            if (unresolvedReportCount < alertConfig.count_threshold) {
+            if (!unresolvedReports.length || unresolvedReports.length < alertConfig.count_threshold) {
                 Logger.info("Count is below the threshold, no actions need to be taken");
+            }
+
+            const createdAtThreshold = Date.now() - alertConfig.age_threshold;
+            const oldestReportCreatedAt = unresolvedReports[0].created_at.getTime();
+
+            Logger.info(`Oldest message report created at: ${new Date(oldestReportCreatedAt).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
+            Logger.info(`Created at threshold: ${new Date(createdAtThreshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
+
+            if (oldestReportCreatedAt < createdAtThreshold) {
+                Logger.info("Oldest report is below the age threshold, no actions need to be taken");
                 return;
             }
 
@@ -209,7 +224,7 @@ export default class GuildConfig {
             const embeds = [];
 
             if (alertConfig.embed) {
-                embeds.push(getAlertEmbed(unresolvedReportCount));
+                embeds.push(getAlertEmbed(unresolvedReports.length));
             }
 
             // Send the alert to the channel
@@ -313,17 +328,26 @@ export default class GuildConfig {
 
         // Start the cron job for the alert
         startCronJob("USER_REPORT_REVIEW_REMINDER", alertConfig.cron, async () => {
-            const unresolvedReportCount = await prisma.userReport.count({
-                where: {
-                    status: UserReportStatus.Unresolved
-                }
+            const unresolvedReports = await prisma.userReport.findMany({
+                where: { status: UserReportStatus.Unresolved },
+                orderBy: { created_at: "asc" }
             });
 
-            Logger.info(`Count: ${unresolvedReportCount}`);
+            Logger.info(`Count: ${unresolvedReports.length}`);
             Logger.info(`Threshold: ${alertConfig.count_threshold}`);
 
-            if (unresolvedReportCount < alertConfig.count_threshold) {
+            if (!unresolvedReports.length || unresolvedReports.length < alertConfig.count_threshold) {
                 Logger.info("Count is below the threshold, no actions need to be taken");
+            }
+
+            const createdAtThreshold = Date.now() - alertConfig.age_threshold;
+            const oldestReportCreatedAt = unresolvedReports[0].created_at.getTime();
+
+            Logger.info(`Oldest user report created at: ${new Date(oldestReportCreatedAt).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
+            Logger.info(`Created at threshold: ${new Date(createdAtThreshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
+
+            if (oldestReportCreatedAt < createdAtThreshold) {
+                Logger.info("Oldest report is below the age threshold, no actions need to be taken");
                 return;
             }
 
@@ -331,7 +355,7 @@ export default class GuildConfig {
             const embeds = [];
 
             if (alertConfig.embed) {
-                embeds.push(getAlertEmbed(unresolvedReportCount));
+                embeds.push(getAlertEmbed(unresolvedReports.length));
             }
 
             // Send the alert to the channel
