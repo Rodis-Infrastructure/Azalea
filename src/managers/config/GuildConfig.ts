@@ -141,7 +141,7 @@ export default class GuildConfig {
                 Logger.info(`Oldest request created at: ${new Date(oldestReportCreatedAt).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
                 Logger.info(`Created at threshold: ${new Date(createdAtThreshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
 
-                if (oldestReportCreatedAt < createdAtThreshold) {
+                if (oldestReportCreatedAt > createdAtThreshold) {
                     Logger.info("Oldest request is below the age threshold, no actions need to be taken");
                     return;
                 }
@@ -215,7 +215,7 @@ export default class GuildConfig {
             Logger.info(`Oldest message report created at: ${new Date(oldestReportCreatedAt).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
             Logger.info(`Created at threshold: ${new Date(createdAtThreshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
 
-            if (oldestReportCreatedAt < createdAtThreshold) {
+            if (oldestReportCreatedAt > createdAtThreshold) {
                 Logger.info("Oldest report is below the age threshold, no actions need to be taken");
                 return;
             }
@@ -346,7 +346,7 @@ export default class GuildConfig {
             Logger.info(`Oldest user report created at: ${new Date(oldestReportCreatedAt).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
             Logger.info(`Created at threshold: ${new Date(createdAtThreshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
 
-            if (oldestReportCreatedAt < createdAtThreshold) {
+            if (oldestReportCreatedAt > createdAtThreshold) {
                 Logger.info("Oldest report is below the age threshold, no actions need to be taken");
                 return;
             }
