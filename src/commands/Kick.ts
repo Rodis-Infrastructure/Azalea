@@ -43,6 +43,11 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const member = interaction.options.getMember("member");
 
+        // Don't allow Discord media links to be present in the reason if disabled
+        if (!config.data.allow_discord_media_links && (reason.includes("cdn.discord") || reason.includes("media.discord"))) {
+            return "Discord media links are not allowed in infraction reasons";
+        }
+        
         // Check if the member is in the server
         // Users that are not in the server cannot be kicked
         if (!member) {

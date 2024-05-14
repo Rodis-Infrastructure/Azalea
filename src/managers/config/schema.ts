@@ -241,8 +241,6 @@ const defaultLogging = loggingSchema.parse({});
 const moderationRequestSchema = z.object({
     type: moderationRequestTypeEnum,
     channel_id: snowflakeSchema,
-    // @default true
-    allow_discord_media_links: z.boolean().default(true),
     alert: alertSchema.optional()
 });
 
@@ -292,6 +290,7 @@ const mediaChannelSchema = z.object({
 export const rawGuildConfigSchema = z.object({
     logging: loggingSchema.default(defaultLogging),
     moderation_requests: z.array(moderationRequestSchema).default([]),
+    allow_discord_media_links: z.boolean().default(true),
     auto_reactions: z.array(autoReactionSchema).default([]),
     notification_channel: snowflakeSchema.optional(),
     media_conversion_channel: snowflakeSchema.optional(),

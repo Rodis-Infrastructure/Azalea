@@ -38,6 +38,11 @@ export default class Warn extends Command<ChatInputCommandInteraction<"cached">>
         const reason = interaction.options.getString("reason", true);
         const member = interaction.options.getMember("user");
 
+        // Don't allow Discord media links to be present in the reason if disabled
+        if (!config.data.allow_discord_media_links && (reason.includes("cdn.discord") || reason.includes("media.discord"))) {
+            return "Discord media links are not allowed in infraction reasons";
+        }
+        
         if (member && member.roles.highest.position >= interaction.member.roles.highest.position) {
             return "You cannot warn a user with a higher or equal role";
         }

@@ -33,6 +33,11 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const user = interaction.options.getUser("user", true);
 
+        // Don't allow Discord media links to be present in the reason if disabled
+        if (!config.data.allow_discord_media_links && (reason.includes("cdn.discord") || reason.includes("media.discord"))) {
+            return "Discord media links are not allowed in infraction reasons";
+        }
+        
         // Check if the user is banned by fetching their ban
         // If they are banned, the method will return their ban data
         // Otherwise, it will return null

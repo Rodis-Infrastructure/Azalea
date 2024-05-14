@@ -22,9 +22,11 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
         .find(requestConfig => requestConfig.channel_id === message.channel.id);
 
     if (!requestConfig) return;
+    
+    const hasMediaLink = message.content.includes("cdn.discord") || message.content.includes("media.discord");
 
-    if (!requestConfig.allow_discord_media_links && message.content.includes("cdn.discord")) {
-        await temporaryReply(message, "Discord media links are not allowed.", config.data.response_ttl);
+    if (!config.data.allow_discord_media_links && hasMediaLink) {
+        await temporaryReply(message, "Discord media links are not allowed in infraction reasons.", config.data.response_ttl);
         return;
     }
 
