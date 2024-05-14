@@ -7,12 +7,7 @@ import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 
 /**
- * Add a note to a user's infraction history.
- * The following requirements must be met:
- *
- * 1. The target must be manageable to the client
- *
- * Upon adding the note, the command will log the action in the channel configured for
+ * Warn the user. Upon warning, the command will log the action in the channel configured for
  * {@link LoggingEvent.InfractionCreate} logs and store the infraction in the database
  */
 export default class Warn extends Command<ChatInputCommandInteraction<"cached">> {
@@ -42,10 +37,6 @@ export default class Warn extends Command<ChatInputCommandInteraction<"cached">>
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const reason = interaction.options.getString("reason", true);
         const member = interaction.options.getMember("user");
-
-        if (member && !member.manageable) {
-            return "I cannot warn this user.";
-        }
 
         if (member && member.roles.highest.position >= interaction.member.roles.highest.position) {
             return "You cannot warn a user with a higher or equal role";
