@@ -32,5 +32,6 @@ export enum MessageReportFlag {
     HasAttachment = 1 << 0,
     HasSticker = 1 << 1,
     Updated = 1 << 2,
-    Deleted = 1 << 3
+    Deleted = 1 << 3,
+    Spam = 1 << 4
 }

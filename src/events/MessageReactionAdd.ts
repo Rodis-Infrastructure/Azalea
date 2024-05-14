@@ -6,7 +6,6 @@ import {
     Events,
     GuildEmoji,
     hyperlink,
-    inlineCode,
     Message,
     MessageCreateOptions,
     MessageReaction,
@@ -128,20 +127,57 @@ export default class MessageReactionAdd extends EventListener {
         // Don't report messages from users with excluded roles
         if (isExcluded || message.author.bot) return;
 
-        const alertChannel = await config.guild.channels.fetch(config.data.message_reports.report_channel);
+        const reportChannel = await config.guild.channels.fetch(config.data.message_reports.report_channel);
 
         // Ensure the alert channel exists and is a text channel
         // An error should be thrown since the bot shouldn't be started with an incomplete configuration
-        if (!alertChannel || !alertChannel.isTextBased()) {
-            throw new Error(`Invalid alert channel passed to \`message_reports.alert_channel\` in the config for guild with ID ${config.guild.id}`);
+        if (!reportChannel || !reportChannel.isTextBased()) {
+            throw new Error(`Invalid report channel passed to \`message_reports.alert_channel\` in the config for guild with ID ${config.guild.id}`);
         }
 
-        const originalReport = await prisma.messageReport.findUnique({
+        const originalReport = await prisma.messageReport.findFirst({
             where: {
-                message_id: message.id,
+                content: message.content,
+                author_id: message.author.id,
                 status: MessageReportStatus.Unresolved
             }
         });
+
+        const isSpam = originalReport
+            && !(originalReport.flags & MessageReportFlag.Spam)
+            && originalReport.id !== message.id;
+
+        if (isSpam) {
+            await prisma.messageReport.update({
+                where: { id: originalReport.id },
+                data: { flags: originalReport.flags | MessageReportFlag.Spam }
+            });
+
+            const report = await reportChannel.messages.fetch(originalReport.id)
+                .catch(() => null);
+
+            if (!report) {
+                return;
+            }
+
+            const mappedFlags = MessageReactionAdd._mapMessageReportFlags(originalReport.flags | MessageReportFlag.Spam);
+            const embed = new EmbedBuilder(report.embeds[0].toJSON());
+
+            if (embed.data.fields!.find(field => field.name === "Flags")) {
+                embed.spliceFields(-1, 1, {
+                    name: "Flags",
+                    value: mappedFlags
+                });
+            } else {
+                embed.addFields({
+                    name: "Flags",
+                    value: mappedFlags
+                });
+            }
+
+            await report.edit({ embeds: [embed] });
+            return;
+        }
 
         // The message has already been reported
         if (originalReport) {
@@ -149,26 +185,19 @@ export default class MessageReactionAdd extends EventListener {
         }
 
         // Flags mapped by their names for the report
-        const mappedFlags = [];
         const croppedContent = cropLines(message.content, 5);
         // Bitwise flags for storage
         let flags = 0;
 
         // Add a flag if the message has attachments
-        if (message.attachments.size) {
-            // Use Enum[Enum.Value] to ensure the flag name is up-to-date with changes
-            mappedFlags.push(MessageReportFlag[MessageReportFlag.HasAttachment]);
-            flags |= MessageReportFlag.HasAttachment;
-        }
+        if (message.attachments.size) flags |= MessageReportFlag.HasAttachment;
 
         // Add a flag if the message has stickers
-        if (message.stickers.size) {
-            // Use Enum[Enum.Value] to ensure the flag name is up-to-date with changes
-            mappedFlags.push(MessageReportFlag[MessageReportFlag.HasSticker]);
-            flags |= MessageReportFlag.HasSticker;
-        }
+        if (message.stickers.size) flags |= MessageReportFlag.HasSticker;
 
+        const mappedFlags = MessageReactionAdd._mapMessageReportFlags(flags);
         const stickerId = message.stickers.first()?.id ?? null;
+
         const alert = new EmbedBuilder()
             .setColor(Colors.Yellow)
             .setThumbnail(message.author.displayAvatarURL())
@@ -204,17 +233,9 @@ export default class MessageReactionAdd extends EventListener {
 
         // Add flags to the embed if there are any
         if (mappedFlags.length) {
-            // Split the flags by capital letters and wrap them in inline code blocks
-            const formattedFlags = mappedFlags
-                .map(flag => {
-                    const formattedFlag = flag.split(/(?=[A-Z])/).join(" ");
-                    return inlineCode(formattedFlag);
-                })
-                .join(", ");
-
             alert.addFields({
                 name: "Flags",
-                value: formattedFlags
+                value: mappedFlags
             });
         }
 
@@ -260,7 +281,7 @@ export default class MessageReactionAdd extends EventListener {
             ?.map(roleMention)
             .join(" ");
 
-        const report = await alertChannel.send({
+        const report = await reportChannel.send({
             content: mentionedRoles,
             embeds: [alert],
             components: [actionRow]
@@ -296,6 +317,15 @@ export default class MessageReactionAdd extends EventListener {
             message: { embeds: [alert] },
             config
         });
+    }
+
+    private static _mapMessageReportFlags(flags: number): string {
+        const entries = Object.entries(MessageReportFlag)
+            .filter((entry): entry is [string, MessageReportFlag] => {
+                return typeof entry[1] !== "string" && Boolean(flags & entry[1]);
+            });
+
+        return entries.map(entry => `\`${entry[0]}\``).join(", ");
     }
 
     private static async _purgeUser(message: Message<true>, executorId: Snowflake, config: GuildConfig): Promise<void> {

@@ -146,13 +146,13 @@ export async function handleShortMessageDeleteLog(
         ])
         .setTimestamp(message.created_at);
 
+    await updateMessageReportState(message.id, config, executor?.id);
+
     if (executor) {
         embed.setFooter({
             text: `Deleted by @${executor.username} - ${executor.id}`,
             iconURL: executor.displayAvatarURL()
         });
-
-        await updateMessageReportState(message.id, executor.id, config);
     }
 
     const embeds = [embed];
@@ -169,7 +169,7 @@ export async function handleShortMessageDeleteLog(
     });
 }
 
-async function updateMessageReportState(messageId: Snowflake, executorId: Snowflake, config: GuildConfig): Promise<void> {
+async function updateMessageReportState(messageId: Snowflake, config: GuildConfig, executorId?: Snowflake): Promise<void> {
     if (!config.data.message_reports) return;
 
     const messageReport = await prisma.messageReport.update({
@@ -182,7 +182,7 @@ async function updateMessageReportState(messageId: Snowflake, executorId: Snowfl
         }
     }).catch(() => null);
 
-    if (!messageReport) return;
+    if (!messageReport || !executorId) return;
 
     const alertChannel = await config.guild.channels
         .fetch(config.data.message_reports.report_channel)
