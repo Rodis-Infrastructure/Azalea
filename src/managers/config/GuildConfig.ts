@@ -1,5 +1,15 @@
 import { Snowflake } from "discord-api-types/v10";
-import { Colors, EmbedBuilder, Guild, GuildBasedChannel, GuildMember, messageLink, roleMention } from "discord.js";
+import {
+    Collection,
+    Colors,
+    EmbedBuilder,
+    Guild,
+    GuildBasedChannel,
+    GuildMember,
+    messageLink,
+    Role,
+    roleMention
+} from "discord.js";
 import { ChannelScoping, Permission, RawGuildConfig, rawGuildConfigSchema } from "./schema";
 import { client, prisma } from "@/index";
 import { MessageReportStatus, UserReportStatus } from "@utils/reports";
@@ -460,10 +470,13 @@ export default class GuildConfig {
      * The array will be empty if the channel is not an auto-reaction channel.
      *
      * @param channelId - The channel ID to check
+     * @param roles - The roles of the user to check
      * @returns An array of emojis to add to a message
      */
-    getAutoReactionEmojis(channelId: Snowflake): string[] {
-        return this.data.auto_reactions.find(reaction => reaction.channel_id === channelId)?.emojis ?? [];
+    getAutoReactionEmojis(channelId: Snowflake, roles: Collection<Snowflake, Role>): string[] {
+        return this.data.auto_reactions.find(reaction => {
+            return reaction.channel_id === channelId && roles.some(role => reaction.exclude_roles.includes(role.id));
+        })?.reactions ?? [];
     }
 
     /**

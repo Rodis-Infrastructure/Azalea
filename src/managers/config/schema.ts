@@ -195,7 +195,8 @@ const autoReactionSchema = z.object({
     // The channel to listen for messages in
     channel_id: snowflakeSchema,
     // The reactions to add to messages
-    emojis: z.array(emojiSchema).nonempty()
+    reactions: z.array(emojiSchema).nonempty(),
+    exclude_roles: z.array(snowflakeSchema).default([])
 });
 
 const reportSchema = z.object({
@@ -207,7 +208,7 @@ const reportSchema = z.object({
     // Roles mentioned in new alerts
     mentioned_roles: z.array(snowflakeSchema).nonempty().optional(),
     // Users with these roles will be immune to reports
-    excluded_roles: z.array(snowflakeSchema).default([])
+    exclude_roles: z.array(snowflakeSchema).default([])
 });
 
 const emojisSchema = z.object({
@@ -283,6 +284,7 @@ const roleRequestsSchema = z.object({
 const mediaChannelSchema = z.object({
     channel_id: snowflakeSchema,
     allowed_roles: z.array(snowflakeSchema).min(1).optional(),
+    exclude_roles: z.array(snowflakeSchema).default([]),
     fallback_response: messageContentSchema.optional()
 });
 

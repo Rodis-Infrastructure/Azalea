@@ -33,7 +33,7 @@ export default class ReportUserCtx extends Command<UserContextMenuCommandInterac
             };
         }
 
-        const excludedRoles = config.data.user_reports.excluded_roles;
+        const excludedRoles = config.data.user_reports.exclude_roles;
         const isExcluded = interaction.targetMember?.roles.cache
             .some(role => excludedRoles.includes(role.id)) ?? false;
 

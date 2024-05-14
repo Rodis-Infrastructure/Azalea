@@ -121,7 +121,7 @@ export default class MessageReactionAdd extends EventListener {
         // Message reports have not been configured
         if (!config.data.message_reports) return;
 
-        const excludedRoles = config.data.message_reports.excluded_roles;
+        const excludedRoles = config.data.message_reports.exclude_roles;
         const isExcluded = message.member?.roles.cache.some(role => excludedRoles.includes(role.id));
 
         // Don't report messages from users with excluded roles
