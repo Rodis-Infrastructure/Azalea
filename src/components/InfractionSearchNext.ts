@@ -23,7 +23,7 @@ export default class InfractionSearchNext extends Component {
  */
 export async function handleInfractionSearchPagination(interaction: ButtonInteraction<"cached">, pageOffset: number): Promise<InteractionReplyData> {
     // ID of the user that initiated the search
-    const searchExecutorId = interaction.message.interaction!.user.id;
+    const searchExecutorId = interaction.message.interaction?.user.id ?? (await interaction.message.fetchReference()).author.id;
 
     if (interaction.user.id !== searchExecutorId && searchExecutorId !== client.user.id) {
         return {
