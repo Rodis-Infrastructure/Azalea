@@ -82,7 +82,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
 
                 if (muteDurationDiff) {
                     // User has been muted
-                    if (!muteDurationDiff.old && muteDurationDiff.new) {
+                    if (muteDurationDiff.new) {
                         const msDuration = Date.parse(muteDurationDiff.new as string);
                         const expiresAt = Math.floor(msDuration / 1000);
 
@@ -107,7 +107,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
                     }
 
                     // User has been unmuted
-                    if (muteDurationDiff.old && !muteDurationDiff.new) {
+                    if (!muteDurationDiff.new) {
                         setAction(Action.Unmute, "unmuted");
                     }
                 }
