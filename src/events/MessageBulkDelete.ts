@@ -1,4 +1,6 @@
 import {
+    ActionRowBuilder,
+    ButtonBuilder, ButtonStyle,
     Collection,
     Events,
     GuildTextBasedChannel,
@@ -79,7 +81,7 @@ export default class MessageBulkDelete extends EventListener {
         const logContent = `Deleted \`${messages.length}\` ${pluralize(messages.length, "message")} in ${channel} by ${authorMentions.join(", ")}`;
         const file = mapLogEntriesToFile(entries);
 
-        return log({
+        const logs = await log({
             event: LoggingEvent.MessageBulkDelete,
             message: {
                 allowedMentions: { parse: [] },
@@ -89,5 +91,22 @@ export default class MessageBulkDelete extends EventListener {
             channel,
             config
         });
+
+        if (logs) {
+            for (const message of logs) {
+                const encodedFileUrl = encodeURIComponent(message.attachments.first()!.url);
+                const openInBrowserUrl = new ButtonBuilder()
+                    .setLabel("Open in Browser")
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(`https://discord-fv.vercel.app/?url=${encodedFileUrl}`);
+
+                const actionRow = new ActionRowBuilder<ButtonBuilder>()
+                    .setComponents(openInBrowserUrl);
+
+                await message.edit({ components: [actionRow] });
+            }
+        }
+
+        return logs;
     }
 }
