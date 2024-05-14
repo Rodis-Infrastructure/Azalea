@@ -145,7 +145,7 @@ export default class MessageReactionAdd extends EventListener {
 
         const isSpam = originalReport
             && !(originalReport.flags & MessageReportFlag.Spam)
-            && originalReport.id !== message.id;
+            && originalReport.message_id !== message.id;
 
         if (isSpam) {
             await prisma.messageReport.update({
