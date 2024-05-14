@@ -172,12 +172,15 @@ export async function handleShortMessageDeleteLog(
 async function updateMessageReportState(messageId: Snowflake, executorId: Snowflake, config: GuildConfig): Promise<void> {
     if (!config.data.message_reports) return;
 
-    const messageReport = await prisma.messageReport.findUnique({
+    const messageReport = await prisma.messageReport.update({
         where: {
             message_id: messageId,
             status: MessageReportStatus.Unresolved
+        },
+        data: {
+            message_deleted: true
         }
-    });
+    }).catch(() => null);
 
     if (!messageReport) return;
 

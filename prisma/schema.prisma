@@ -53,17 +53,18 @@ model Infraction {
 }
 
 model MessageReport {
-  id          String   @id
-  message_id  String   @unique
-  channel_id  String
-  author_id   String
-  reported_by String
-  created_at  DateTime @default(now())
-  status      String   @default("unresolved")
-  flags       Int
+  id              String   @id
+  message_id      String   @unique
+  channel_id      String
+  author_id       String
+  reported_by     String
+  created_at      DateTime @default(now())
+  status          String   @default("unresolved")
+  flags           Int
+  message_deleted Boolean  @default(false)
   /// ID of the user that resolved the report
-  resolved_by String?
-  content     String?
+  resolved_by     String?
+  content         String?
 }
 
 model UserReport {
