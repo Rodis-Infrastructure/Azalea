@@ -480,7 +480,7 @@ export default class GuildConfig {
      */
     getAutoReactionEmojis(channelId: Snowflake, roles: Collection<Snowflake, Role>): string[] {
         return this.data.auto_reactions.find(reaction => {
-            return reaction.channel_id === channelId && roles.some(role => reaction.exclude_roles.includes(role.id));
+            return reaction.channel_id === channelId && !roles.some(role => reaction.exclude_roles.includes(role.id));
         })?.reactions ?? [];
     }
 
