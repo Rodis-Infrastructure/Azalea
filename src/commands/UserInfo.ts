@@ -160,7 +160,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             : true;
 
         // Executor has permission to view infractions
-        if (config.hasPermission(executor, Permission.ViewInfractions)) {
+        if (config.hasPermission(executor, Permission.ViewInfractions) && (!member || !config.hasPermission(member, Permission.ViewInfractions))) {
             await UserInfo._getReceivedInfractions(embed, user.id, config.guild.id);
 
             const infractionSearchButton = new ButtonBuilder()
