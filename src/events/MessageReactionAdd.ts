@@ -28,7 +28,7 @@ import { log, mapLogEntriesToFile } from "@utils/logging";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { cropLines, pluralize, userMentionWithId } from "@/utils";
 import { ButtonStyle, Snowflake } from "discord-api-types/v10";
-import { approveModerationRequest, denyModerationRequest } from "@utils/requests";
+import { approveModerationRequest, denyModerationRequest, RequestStatus } from "@utils/requests";
 import { prisma } from "./..";
 import { MessageReportFlag, MessageReportStatus } from "@utils/reports";
 import { LoggingEvent, Permission } from "@managers/config/schema";
@@ -114,6 +114,14 @@ export default class MessageReactionAdd extends EventListener {
         // Permission checks are performed in denial function
         if (isModerationRequestChannel && emojiId === config.data.emojis.deny) {
             await denyModerationRequest(message.id, user.id, config);
+            return;
+        }
+
+        if (isModerationRequestChannel) {
+            await prisma.moderationRequest.update({
+                where: { id: message.id },
+                data: { status: RequestStatus.Approved }
+            }).catch(() => null);
         }
     }
 
