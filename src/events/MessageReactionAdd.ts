@@ -120,7 +120,7 @@ export default class MessageReactionAdd extends EventListener {
         if (isModerationRequestChannel) {
             await prisma.moderationRequest.update({
                 where: { id: message.id },
-                data: { status: RequestStatus.Approved }
+                data: { status: RequestStatus.Unknown }
             }).catch(() => null);
         }
     }
