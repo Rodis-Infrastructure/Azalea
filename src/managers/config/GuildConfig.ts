@@ -123,7 +123,7 @@ export default class GuildConfig {
                 .setColor(Colors.Red)
                 .setTitle("Request Review Reminder")
                 .setDescription(`There are currently \`${unresolvedRequestCount}\` unresolved ${request.type} requests starting from ${oldestRequestUrl}`)
-                .setFooter({ text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved ${request.type} requests` });
+                .setFooter({ text: `This message appears when there are too many pending ${request.type} requests or if any of them exceed the age threshold` });
 
             const mentionedRoles = alertConfig.mentioned_roles
                 .map(roleMention)
@@ -134,7 +134,11 @@ export default class GuildConfig {
             // Start the cron job for the alert
             startCronJob(monitorSlug, alertConfig.cron, async () => {
                 const unresolvedRequests = await prisma.moderationRequest.findMany({
-                    where: { status: RequestStatus.Pending, guild_id: this.guild.id },
+                    where: {
+                        status: RequestStatus.Pending,
+                        type: request.type,
+                        guild_id: this.guild.id
+                    },
                     orderBy: { created_at: "asc" }
                 });
 
@@ -148,11 +152,11 @@ export default class GuildConfig {
                 const createdAtThreshold = Date.now() - alertConfig.age_threshold;
                 const oldestReportCreatedAt = unresolvedRequests[0].created_at.getTime();
 
-                Logger.info(`Oldest request created at: ${new Date(oldestReportCreatedAt).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
+                Logger.info(`Oldest ${request.type} request created at: ${new Date(oldestReportCreatedAt).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
                 Logger.info(`Created at threshold: ${new Date(createdAtThreshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
 
                 if (oldestReportCreatedAt > createdAtThreshold) {
-                    Logger.info("Oldest request is below the age threshold, no actions need to be taken");
+                    Logger.info(`Oldest ${request.type} request is below the age threshold, no actions need to be taken`);
                     return;
                 }
 
@@ -436,6 +440,7 @@ export default class GuildConfig {
             }
         });
     }
+
     /**
      * **All** of the following conditions must be met:
      *
