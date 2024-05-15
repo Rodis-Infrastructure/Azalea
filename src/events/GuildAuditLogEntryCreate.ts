@@ -146,6 +146,7 @@ async function clearMessageReports(userId: Snowflake, config: GuildConfig): Prom
             select: { id: true },
             where: {
                 status: MessageReportStatus.Unresolved,
+                message_deleted: true,
                 author_id: userId
             }
         }),

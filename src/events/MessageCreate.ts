@@ -75,7 +75,7 @@ export default class MessageCreate extends EventListener {
             .find(mediaChannel => mediaChannel.channel_id === message.channel.id);
 
         // Remove message if it doesn't have an attachment in a media channel
-        if (mediaChannel && !message.member!.roles.cache.some(role => mediaChannel.exclude_roles.includes(role.id))) {
+        if (mediaChannel && !message.member?.roles.cache.some(role => mediaChannel.exclude_roles.includes(role.id))) {
             const hasAttachments = message.attachments.size > 0 || message.content.includes("://");
             const canPostInMediaChannel = !mediaChannel.allowed_roles || mediaChannel.allowed_roles
                 .some(roleId => message.member?.roles.cache.has(roleId));

@@ -100,6 +100,8 @@ export default class RoleRequestSelectRole extends Component {
             embed.data.title += ` (expires ${time(expiresAt, TimestampStyles.RelativeTime)})`;
         }
 
+        await interaction.deferUpdate();
+
         // Add the role to the members
         const addedMembers = await Promise.all(members.map(member =>
             member.roles.add(
@@ -110,7 +112,7 @@ export default class RoleRequestSelectRole extends Component {
 
         const successfulMembers = addedMembers.filter(Boolean) as GuildMember[];
 
-        await interaction.update({
+        await interaction.editReply({
             embeds: [embed],
             components: [buttonActionRow]
         });
