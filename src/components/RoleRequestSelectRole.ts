@@ -1,6 +1,20 @@
+import {
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    EmbedBuilder,
+    GuildMember,
+    StringSelectMenuInteraction,
+    time,
+    TimestampStyles,
+    userMention
+} from "discord.js";
+
 import { InteractionReplyData } from "@utils/types";
-import { EmbedBuilder, GuildMember, StringSelectMenuInteraction, time, TimestampStyles, userMention } from "discord.js";
 import { prisma } from "./..";
+import { pluralize } from "@/utils";
+import { Permission } from "@managers/config/schema";
+import { Prisma } from "@prisma/client";
 
 import Component from "@managers/components/Component";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -13,11 +27,8 @@ export default class RoleRequestSelectRole extends Component {
     async execute(interaction: StringSelectMenuInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const roleRequestConfig = config.data.role_requests!;
-        const canManageRoleRequests = roleRequestConfig.reviewer_roles.some(roleId =>
-            interaction.member.roles.cache.has(roleId)
-        );
 
-        if (!canManageRoleRequests) {
+        if (!config.hasPermission(interaction.member, Permission.ManageRoleRequests)) {
             return {
                 content: "You do not have permission to manage role requests.",
                 ephemeral: true
@@ -57,23 +68,32 @@ export default class RoleRequestSelectRole extends Component {
 
         const nullableMembers = await Promise.all(memberPromises);
         const members = nullableMembers.filter(Boolean) as GuildMember[];
-        const buttonActionRow = interaction.message.components[1];
+        const buttonActionRow = new ActionRowBuilder<ButtonBuilder>(interaction.message.components[1].toJSON());
         const [embedData] = interaction.message.embeds;
+
+        const removeRolesButton = new ButtonBuilder()
+            .setLabel("Remove role")
+            .setStyle(ButtonStyle.Danger)
+            .setCustomId("role-request-remove-role");
+
+        buttonActionRow.addComponents(removeRolesButton);
 
         const embed = new EmbedBuilder(embedData.toJSON())
             .setColor(role.color)
-            .setTitle(role.name);
+            .setTitle(role.name)
+            .setFooter({ text: `Role ID: ${role.id}` });
 
         // Store the role expiration time in the database
         if (selectedRole.ttl) {
             const expiresAt = new Date(Date.now() + selectedRole.ttl);
-            const isTransactionSuccessful = await prisma.$transaction(members.map(member =>
+            const txn: Prisma.PrismaPromise<unknown>[] = members.map(member =>
                 prisma.temporaryRole.upsert({
                     where: {
                         guild_id: interaction.guildId,
-                        member_id_role_id: {
+                        member_id_role_id_guild_id: {
                             member_id: member.id,
-                            role_id: selectedRole.id
+                            role_id: selectedRole.id,
+                            guild_id: interaction.guildId
                         }
                     },
                     create: {
@@ -86,13 +106,25 @@ export default class RoleRequestSelectRole extends Component {
                         expires_at: expiresAt
                     }
                 })
-            ))
+            );
+
+            txn.push(
+                prisma.temporaryMessage.create({
+                    data: {
+                        message_id: interaction.message.id,
+                        channel_id: interaction.channel!.id,
+                        expires_at: expiresAt
+                    }
+                })
+            );
+
+            const isTransactionSuccessful = await prisma.$transaction(txn)
                 .then(() => true)
                 .catch(() => false);
 
             if (!isTransactionSuccessful) {
                 return {
-                    content: "Failed to start expiration timers.",
+                    content: `Failed to start expiration ${pluralize(members.length, "timer")}.`,
                     ephemeral: true
                 };
             }
@@ -124,7 +156,7 @@ export default class RoleRequestSelectRole extends Component {
                 .join(" ");
 
             await interaction.followUp({
-                content: `Failed to assign the role to the following members: ${failedMembers}`,
+                content: `Failed to assign the role to the following ${pluralize(failedMembers.length, "member")}: ${failedMembers}`,
                 ephemeral: true
             });
 
@@ -132,7 +164,7 @@ export default class RoleRequestSelectRole extends Component {
         }
 
         await interaction.followUp({
-            content: `Successfully assigned the role to ${members.length} members.`,
+            content: `Successfully assigned the role to ${members.length} ${pluralize(members.length, "member")}.`,
             ephemeral: true
         });
 

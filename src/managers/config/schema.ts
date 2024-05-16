@@ -133,6 +133,8 @@ export enum Permission {
     QuickMute = "quick_mute",
     // Grants access to reporting messages using a reaction
     ReportMessages = "report_messages",
+    // Grants access to managing role requests
+    ManageRoleRequests = "manage_role_requests",
 }
 
 const permissionEnum = z.nativeEnum(Permission);
@@ -275,8 +277,6 @@ const requestedRoleSchema = z.object({
 const roleRequestsSchema = z.object({
     // The role request channel
     channel_id: snowflakeSchema,
-    // Users with these roles can manage role requests
-    reviewer_roles: z.array(snowflakeSchema).nonempty(),
     // Roles that can be requested
     roles: z.array(requestedRoleSchema).nonempty()
 });

@@ -1,6 +1,7 @@
 import {
     ActionRowBuilder,
     ButtonBuilder,
+    ButtonComponentData,
     ButtonInteraction,
     ButtonStyle,
     EmbedBuilder,
@@ -87,6 +88,13 @@ export default class RoleRequestNote extends Component {
 
         const buttonActionRow = new ActionRowBuilder<ButtonBuilder>()
             .setComponents(addNote);
+
+        // The request have been approved
+        if (rawComponents.length === 1) {
+            const rawRemoveRoleButton = rawComponents[0].components[2].toJSON() as ButtonComponentData;
+            const removeRoleButton = new ButtonBuilder(rawRemoveRoleButton);
+            buttonActionRow.addComponents(removeRoleButton);
+        }
 
         components.push(buttonActionRow);
 

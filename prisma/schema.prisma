@@ -85,7 +85,15 @@ model TemporaryRole {
   guild_id   String
   expires_at DateTime
 
-  @@id([member_id, role_id])
+  @@id([member_id, role_id, guild_id])
+}
+
+model TemporaryMessage {
+  message_id String
+  channel_id String
+  expires_at DateTime
+
+  @@id([message_id, channel_id])
 }
 
 model Reminder {

@@ -1,6 +1,6 @@
 import {
     ActionRowBuilder,
-    ButtonBuilder,
+    ButtonBuilder, ButtonComponentData,
     ButtonStyle,
     EmbedBuilder,
     ModalSubmitInteraction,
@@ -37,8 +37,11 @@ export default class RoleRequestPromptNote extends Component {
             newComponents.push(selectMenuActionRow);
         }
 
+        const hasNoteWithSelectMenu = rawButtonActionRow.components.length === 2 && components.length === 2;
+        const hasNoteWithoutSelectMenu = rawButtonActionRow.components.length === 3 && components.length === 1;
+
         // The button action row already contains the necessary buttons
-        if (rawButtonActionRow.components.length === 2) {
+        if (hasNoteWithoutSelectMenu || hasNoteWithSelectMenu) {
             await interaction.message!.edit({ embeds: [embed] });
             return {
                 content: "Note updated successfully!",
@@ -58,6 +61,13 @@ export default class RoleRequestPromptNote extends Component {
 
         const buttonActionRow = new ActionRowBuilder<ButtonBuilder>()
             .setComponents(editNote, removeNote);
+
+        // The request was approved and there is no note
+        if (components.length === 1) {
+            const rawRemoveRoleButton = rawButtonActionRow.components[1].toJSON() as ButtonComponentData;
+            const removeRoleButton = new ButtonBuilder(rawRemoveRoleButton);
+            buttonActionRow.addComponents(removeRoleButton);
+        }
 
         newComponents.push(buttonActionRow);
 

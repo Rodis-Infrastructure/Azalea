@@ -11,7 +11,7 @@ export default abstract class Command<T extends CommandInteraction> {
     protected constructor(public data: ApplicationCommandData) {}
 
     /**
-     * Handles the command interaction.
+     * Handles the command interaction. Mentions are disabled by default.
      * @param interaction The interaction to handle.
      */
     abstract execute(interaction: T): InteractionReplyData | Promise<InteractionReplyData>;

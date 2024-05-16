@@ -1,8 +1,8 @@
 import { Messages } from "@utils/messages";
-import { Client, Events } from "discord.js";
+import { Client, Events, GuildTextBasedChannel } from "discord.js";
 import { client, prisma } from "./..";
 import { Prisma } from "@prisma/client";
-import { startCronJob } from "@/utils";
+import { pluralize, startCronJob } from "@/utils";
 
 import Logger, { AnsiColor } from "@utils/logger";
 import EventListener from "@managers/events/EventListener";
@@ -34,6 +34,7 @@ export default class Ready extends EventListener {
             config.startMessageReportRemovalCronJob();
             config.startUserReportReviewReminderCronJob();
             config.startUserReportRemovalCronJob();
+            Ready._startTemporaryMessageRemovalCronJob();
 
             if (config.data.role_requests) {
                 Ready._startTemporaryRoleRemovalCronJob();
@@ -42,20 +43,22 @@ export default class Ready extends EventListener {
     }
 
     private static _startTemporaryRoleRemovalCronJob(): void {
-        // Fetch and delete all expired role requests every day at midnight
+        // Fetch and delete all expired roles every day at midnight
         startCronJob("TEMPORARY_ROLE_REMOVAL", "0 0 * * *", async () => {
+            const now = new Date();
+
             // Fetch and delete all expired role requests
-            const [expiredRequests] = await prisma.$transaction([
+            const [expiredRoles] = await prisma.$transaction([
                 prisma.temporaryRole.findMany({
-                    where: { expires_at: { lte: new Date() } }
+                    where: { expires_at: { lte: now } }
                 }),
                 prisma.temporaryRole.deleteMany({
-                    where: { expires_at: { lte: new Date() } }
+                    where: { expires_at: { lte: now } }
                 })
             ]);
 
-            // Map the expired requests to their respective guilds
-            const expiredRequestsByGuild = expiredRequests.reduce((acc, request) => {
+            // Map the expired roles to their respective guilds
+            const expiredRolesByGuild = expiredRoles.reduce((acc, request) => {
                 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
                 if (!acc[request.guild_id]) {
                     acc[request.guild_id] = [];
@@ -68,25 +71,78 @@ export default class Ready extends EventListener {
             let removalCount = 0;
 
             // Remove the roles from the users
-            for (const guildId in expiredRequestsByGuild) {
+            for (const guildId in expiredRolesByGuild) {
                 const guild = await client.guilds.fetch(guildId);
-                const expiredRequests = expiredRequestsByGuild[guildId];
+                const expiredRoles = expiredRolesByGuild[guildId];
 
-                for (const request of expiredRequests) {
-                    const member = await guild.members.fetch(request.member_id);
+                for (const role of expiredRoles) {
+                    const member = await guild.members.fetch(role.member_id);
 
-                    if (member.roles.cache.has(request.role_id)) {
-                        Logger.info(`Removing role ${request.role_id} from @${member.user.username} (${member.id})`);
-                        await member.roles.remove(request.role_id);
+                    if (member.roles.cache.has(role.role_id)) {
+                        Logger.info(`Removing role ${role.role_id} from @${member.user.username} (${member.id})`);
+                        await member.roles.remove(role.role_id);
                         removalCount++;
                     }
                 }
             }
 
             if (removalCount > 0) {
-                Logger.info(`Removed ${removalCount} expired role requests`);
+                Logger.info(`Removed ${removalCount} expired ${pluralize(removalCount, "role")}`);
             } else {
                 Logger.info("No roles need to be removed");
+            }
+        });
+    }
+
+    private static _startTemporaryMessageRemovalCronJob(): void {
+        // Fetch and delete all expired messages every day at midnight
+        startCronJob("TEMPORARY_MESSAGE_REMOVAL", "0 0 * * *", async () => {
+            const now = new Date();
+
+            // Fetch and delete all expired role requests
+            const [expiredMessages] = await prisma.$transaction([
+                prisma.temporaryMessage.findMany({
+                    where: { expires_at: { lte: now } }
+                }),
+                prisma.temporaryMessage.deleteMany({
+                    where: { expires_at: { lte: now } }
+                })
+            ]);
+
+            // Map the expired messages to their respective channels
+            const expiredMessagesByChannel = expiredMessages.reduce((acc, message) => {
+                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+                if (!acc[message.channel_id]) {
+                    acc[message.channel_id] = [];
+                }
+
+                acc[message.channel_id].push(message);
+                return acc;
+            }, {} as Record<string, Prisma.TemporaryMessageCreateInput[]>);
+
+            let removalCount = 0;
+
+            // Remove the roles from the users
+            for (const channelId in expiredMessagesByChannel) {
+                const channel = await client.channels.fetch(channelId) as GuildTextBasedChannel;
+                const expiredMessages = expiredMessagesByChannel[channelId];
+
+                for (const data of expiredMessages) {
+                    const message = await channel.messages.fetch(data.message_id)
+                        .catch(() => null);
+
+                    if (message) {
+                        Logger.info(`Removing message ${data.message_id} from #${channel.name} (${channel.id})`);
+                        await message.delete().catch(() => null);
+                        removalCount++;
+                    }
+                }
+            }
+
+            if (removalCount > 0) {
+                Logger.info(`Removed ${removalCount} expired ${pluralize(removalCount, "message")}`);
+            } else {
+                Logger.info("No messages need to be removed");
             }
         });
     }

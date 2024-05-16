@@ -11,7 +11,7 @@ export default abstract class Component {
     }
 
     /**
-     * Handles the component interaction.
+     * Handles the component interaction. Mentions are disabled by default.
      * @param interaction The interaction to handle.
      */
     abstract execute(interaction: ComponentInteraction): InteractionReplyData | Promise<InteractionReplyData>;
