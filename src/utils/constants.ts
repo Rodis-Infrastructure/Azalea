@@ -25,7 +25,6 @@ export const MAX_MUTE_DURATION = 1000 * 60 * 60 * 24 * 28;
 
 export const EXIT_EVENTS = ["SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", "SIGABRT", "SIGBUS", "SIGFPE", "SIGUSR1", "SIGSEGV", "SIGUSR2", "SIGTERM", "uncaughtException", "unhandledRejection"];
 
-
 // The default permissions required to use commands.
 export const DEFAULT_COMMAND_PERMISSIONS: readonly bigint[] = [PermissionFlagsBits.ManageGuild];
 

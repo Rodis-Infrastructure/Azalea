@@ -83,6 +83,7 @@ export default class RoleRequestSelectRole extends Component {
         const embed = new EmbedBuilder(embedData.toJSON())
             .setColor(role.color)
             .setTitle(role.name)
+            // RoleRequestRemoveRole.ts relies on this format
             .setFooter({ text: `Role ID: ${role.id}` });
 
         // Store the role expiration time in the database

@@ -90,7 +90,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
                 value: time(user.createdAt, TimestampStyles.RelativeTime),
                 inline: true
             })
-            .setFooter({ text: `ID: ${user.id}` });
+            .setFooter({ text: `User ID: ${user.id}` });
 
         // Add the member's join date if available
         if (member?.joinedAt) {

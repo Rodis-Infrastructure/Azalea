@@ -29,7 +29,7 @@ export class Messages {
     static purgeQueue: PurgeOptions[] = [];
 
     static async get(id: Snowflake): Promise<Message | null> {
-        let message = this.dbQueue.get(id) ?? null;
+        let message = Messages.dbQueue.get(id) ?? null;
 
         if (!message) {
             message = await prisma.message.findUnique({ where: { id } });
@@ -94,6 +94,8 @@ export class Messages {
 
         // Fetch remaining messages from the database if an insufficient amount was cached
         if (messages.length < limit) {
+            const createdAtThreshold = Date.now() - ConfigManager.globalConfig.database.messages.ttl;
+
             // @formatter:off
             const stored = await prisma.$queryRaw<Message[]>`
                 UPDATE Message
@@ -103,6 +105,7 @@ export class Messages {
                     WHERE author_id = ${userId}
                         AND channel_id = ${channelId}
                         AND deleted = false
+                        AND created_at < ${createdAtThreshold}
                     ORDER BY created_at DESC
                     LIMIT ${limit - messages.length}
                 )
@@ -119,7 +122,7 @@ export class Messages {
 
     static set(message: DiscordMessage<true>): void {
         const serializedMessage = prepareMessageForStorage(message);
-        this.dbQueue.set(message.id, serializedMessage);
+        Messages.dbQueue.set(message.id, serializedMessage);
     }
 
     /**
@@ -128,7 +131,7 @@ export class Messages {
      */
     static async delete(id: Snowflake): Promise<Message | null> {
         // Try to get the message form cache
-        let message = this.dbQueue.get(id) ?? null;
+        let message = Messages.dbQueue.get(id) ?? null;
 
         // Modify the cache if the message is cached
         // Otherwise, update the message in the database
@@ -153,7 +156,7 @@ export class Messages {
         const ids = Array.from(messageCollection.keys());
 
         // Try to get the messages from cache
-        const messages = this.dbQueue.filter(message =>
+        const messages = Messages.dbQueue.filter(message =>
             ids.includes(message.id) && !message.deleted
         );
 
@@ -186,7 +189,7 @@ export class Messages {
      */
     static async updateContent(id: Snowflake, newContent: string): Promise<string> {
         // Try to get the message from cache
-        const message = this.dbQueue.get(id);
+        const message = Messages.dbQueue.get(id);
 
         // Modify the cache if the message is cached
         if (message) {
@@ -215,25 +218,35 @@ export class Messages {
         Logger.info("Storing cached messages...");
 
         // Insert all cached messages into the database
-        const insertPromises = this.dbQueue.map(message =>
-            prisma.message.create({ data: message }).catch(() => null)
-        );
-
-        await Promise.all(insertPromises);
-        const insertedCount = this.dbQueue.size;
+        const messages = Array.from(Messages.dbQueue.values());
+        const res = await prisma.message.createMany({ data: messages });
 
         // Empty the cache
-        this.dbQueue.clear();
-
-        Logger.info(`Stored ${insertedCount} ${pluralize(insertedCount, "message")}`);
+        Messages.dbQueue.clear();
+        Logger.info(`Stored ${res.count} ${pluralize(res.count, "message")}`);
     }
 
     // Start a cron job that will clear the cache and store the messages in the database
-    static startDbStorageCronJob(): void {
-        const cron = ConfigManager.globalConfig.database.messages.insert_cron;
+    static startDatabaseCronJob(): void {
+        const insertionCron = ConfigManager.globalConfig.database.messages.insert_cron;
+        const deletionCron = ConfigManager.globalConfig.database.messages.delete_cron;
+        const ttl = ConfigManager.globalConfig.database.messages.ttl;
 
-        startCronJob("STORE_MESSAGES", cron, async () => {
-            await this.clear();
+        startCronJob("STORE_MESSAGES", insertionCron, async () => {
+            await Messages.clear();
+        });
+
+        startCronJob("DELETE_OLD_MESSAGES", deletionCron, async () => {
+            const createdAtThreshold = new Date(Date.now() - ttl);
+            const createdAtString = createdAtThreshold.toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
+
+            Logger.info(`Deleting messages created before ${createdAtString}...`);
+
+            const res = await prisma.message.deleteMany({
+                where: { created_at: { lte: createdAtThreshold } }
+            });
+
+            Logger.info(`Deleted ${res.count} ${pluralize(res.count, "message")} created before ${createdAtString}`);
         });
     }
 }

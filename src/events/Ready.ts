@@ -23,7 +23,7 @@ export default class Ready extends EventListener {
         });
 
         // Operations that require the global config
-        Messages.startDbStorageCronJob();
+        Messages.startDatabaseCronJob();
         Reminders.mount();
 
         // Start scheduled messages for all guilds

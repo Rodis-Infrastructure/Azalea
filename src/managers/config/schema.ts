@@ -21,7 +21,9 @@ export const globalConfigSchema = z.object({
     database: z.object({
         messages: z.object({
             insert_cron: cronSchema,
-            delete_cron: cronSchema
+            delete_cron: cronSchema,
+            // How long messages should be stored for (in milliseconds) - Default: 7 days
+            ttl: z.number().min(1000).default(604800000)
         })
     })
 });
