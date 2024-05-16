@@ -77,14 +77,11 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
         executor: GuildMember;
     }): Promise<InteractionReplyOptions> {
         const { member, user, config, channel, executor } = data;
-
-        const displayedName = member?.nickname
-            ? `Nickname: ${member.nickname}`
-            : `Display name: ${user.displayName}`;
+        const surfaceName = member?.nickname ?? user.displayName;
 
         const embed = new EmbedBuilder()
             .setAuthor({
-                name: displayedName,
+                name: `@${user.username} [${surfaceName}]`,
                 iconURL: user.displayAvatarURL(),
                 url: user.displayAvatarURL()
             })
