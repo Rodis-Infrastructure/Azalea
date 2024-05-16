@@ -55,6 +55,8 @@ export default class RoleRequestSelectRole extends Component {
             };
         }
 
+        await interaction.deferUpdate();
+
         const userIdMatches = interaction.message.embeds[0].description!
             .matchAll(/@(\d{17,19})/g);
 
@@ -85,6 +87,15 @@ export default class RoleRequestSelectRole extends Component {
 
         // Store the role expiration time in the database
         if (selectedRole.ttl) {
+            if (!interaction.channel) {
+                await interaction.editReply({});
+                await interaction.followUp({
+                    content: "Failed to fetch channel",
+                    ephemeral: true
+                });
+                return null;
+            }
+
             const expiresAt = new Date(Date.now() + selectedRole.ttl);
             const txn: Prisma.PrismaPromise<unknown>[] = members.map(member =>
                 prisma.temporaryRole.upsert({
@@ -112,7 +123,7 @@ export default class RoleRequestSelectRole extends Component {
                 prisma.temporaryMessage.create({
                     data: {
                         message_id: interaction.message.id,
-                        channel_id: interaction.channel!.id,
+                        channel_id: interaction.channel.id,
                         expires_at: expiresAt
                     }
                 })
@@ -123,16 +134,16 @@ export default class RoleRequestSelectRole extends Component {
                 .catch(() => false);
 
             if (!isTransactionSuccessful) {
-                return {
+                await interaction.editReply({});
+                await interaction.followUp({
                     content: `Failed to start expiration ${pluralize(members.length, "timer")}.`,
                     ephemeral: true
-                };
+                });
+                return null;
             }
 
             embed.data.title += ` (expires ${time(expiresAt, TimestampStyles.RelativeTime)})`;
         }
-
-        await interaction.deferUpdate();
 
         // Add the role to the members
         const addedMembers = await Promise.all(members.map(member =>
