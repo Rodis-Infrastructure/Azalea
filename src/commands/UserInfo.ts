@@ -81,7 +81,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 
         const embed = new EmbedBuilder()
             .setAuthor({
-                name: `@${user.username} [${surfaceName}]`,
+                name: `@${user.username} | ${surfaceName}`,
                 iconURL: user.displayAvatarURL(),
                 url: user.displayAvatarURL()
             })
