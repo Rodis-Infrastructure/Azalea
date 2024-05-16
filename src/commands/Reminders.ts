@@ -225,17 +225,18 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
         }
 
         for (const reminder of reminders) {
-            setTimeout(async () => {
-                const reminderMessage = Reminders._formatReminder(reminder.author_id, reminder.reminder, reminder.created_at);
-                const channel = await client.channels.fetch(reminder.channel_id) as GuildTextBasedChannel;
+            const reminderMessage = Reminders._formatReminder(reminder.author_id, reminder.reminder, reminder.created_at);
+            const channel = await client.channels.fetch(reminder.channel_id) as GuildTextBasedChannel;
+            const user = await client.users.fetch(reminder.author_id);
 
+            setTimeout(async () => {
                 await Promise.all([
                     prisma.reminder.delete({ where: { id: reminder.id } }),
                     channel.send(reminderMessage)
                 ]);
             }, reminder.expires_at.getTime() - Date.now());
 
-            Logger.info(`Mounted reminder with ID ${reminder.id} for user ${reminder.author_id} in channel ${reminder.channel_id}`);
+            Logger.info(`Mounted reminder with ID ${reminder.id} for @${user.username} (${user.id}) in #${channel.name} (${channel.id})`);
         }
 
         Logger.log("REMINDERS", `Successfully mounted ${reminders.length} ${pluralize(reminders.length, "reminder")}`, {
