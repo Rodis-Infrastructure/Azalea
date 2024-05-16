@@ -48,14 +48,9 @@ export default class Ready extends EventListener {
             const now = new Date();
 
             // Fetch and delete all expired role requests
-            const [expiredRoles] = await prisma.$transaction([
-                prisma.temporaryRole.findMany({
-                    where: { expires_at: { lte: now } }
-                }),
-                prisma.temporaryRole.deleteMany({
-                    where: { expires_at: { lte: now } }
-                })
-            ]);
+            const expiredRoles = await prisma.temporaryRole.findMany({
+                where: { expires_at: { lte: now } }
+            });
 
             // Map the expired roles to their respective guilds
             const expiredRolesByGuild = expiredRoles.reduce((acc, request) => {
@@ -76,11 +71,22 @@ export default class Ready extends EventListener {
                 const expiredRoles = expiredRolesByGuild[guildId];
 
                 for (const role of expiredRoles) {
-                    const member = await guild.members.fetch(role.member_id);
+                    const member = await guild.members.fetch(role.member_id).catch(() => null);
 
-                    if (member.roles.cache.has(role.role_id)) {
+                    if (member?.roles.cache.has(role.role_id)) {
                         Logger.info(`Removing role ${role.role_id} from @${member.user.username} (${member.id})`);
+
                         await member.roles.remove(role.role_id);
+                        await prisma.temporaryRole.delete({
+                            where: {
+                                member_id_role_id_guild_id: {
+                                    member_id: role.member_id,
+                                    role_id: role.role_id,
+                                    guild_id: role.guild_id
+                                }
+                            }
+                        });
+
                         removalCount++;
                     }
                 }
