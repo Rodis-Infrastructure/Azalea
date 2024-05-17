@@ -126,7 +126,7 @@ export async function handleQuickMute(data: {
 
         // If the quick mute fails, rollback the infraction
         await prisma.infraction.delete({ where: { id: infraction.id } });
-        return "An error occurred while quick muting the member";
+        return `An error occurred while quick muting the member (\`${sentryId}\`)`;
     }
 
     // Ensure a public log of the action is made

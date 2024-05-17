@@ -83,7 +83,7 @@ export default class MessageReactionAdd extends EventListener {
                 }
             } catch (error) {
                 const sentryId = Sentry.captureException(error);
-                config.sendNotification(`An error occurred while trying to execute the quick mute (\`${sentryId}\`)`);
+                config.sendNotification(`${user} An error occurred while trying to execute the quick mute (\`${sentryId}\`)`);
             }
 
             return;
@@ -104,7 +104,7 @@ export default class MessageReactionAdd extends EventListener {
                 }
             } catch (error) {
                 const sentryId = Sentry.captureException(error);
-                config.sendNotification(`An error occurred while trying to execute the quick mute (\`${sentryId}\`)`);
+                config.sendNotification(`${user} An error occurred while trying to execute the quick mute (\`${sentryId}\`)`);
             }
 
             return;
