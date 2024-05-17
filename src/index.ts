@@ -75,6 +75,7 @@ main()
     .catch(error => {
         const sentryId = Sentry.captureException(error);
         Logger.error(`An unhandled error occurred: ${sentryId}`);
+        Logger.error(error);
 
         process.exit(0);
     });
