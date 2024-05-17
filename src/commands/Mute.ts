@@ -20,6 +20,7 @@ import { prisma } from "./..";
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import ms from "ms";
+import Sentry from "@sentry/node";
 
 /**
  * Mute a member in the server.
@@ -130,11 +131,16 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             return "An error occurred while storing the infraction";
         }
 
-        // Mute the member
-        await member.timeout(msDuration, reason).catch(async () => {
+        try {
+            // Mute the user
+            await member.timeout(msDuration, reason);
+        } catch (error) {
+            Sentry.captureException(error);
+
             // If the mute fails, rollback the infraction
             await prisma.infraction.delete({ where: { id: infraction.id } });
-        });
+            return "An error occurred while muting the member";
+        }
 
         // Ensure a public log of the action is made
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {

@@ -6,6 +6,7 @@ import { prisma } from "./..";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
+import Sentry from "@sentry/node";
 
 export default class Unban extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -60,11 +61,16 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
             return "An error occurred while storing the infraction";
         }
 
-        // Unban the user
-        await interaction.guild.members.unban(user, reason).catch(async () => {
+        try {
+            // Unban the user
+            await interaction.guild.members.unban(user, reason);
+        } catch (error) {
+            Sentry.captureException(error);
+
             // If the unban fails, rollback the infraction
             await prisma.infraction.delete({ where: { id: infraction.id } });
-        });
+            return "An error occurred while unbanning the member";
+        }
 
         // Ensure a public log of the action is made
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {

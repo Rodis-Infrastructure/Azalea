@@ -2,9 +2,11 @@ import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "disco
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
+import { prisma } from "./..";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
+import Sentry from "@sentry/node";
 
 /**
  * Kick a member from the server.
@@ -62,9 +64,6 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
             return "You cannot kick a user with a higher or equal role";
         }
 
-        // Kick the user
-        await member.kick(reason);
-
         // Log the infraction and store it in the database
         const infraction = await handleInfractionCreate({
             executor_id: interaction.user.id,
@@ -76,6 +75,17 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
 
         if (!infraction) {
             return "An error occurred while storing the infraction";
+        }
+
+        try {
+            // Kick the user
+            await member.kick(reason);
+        } catch (error) {
+            Sentry.captureException(error);
+
+            // If the kick fails, rollback the infraction
+            await prisma.infraction.delete({ where: { id: infraction.id } });
+            return "An error occurred while kicking the member";
         }
 
         // Ensure a public log of the action is made

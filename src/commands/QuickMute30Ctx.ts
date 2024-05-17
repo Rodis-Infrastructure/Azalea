@@ -16,6 +16,7 @@ import { prisma } from "./..";
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import Purge from "./Purge";
+import Sentry from "@sentry/node";
 
 export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInteraction<"cached">> {
     constructor() {
@@ -117,11 +118,16 @@ export async function handleQuickMute(data: {
         return "An error occurred while storing the infraction";
     }
 
-    // Mute the user
-    await member.timeout(duration, reason).catch(async () => {
-        // If the mute fails, rollback the infraction
+    try {
+        // Quick mute the user
+        await member.timeout(duration, reason);
+    } catch (error) {
+        Sentry.captureException(error);
+
+        // If the quick mute fails, rollback the infraction
         await prisma.infraction.delete({ where: { id: infraction.id } });
-    });
+        return "An error occurred while quick muting the member";
+    }
 
     // Ensure a public log of the action is made
     if (config.inScope(channel, config.data.ephemeral_scoping)) {

@@ -6,6 +6,7 @@ import { InteractionReplyData } from "@utils/types";
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import { prisma } from "@/index";
+import Sentry from "@sentry/node";
 
 export default class Unmute extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -67,11 +68,16 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
             return "An error occurred while storing the infraction";
         }
 
-        // Unmute the user by setting the duration of the mute to null
-        await member.timeout(null, reason).catch(async () => {
+        try {
+            // Unmute the user by setting the duration of the mute to null
+            await member.timeout(null, reason);
+        } catch (error) {
+            Sentry.captureException(error);
+
             // If the unmute fails, rollback the infraction
             await prisma.infraction.delete({ where: { id: infraction.id } });
-        });
+            return "An error occurred while unmuting the member";
+        }
 
         // Update the expiration date of the infraction to the current time
         await handleInfractionExpirationChange({

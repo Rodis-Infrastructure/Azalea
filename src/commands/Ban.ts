@@ -6,6 +6,7 @@ import { client, prisma } from "./..";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
+import Sentry from "@sentry/node";
 
 // Constants
 const DEFAULT_DELETE_MESSAGE_SECONDS = 604800;
@@ -114,11 +115,16 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             return "An error occurred while storing the infraction";
         }
 
-        // Ban the user
-        await interaction.guild.members.ban(user, { reason, deleteMessageSeconds }).catch(async () => {
+        try {
+            // Ban the user
+            await interaction.guild.members.ban(user, { reason, deleteMessageSeconds });
+        } catch (error) {
+            Sentry.captureException(error);
+
             // If the ban fails, rollback the infraction
             await prisma.infraction.delete({ where: { id: infraction.id } });
-        });
+            return "An error occurred while banning the member";
+        }
 
         // Ensure a public log of the action is made
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
