@@ -69,22 +69,32 @@ export default class MessageReactionAdd extends EventListener {
 
         // Handle a 30-minute quick mute
         if (emojiId === config.data.emojis.quick_mute_30 && config.hasPermission(executor, Permission.QuickMute)) {
-            await handleQuickMute({
+            const res = await handleQuickMute({
                 duration: MuteDuration.Short,
                 targetMessage: message,
                 executor
             }, true);
+
+            // Mention the executor with the error response
+            if (!res.includes("success")) {
+                config.sendNotification(res, true);
+            }
 
             return;
         }
 
         // Handle a one-hour quick mute
         if (emojiId === config.data.emojis.quick_mute_60 && config.hasPermission(executor, Permission.QuickMute)) {
-            await handleQuickMute({
+            const res = await handleQuickMute({
                 targetMessage: message,
                 duration: MuteDuration.Long,
                 executor
             }, true);
+
+            // Mention the executor with the error response
+            if (!res.includes("success")) {
+                config.sendNotification(res, true);
+            }
 
             return;
         }
