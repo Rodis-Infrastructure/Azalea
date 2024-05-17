@@ -65,11 +65,11 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
             // Unban the user
             await interaction.guild.members.unban(user, reason);
         } catch (error) {
-            Sentry.captureException(error);
+            const sentryId = Sentry.captureException(error);
 
             // If the unban fails, rollback the infraction
             await prisma.infraction.delete({ where: { id: infraction.id } });
-            return "An error occurred while unbanning the member";
+            return `An error occurred while unbanning the member (\`${sentryId}\`)`;
         }
 
         // Ensure a public log of the action is made

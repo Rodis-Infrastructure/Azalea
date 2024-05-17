@@ -81,11 +81,11 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
             // Kick the user
             await member.kick(reason);
         } catch (error) {
-            Sentry.captureException(error);
+            const sentryId = Sentry.captureException(error);
 
             // If the kick fails, rollback the infraction
             await prisma.infraction.delete({ where: { id: infraction.id } });
-            return "An error occurred while kicking the member";
+            return `An error occurred while kicking the member (\`${sentryId}\`)`;
         }
 
         // Ensure a public log of the action is made

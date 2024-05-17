@@ -135,11 +135,11 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             // Mute the user
             await member.timeout(msDuration, reason);
         } catch (error) {
-            Sentry.captureException(error);
+            const sentryId = Sentry.captureException(error);
 
             // If the mute fails, rollback the infraction
             await prisma.infraction.delete({ where: { id: infraction.id } });
-            return "An error occurred while muting the member";
+            return `An error occurred while muting the member (\`${sentryId}\`)`;
         }
 
         // Ensure a public log of the action is made

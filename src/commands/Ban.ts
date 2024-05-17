@@ -119,11 +119,11 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             // Ban the user
             await interaction.guild.members.ban(user, { reason, deleteMessageSeconds });
         } catch (error) {
-            Sentry.captureException(error);
+            const sentryId = Sentry.captureException(error);
 
             // If the ban fails, rollback the infraction
             await prisma.infraction.delete({ where: { id: infraction.id } });
-            return "An error occurred while banning the member";
+            return `An error occurred while banning the member (\`${sentryId}\`)`;
         }
 
         // Ensure a public log of the action is made

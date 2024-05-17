@@ -122,7 +122,7 @@ export async function handleQuickMute(data: {
         // Quick mute the user
         await member.timeout(duration, reason);
     } catch (error) {
-        Sentry.captureException(error);
+        const sentryId = Sentry.captureException(error);
 
         // If the quick mute fails, rollback the infraction
         await prisma.infraction.delete({ where: { id: infraction.id } });

@@ -72,11 +72,11 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
             // Unmute the user by setting the duration of the mute to null
             await member.timeout(null, reason);
         } catch (error) {
-            Sentry.captureException(error);
+            const sentryId = Sentry.captureException(error);
 
             // If the unmute fails, rollback the infraction
             await prisma.infraction.delete({ where: { id: infraction.id } });
-            return "An error occurred while unmuting the member";
+            return `An error occurred while unmuting the member (\`${sentryId}\`)`;
         }
 
         // Update the expiration date of the infraction to the current time
