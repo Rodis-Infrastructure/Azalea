@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, escapeInlineCode, inlineCode } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
@@ -125,12 +125,14 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             await prisma.infraction.delete({ where: { id: infraction.id } });
             return `An error occurred while banning the member (\`${sentryId}\`)`;
         }
+        
+        const formattedReason = `(${inlineCode(escapeInlineCode(reason))})`;
 
         // Ensure a public log of the action is made
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} banned ${user} - \`#${infraction.id}\` (\`${reason}\`)`, false);
+            config.sendNotification(`${interaction.user} banned ${user} - \`#${infraction.id}\` ${formattedReason}`, false);
         }
 
-        return `Successfully banned ${user} - \`#${infraction.id}\` (\`${reason}\`)`;
+        return `Successfully banned ${user} - \`#${infraction.id}\` ${formattedReason}`;
     }
 }

@@ -3,6 +3,7 @@ import {
     Collection,
     Colors,
     EmbedBuilder,
+    escapeCodeBlock,
     hyperlink,
     Message as DiscordMessage,
     messageLink,
@@ -312,8 +313,9 @@ export async function formatMessageContentForLog(content: string | null, sticker
     if (!stickerId) {
         const escapedContent = content?.replace(/<(a?):([^:\n\r]+):(\d{17,19})>/g, "<$1\\:$2\\:$3>");
         const croppedContent = elipsify(escapedContent || EMPTY_MESSAGE_CONTENT, EMBED_FIELD_CHAR_LIMIT - 120);
+        const formattedContent = `(${codeBlock(escapeCodeBlock(croppedContent))})`;
 
-        return `${jumpUrl}\n${codeBlock(croppedContent)}`;
+        return `${jumpUrl}\n${formattedContent}`;
     }
 
     const sticker = await client.fetchSticker(stickerId)

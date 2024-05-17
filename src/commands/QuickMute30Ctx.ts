@@ -1,6 +1,8 @@
 import {
     ApplicationCommandType,
+    escapeInlineCode,
     GuildMember,
+    inlineCode,
     Message,
     MessageContextMenuCommandInteraction,
     time,
@@ -125,13 +127,15 @@ export async function handleQuickMute(data: {
         return `An error occurred while quick muting the member (\`${sentryId}\`)`;
     }
 
+    const formattedReason = `(${inlineCode(escapeInlineCode(reason))})`;
+
     // Ensure a public log of the action is made
     if (config.inScope(channel, config.data.ephemeral_scoping)) {
         config.sendNotification(
-            `${executor} set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` (\`${reason}\`)`,
+            `${executor} set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`,
             mention
         );
     }
 
-    return `Successfully set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` (\`${reason}\`)`;
+    return `Successfully set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`;
 }

@@ -1,11 +1,11 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, escapeInlineCode, inlineCode } from "discord.js";
 import { Action, handleInfractionCreate, handleInfractionExpirationChange } from "@utils/infractions";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { InteractionReplyData } from "@utils/types";
+import { prisma } from "./..";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
-import { prisma } from "@/index";
 import Sentry from "@sentry/node";
 
 export default class Unmute extends Command<ChatInputCommandInteraction<"cached">> {
@@ -39,7 +39,7 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
         if (!config.data.allow_discord_media_links && (reason.includes("cdn.discord") || reason.includes("media.discord"))) {
             return "Discord media links are not allowed in infraction reasons";
         }
-        
+
         // Check if the member is in the server
         // Users that are not in the server cannot be unmuted
         if (!member) {
@@ -85,11 +85,13 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
             target_id: member.id
         }, config, false);
 
+        const formattedReason = `(${inlineCode(escapeInlineCode(reason))})`;
+
         // Ensure a public log of the action is made
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} unmuted ${member} - \`#${infraction.id}\` (\`${reason}\`)`, false);
+            config.sendNotification(`${interaction.user} unmuted ${member} - \`#${infraction.id}\` ${formattedReason}`, false);
         }
 
-        return `Successfully unmuted ${member} - \`#${infraction.id}\` (\`${reason}\`)`;
+        return `Successfully unmuted ${member} - \`#${infraction.id}\` ${formattedReason}`;
     }
 }

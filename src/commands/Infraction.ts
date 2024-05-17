@@ -8,7 +8,9 @@ import {
     ChatInputCommandInteraction,
     Colors,
     EmbedBuilder,
+    escapeInlineCode,
     GuildMember,
+    inlineCode,
     Snowflake,
     time,
     TimestampStyles,
@@ -630,7 +632,8 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             config
         });
 
-        return `Successfully updated the reason of infraction \`#${infractionId}\` (\`${reason}\`)`;
+        const formattedReason = `(${inlineCode(escapeInlineCode(reason))})`;
+        return `Successfully updated the reason of infraction \`#${infractionId}\` ${formattedReason}`;
     }
 
     /**

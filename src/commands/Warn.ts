@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, escapeInlineCode, inlineCode } from "discord.js";
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
@@ -60,11 +60,13 @@ export default class Warn extends Command<ChatInputCommandInteraction<"cached">>
             return "An error occurred while storing the infraction";
         }
 
+        const formattedReason = `(${inlineCode(escapeInlineCode(reason))})`;
+
         // Ensure a public log of the action is made
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} warned ${user} - \`#${infraction.id}\` (\`${reason}\`)`, false);
+            config.sendNotification(`${interaction.user} warned ${user} - \`#${infraction.id}\` ${formattedReason}`, false);
         }
 
-        return `Successfully warned ${user} - \`#${infraction.id}\` (\`${reason}\`)`;
+        return `Successfully warned ${user} - \`#${infraction.id}\` ${formattedReason}`;
     }
 }
