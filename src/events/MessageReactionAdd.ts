@@ -38,6 +38,7 @@ import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import Purge from "@/commands/Purge";
+import Sentry from "@sentry/node";
 
 export default class MessageReactionAdd extends EventListener {
     constructor() {
@@ -69,15 +70,20 @@ export default class MessageReactionAdd extends EventListener {
 
         // Handle a 30-minute quick mute
         if (emojiId === config.data.emojis.quick_mute_30 && config.hasPermission(executor, Permission.QuickMute)) {
-            const res = await handleQuickMute({
-                duration: MuteDuration.Short,
-                targetMessage: message,
-                executor
-            }, true);
+            try {
+                const res = await handleQuickMute({
+                    duration: MuteDuration.Short,
+                    targetMessage: message,
+                    executor
+                }, true);
 
-            // Mention the executor with the error response
-            if (!res.includes("success")) {
-                config.sendNotification(res, true);
+                // Mention the executor with the error response
+                if (!res.includes("success")) {
+                    config.sendNotification(res, true);
+                }
+            } catch (error) {
+                const sentryId = Sentry.captureException(error);
+                config.sendNotification(`An error occurred while trying to execute the quick mute (\`${sentryId}\`)`);
             }
 
             return;
@@ -85,15 +91,20 @@ export default class MessageReactionAdd extends EventListener {
 
         // Handle a one-hour quick mute
         if (emojiId === config.data.emojis.quick_mute_60 && config.hasPermission(executor, Permission.QuickMute)) {
-            const res = await handleQuickMute({
-                targetMessage: message,
-                duration: MuteDuration.Long,
-                executor
-            }, true);
+            try {
+                const res = await handleQuickMute({
+                    targetMessage: message,
+                    duration: MuteDuration.Long,
+                    executor
+                }, true);
 
-            // Mention the executor with the error response
-            if (!res.includes("success")) {
-                config.sendNotification(res, true);
+                // Mention the executor with the error response
+                if (!res.includes("success")) {
+                    config.sendNotification(res, true);
+                }
+            } catch (error) {
+                const sentryId = Sentry.captureException(error);
+                config.sendNotification(`An error occurred while trying to execute the quick mute (\`${sentryId}\`)`);
             }
 
             return;
