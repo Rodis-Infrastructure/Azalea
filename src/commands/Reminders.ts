@@ -139,7 +139,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
                 const reminderMessage = Reminders._formatReminder(interaction.user.id, reminder, createdAt);
 
                 await Promise.all([
-                    prisma.reminder.delete({ where: { id } }),
+                    prisma.reminder.deleteMany({ where: { id } }),
                     interaction.channel!.send(reminderMessage)
                 ]);
             }, msExpiresAt - Date.now());
@@ -231,7 +231,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 
             setTimeout(async () => {
                 await Promise.all([
-                    prisma.reminder.delete({ where: { id: reminder.id } }),
+                    prisma.reminder.deleteMany({ where: { id: reminder.id } }),
                     channel.send(reminderMessage)
                 ]);
             }, reminder.expires_at.getTime() - Date.now());
