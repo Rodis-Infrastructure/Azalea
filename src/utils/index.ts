@@ -129,7 +129,7 @@ export function elipsify(str: string, length: number): string {
 }
 
 export function escapeInlineCode(str: string): string {
-    return str.replaceAll("`", "``");
+    return str.replaceAll("`", "");
 }
 
 // Remove links and unnecessary whitespace from a string
