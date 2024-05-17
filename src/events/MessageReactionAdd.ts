@@ -194,7 +194,7 @@ export default class MessageReactionAdd extends EventListener {
             }
 
             const mappedFlags = MessageReactionAdd._mapMessageReportFlags(originalReport.flags | MessageReportFlag.Spam);
-            const embed = new EmbedBuilder(report.embeds[0].toJSON());
+            const embed = new EmbedBuilder(report.embeds[0].toJSON()).setColor(Colors.Red);
 
             if (embed.data.fields!.find(field => field.name === "Flags")) {
                 embed.spliceFields(-1, 1, {
