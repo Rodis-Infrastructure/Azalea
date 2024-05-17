@@ -78,7 +78,7 @@ export default class MessageReactionAdd extends EventListener {
                 }, true);
 
                 // Mention the executor with the error response
-                if (!res.includes("success")) {
+                if (!res.includes("Success")) {
                     config.sendNotification(res, true);
                 }
             } catch (error) {
@@ -99,7 +99,7 @@ export default class MessageReactionAdd extends EventListener {
                 }, true);
 
                 // Mention the executor with the error response
-                if (!res.includes("success")) {
+                if (!res.includes("Success")) {
                     config.sendNotification(res, true);
                 }
             } catch (error) {
