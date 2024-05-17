@@ -5,6 +5,7 @@ import { InteractionReplyData } from "@utils/types";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
+import { prisma } from "@/index";
 
 export default class Unmute extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -54,9 +55,6 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
             return "You can't unmute someone who isn't muted";
         }
 
-        // Unmute the user by setting the duration of the mute to null
-        await member.timeout(null, reason);
-
         const infraction = await handleInfractionCreate({
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,
@@ -68,6 +66,12 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
         if (!infraction) {
             return "An error occurred while storing the infraction";
         }
+
+        // Unmute the user by setting the duration of the mute to null
+        await member.timeout(null, reason).catch(async () => {
+            // If the unmute fails, rollback the infraction
+            await prisma.infraction.delete({ where: { id: infraction.id } });
+        });
 
         // Update the expiration date of the infraction to the current time
         await handleInfractionExpirationChange({

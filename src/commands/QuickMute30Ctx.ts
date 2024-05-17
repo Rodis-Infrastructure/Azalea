@@ -11,6 +11,7 @@ import { InteractionReplyData } from "@utils/types";
 import { Action, Flag, handleInfractionCreate, MuteDuration } from "@utils/infractions";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { cropLines, elipsify } from "@/utils";
+import { prisma } from "./..";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -81,14 +82,10 @@ export async function handleQuickMute(data: {
         return "This action can't be performed on messages with no message content";
     }
 
-    // Mute the user
-    await member.timeout(duration, content);
 
     // Calculate the expiration date
     const expiresTimestamp = Date.now() + duration;
     const expiresAt = new Date(expiresTimestamp);
-
-    await targetMessage.delete().catch(() => null);
 
     let reason = `QUICK MUTE BY ${executor.id} - $MESSAGE_PREVIEW`;
     const messages = await Purge.purgeUser(member.id, channel, config.data.default_purge_amount);
@@ -105,6 +102,7 @@ export async function handleQuickMute(data: {
     const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);
     reason = reason.replace("$MESSAGE_PREVIEW", elipsify(croppedContent, EMBED_FIELD_CHAR_LIMIT - reason.length + 16));
 
+
     const infraction = await handleInfractionCreate({
         executor_id: executor.id,
         guild_id: member.guild.id,
@@ -118,6 +116,12 @@ export async function handleQuickMute(data: {
     if (!infraction) {
         return "An error occurred while storing the infraction";
     }
+
+    // Mute the user
+    await member.timeout(duration, reason).catch(async () => {
+        // If the mute fails, rollback the infraction
+        await prisma.infraction.delete({ where: { id: infraction.id } });
+    });
 
     // Ensure a public log of the action is made
     if (config.inScope(channel, config.data.ephemeral_scoping)) {

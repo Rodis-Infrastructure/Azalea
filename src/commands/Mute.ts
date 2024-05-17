@@ -15,6 +15,7 @@ import {
 
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
+import { prisma } from "./..";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -108,9 +109,6 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         if (msDuration > MAX_MUTE_DURATION) msDuration = MAX_MUTE_DURATION;
         if (msDuration <= 0) return "Invalid duration. Please use a duration greater than `0`";
 
-        // Mute the member
-        await member.timeout(msDuration, reason);
-
         // Calculate the expiration date
         const msExpiresAt = Date.now() + msDuration;
         const expiresAt = new Date(msExpiresAt);
@@ -131,6 +129,12 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         if (!infraction) {
             return "An error occurred while storing the infraction";
         }
+
+        // Mute the member
+        await member.timeout(msDuration, reason).catch(async () => {
+            // If the mute fails, rollback the infraction
+            await prisma.infraction.delete({ where: { id: infraction.id } });
+        });
 
         // Ensure a public log of the action is made
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {

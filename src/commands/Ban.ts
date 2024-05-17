@@ -86,8 +86,6 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             return `This user is already banned: \`${ban.reason ?? DEFAULT_INFRACTION_REASON}\``;
         }
 
-        // Ban the user
-        await interaction.guild.members.ban(user, { reason, deleteMessageSeconds });
         const now = new Date();
 
         await prisma.infraction.updateMany({
@@ -115,6 +113,12 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
         if (!infraction) {
             return "An error occurred while storing the infraction";
         }
+
+        // Ban the user
+        await interaction.guild.members.ban(user, { reason, deleteMessageSeconds }).catch(async () => {
+            // If the ban fails, rollback the infraction
+            await prisma.infraction.delete({ where: { id: infraction.id } });
+        });
 
         // Ensure a public log of the action is made
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {

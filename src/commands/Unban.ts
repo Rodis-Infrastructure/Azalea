@@ -2,6 +2,7 @@ import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "disco
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
+import { prisma } from "./..";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -47,9 +48,6 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
             return "This user is not banned";
         }
 
-        // Unban the user
-        await interaction.guild.members.unban(user, reason);
-
         const infraction = await handleInfractionCreate({
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,
@@ -61,6 +59,12 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
         if (!infraction) {
             return "An error occurred while storing the infraction";
         }
+
+        // Unban the user
+        await interaction.guild.members.unban(user, reason).catch(async () => {
+            // If the unban fails, rollback the infraction
+            await prisma.infraction.delete({ where: { id: infraction.id } });
+        });
 
         // Ensure a public log of the action is made
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
