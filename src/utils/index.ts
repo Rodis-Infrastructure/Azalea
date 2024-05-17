@@ -131,7 +131,11 @@ export function elipsify(str: string, length: number): string {
 // Remove links and unnecessary whitespace from a string
 export function stripLinks(str: string): string {
     return str
+        // Remove links
         .replaceAll(/https?:\/\/[^\s\n\r]+/gi, "")
+        // Remove purge log
+        .replace(/ \(Purge log:.*/gi, "")
+        // Remove unnecessary whitespace
         .replaceAll(/\s{2,}/g, " ");
 }
 
