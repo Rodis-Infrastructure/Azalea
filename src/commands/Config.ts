@@ -4,8 +4,8 @@ import { Snowflake } from "discord-api-types/v10";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
-import YAML from "yaml";
 import path from "path";
+import fs from "fs";
 
 /**
  * Displays the global or guild configuration in a YAML file.
@@ -62,8 +62,8 @@ export default class Config extends Command<ChatInputCommandInteraction<"cached"
      * @private
      */
     private static _getGlobalConfigAttachment(): InteractionReplyData {
-        const stringifiedConfig = YAML.stringify(ConfigManager.globalConfig);
-        const buffer = Buffer.from(stringifiedConfig);
+        const configFile = fs.readFileSync("azalea.cfg.yml", "utf-8");
+        const buffer = Buffer.from(configFile);
         const file = new AttachmentBuilder(buffer, { name: "azalea.cfg.yml" });
 
         return { files: [file] };
@@ -84,8 +84,8 @@ export default class Config extends Command<ChatInputCommandInteraction<"cached"
         }
 
         const fullPath = path.resolve(`configs/${guildConfig.guild.id}.yml`);
-        const stringifiedConfig = YAML.stringify(guildConfig.data);
-        const buffer = Buffer.from(stringifiedConfig);
+        const configFile = fs.readFileSync(fullPath, "utf-8");
+        const buffer = Buffer.from(configFile);
 
         const file = new AttachmentBuilder(buffer, {
             name: fullPath
