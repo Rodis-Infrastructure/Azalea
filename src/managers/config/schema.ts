@@ -290,6 +290,12 @@ const mediaChannelSchema = z.object({
     fallback_response: messageContentSchema.optional()
 });
 
+const nicknameCensorshipSchema = z.object({
+    exclude_roles: z.array(snowflakeSchema).max(25).default([]),
+    // $RAND will be replaced with a random 5-digit number
+    nickname: stringSchema.max(32).default("Censored User $RAND")
+});
+
 // Guild config schema exported for validation
 export const rawGuildConfigSchema = z.object({
     logging: loggingSchema.default(defaultLogging),
@@ -298,6 +304,7 @@ export const rawGuildConfigSchema = z.object({
     auto_reactions: z.array(autoReactionSchema).default([]),
     notification_channel: snowflakeSchema.optional(),
     media_conversion_channel: snowflakeSchema.optional(),
+    nickname_censorship: nicknameCensorshipSchema.default({}),
     quick_responses: z.array(quickResponseSchema).max(25).default([]),
     role_requests: roleRequestsSchema.optional(),
     scheduled_messages: z.array(scheduledMessageSchema).default([]),
