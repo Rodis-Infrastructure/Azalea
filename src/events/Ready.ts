@@ -1,7 +1,7 @@
 import { Messages } from "@utils/messages";
 import { Client, Events, GuildTextBasedChannel } from "discord.js";
 import { client, prisma } from "./..";
-import { Prisma } from "@prisma/client";
+import { TemporaryMessage, TemporaryRole } from "@prisma/client";
 import { pluralize, startCronJob } from "@/utils";
 
 import Logger, { AnsiColor } from "@utils/logger";
@@ -61,7 +61,7 @@ export default class Ready extends EventListener {
 
                 acc[request.guild_id].push(request);
                 return acc;
-            }, {} as Record<string, Prisma.TemporaryRoleCreateInput[]>);
+            }, {} as Record<string, TemporaryRole[]>);
 
             let removalCount = 0;
 
@@ -124,7 +124,7 @@ export default class Ready extends EventListener {
 
                 acc[message.channel_id].push(message);
                 return acc;
-            }, {} as Record<string, Prisma.TemporaryMessageCreateInput[]>);
+            }, {} as Record<string, TemporaryMessage[]>);
 
             let removalCount = 0;
 

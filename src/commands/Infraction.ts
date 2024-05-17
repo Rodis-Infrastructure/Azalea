@@ -25,7 +25,7 @@ import {
 
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
-import { Prisma } from "@prisma/client";
+import { Prisma, Infraction as InfractionPayload } from "@prisma/client";
 import { elipsify, humanizeTimestamp, stripLinks, userMentionWithId } from "@/utils";
 import { log } from "@utils/logging";
 import { LoggingEvent, Permission } from "@managers/config/schema";
@@ -699,6 +699,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             const totalPageCount = Math.ceil(infractionCount / RESULTS_PER_PAGE);
 
             const pageCountButton = new ButtonBuilder()
+                // InfractionSearchNext.ts relies on this format
                 .setLabel(`${page} / ${totalPageCount}`)
                 .setCustomId("disabled")
                 .setDisabled(true)
@@ -730,7 +731,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         };
     }
 
-    private static _formatInfractionSearchFields(infractions: Prisma.$InfractionPayload["scalars"][]): APIEmbedField[] {
+    private static _formatInfractionSearchFields(infractions: InfractionPayload[]): APIEmbedField[] {
         return infractions.map(infraction => {
             const cleanReason = stripLinks(infraction.reason ?? DEFAULT_INFRACTION_REASON);
             const croppedReason = elipsify(cleanReason, 800);
