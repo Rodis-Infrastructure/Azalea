@@ -79,7 +79,7 @@ export default class MessageReactionAdd extends EventListener {
 
                 // Mention the executor with the error response
                 if (!res.includes("Success")) {
-                    config.sendNotification(res, true);
+                    config.sendNotification(`${user} ${res}`, true);
                 }
             } catch (error) {
                 const sentryId = Sentry.captureException(error);
