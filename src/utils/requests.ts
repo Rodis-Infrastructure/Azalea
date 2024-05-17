@@ -1,7 +1,6 @@
 import {
     Colors,
     EmbedBuilder,
-    escapeInlineCode,
     GuildMember,
     hyperlink,
     inlineCode,
@@ -14,7 +13,7 @@ import { DEFAULT_MUTE_DURATION, EMBED_FIELD_CHAR_LIMIT } from "./constants";
 import { RequestValidationError } from "./errors";
 import { Snowflake } from "discord-api-types/v10";
 import { temporaryReply } from "./messages";
-import { userMentionWithId } from "./index";
+import { escapeInlineCode, userMentionWithId } from "./index";
 import { TypedRegEx } from "typed-regex";
 import { Action, handleInfractionCreate } from "./infractions";
 import { client, prisma } from "./..";

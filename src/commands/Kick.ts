@@ -1,8 +1,9 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, escapeInlineCode, inlineCode } from "discord.js";
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, inlineCode } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
+import { escapeInlineCode } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";

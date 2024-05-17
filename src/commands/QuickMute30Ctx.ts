@@ -1,6 +1,5 @@
 import {
     ApplicationCommandType,
-    escapeInlineCode,
     GuildMember,
     inlineCode,
     Message,
@@ -12,7 +11,7 @@ import {
 import { InteractionReplyData } from "@utils/types";
 import { Action, Flag, handleInfractionCreate, MuteDuration } from "@utils/infractions";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { cropLines, elipsify } from "@/utils";
+import { cropLines, elipsify, escapeInlineCode } from "@/utils";
 import { prisma } from "./..";
 
 import ConfigManager from "@managers/config/ConfigManager";

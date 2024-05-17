@@ -1,7 +1,8 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, escapeInlineCode, inlineCode } from "discord.js";
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, inlineCode } from "discord.js";
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
+import { escapeInlineCode } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";

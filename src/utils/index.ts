@@ -128,6 +128,10 @@ export function elipsify(str: string, length: number): string {
         : str;
 }
 
+export function escapeInlineCode(str: string): string {
+    return str.replaceAll("`", "``");
+}
+
 // Remove links and unnecessary whitespace from a string
 export function stripLinks(str: string): string {
     return str

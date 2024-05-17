@@ -1,7 +1,6 @@
 import {
     ApplicationCommandOptionType,
     ChatInputCommandInteraction,
-    escapeInlineCode,
     inlineCode,
     PermissionFlagsBits,
     time,
@@ -18,6 +17,7 @@ import {
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
+import { escapeInlineCode } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";

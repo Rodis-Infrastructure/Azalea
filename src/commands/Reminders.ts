@@ -2,8 +2,9 @@ import {
     APIEmbedField,
     ApplicationCommandOptionType,
     ChatInputCommandInteraction,
-    EmbedBuilder, escapeInlineCode,
-    GuildTextBasedChannel, inlineCode,
+    EmbedBuilder,
+    GuildTextBasedChannel,
+    inlineCode,
     Snowflake,
     time,
     TimestampStyles,
@@ -13,7 +14,7 @@ import {
 import { InteractionReplyData } from "@utils/types";
 import { DURATION_FORMAT, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { client, prisma } from "./..";
-import { pluralize } from "@/utils";
+import { escapeInlineCode, pluralize } from "@/utils";
 
 import Command from "@managers/commands/Command";
 import ConfigManager from "@managers/config/ConfigManager";

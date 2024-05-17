@@ -2,7 +2,6 @@ import {
     AuditLogEvent,
     Colors,
     EmbedBuilder,
-    escapeInlineCode,
     Events,
     Guild,
     GuildAuditLogsEntry,
@@ -18,7 +17,7 @@ import { Action, Flag, handleInfractionCreate } from "@utils/infractions";
 import { DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { client, prisma } from "./..";
 import { MessageReportStatus, UserReportStatus } from "@utils/reports";
-import { pluralize } from "@/utils";
+import { escapeInlineCode, pluralize } from "@/utils";
 import { log } from "@utils/logging";
 import { LoggingEvent } from "@managers/config/schema";
 

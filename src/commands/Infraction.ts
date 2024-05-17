@@ -8,7 +8,6 @@ import {
     ChatInputCommandInteraction,
     Colors,
     EmbedBuilder,
-    escapeInlineCode,
     GuildMember,
     inlineCode,
     Snowflake,
@@ -28,7 +27,7 @@ import {
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
 import { Prisma, Infraction as InfractionPayload } from "@prisma/client";
-import { elipsify, humanizeTimestamp, stripLinks, userMentionWithId } from "@/utils";
+import { elipsify, escapeInlineCode, humanizeTimestamp, stripLinks, userMentionWithId } from "@/utils";
 import { log } from "@utils/logging";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { Action, getActionColor, parseInfractionType, Flag } from "@utils/infractions";
