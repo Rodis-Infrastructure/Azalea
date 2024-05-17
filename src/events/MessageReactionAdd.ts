@@ -243,7 +243,7 @@ export default class MessageReactionAdd extends EventListener {
                     value: userMentionWithId(message.author.id)
                 },
                 {
-                    name: stickerId ? "Sticker" : "Message Content",
+                    name: "Message Content",
                     value: await formatMessageContentForLog(croppedContent, stickerId, message.url)
                 }
             ])

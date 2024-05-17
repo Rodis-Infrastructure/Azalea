@@ -140,7 +140,7 @@ export async function handleShortMessageDeleteLog(
                 value: channelMentionWithName(channel)
             },
             {
-                name: message.sticker_id ? "Sticker" : "Message Content",
+                name: "Message Content",
                 value: await formatMessageContentForLog(message.content, message.sticker_id, messageUrl)
             }
         ])

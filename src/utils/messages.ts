@@ -295,7 +295,7 @@ export async function prependReferenceLog(reference: string | Message, embeds: E
                 value: userMentionWithId(reference.author_id)
             },
             {
-                name: reference.sticker_id ? "Sticker" : "Message Content",
+                name: "Message Content",
                 value: await formatMessageContentForLog(reference.content, reference.sticker_id, referenceUrl)
             }
         ])
@@ -307,29 +307,30 @@ export async function prependReferenceLog(reference: string | Message, embeds: E
 
 // Escape code blocks, truncate the content if it's too long, and wrap it in a code block
 export async function formatMessageContentForLog(content: string | null, stickerId: string | null, url: string): Promise<string> {
-    // Escape custom emoji
-    const jumpUrl = hyperlink("Jump to message", url);
+    let rawContent = hyperlink("Jump to message", url);
 
-    if (!stickerId) {
-        const escapedContent = content?.replace(/<(a?):([^:\n\r]+):(\d{17,19})>/g, "<$1\\:$2\\:$3>");
-        const croppedContent = elipsify(escapedContent || EMPTY_MESSAGE_CONTENT, EMBED_FIELD_CHAR_LIMIT - 120);
-        const formattedContent = codeBlock(escapeCodeBlock(croppedContent));
+    if (stickerId) {
+        const sticker = await client.fetchSticker(stickerId);
 
-        return `${jumpUrl}\n${formattedContent}`;
-    }
-
-    const sticker = await client.fetchSticker(stickerId)
-        .catch(() => null);
-
-    if (sticker) {
-        if (sticker.format === StickerFormatType.Lottie) {
-            return `${jumpUrl}\n\`${sticker.name}\``;
+        if (sticker.format !== StickerFormatType.Lottie) {
+            rawContent += ` \`|\` ${hyperlink(`Sticker: ${sticker.name}`, sticker.url)}`;
+        } else {
+            rawContent += ` \`|\` Lottie Sticker: ${sticker.name}`;
         }
-
-        return `${jumpUrl}\n\`${sticker.name}\` (${hyperlink("view", sticker.url)})`;
     }
 
-    return "Sticker (failed to fetch)";
+    if (content) {
+        // Escape custom emojis
+        content = content.replace(/<(a?):([^:\n\r]+):(\d{17,19})>/g, "<$1\\:$2\\:$3>");
+        // Escape code blocks
+        content = escapeCodeBlock(content);
+        // Truncate the content if it's too long
+        content = elipsify(content, EMBED_FIELD_CHAR_LIMIT - rawContent.length - 6);
+    } else {
+        content = EMPTY_MESSAGE_CONTENT;
+    }
+
+    return rawContent + codeBlock(content);
 }
 
 /**
