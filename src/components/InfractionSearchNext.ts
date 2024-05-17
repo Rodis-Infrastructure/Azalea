@@ -22,16 +22,6 @@ export default class InfractionSearchNext extends Component {
  * @param pageOffset - The page offset (e.g. `-1` goes back and `1` goes forward)
  */
 export async function handleInfractionSearchPagination(interaction: ButtonInteraction<"cached">, pageOffset: number): Promise<InteractionReplyData> {
-    // ID of the user that initiated the search
-    const searchExecutorId = interaction.message.interaction?.user.id;
-
-    if (searchExecutorId && interaction.user.id !== searchExecutorId) {
-        return {
-            content: "You do not have permission to use pagination as you did not initiate this search",
-            ephemeral: true
-        };
-    }
-
     const embed = interaction.message.embeds[0];
 
     // Format: "User ID: {user_id}"
