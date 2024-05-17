@@ -205,18 +205,19 @@ export default class GuildConfig {
 
         if (!createdAt) return false;
 
+        const now = Date.now();
         const createdAtFormatted = createdAt.toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
-        const createdAtThreshold = new Date(Date.now() - config.age_threshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
-        const age = Date.now() - createdAt.getTime();
+        const createdAtThreshold = new Date(now - config.age_threshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
+        const age = now - createdAt.getTime();
 
         Logger.info(`Oldest ${name} created at: ${createdAtFormatted}`);
         Logger.info(`${capitalizedName} created at threshold: ${createdAtThreshold}`);
 
         if (age > config.age_threshold) {
-            Logger.info(`Oldest ${name} is below the age threshold, no actions need to be taken`);
-        } else {
             Logger.info(`Oldest ${name} exceeds the age threshold, sending alert`);
             return true;
+        } else {
+            Logger.info(`Oldest ${name} is below the age threshold, no actions need to be taken`);
         }
 
         return false;
