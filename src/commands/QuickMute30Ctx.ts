@@ -103,7 +103,7 @@ export async function handleQuickMute(data: {
     // to account for the added character limit
     const croppedContent = cropLines(content, 5);
     const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);
-    reason = reason.replace("$MESSAGE_PREVIEW", elipsify(croppedContent, EMBED_FIELD_CHAR_LIMIT - reason.length + 15));
+    reason = reason.replace("$MESSAGE_PREVIEW", elipsify(croppedContent, EMBED_FIELD_CHAR_LIMIT - reason.length + 16));
 
     const infraction = await handleInfractionCreate({
         executor_id: executor.id,

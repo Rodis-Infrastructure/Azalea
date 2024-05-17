@@ -1,4 +1,3 @@
-import { Snowflake } from "discord-api-types/v10";
 import {
     Collection,
     Colors,
@@ -10,16 +9,19 @@ import {
     Role,
     roleMention
 } from "discord.js";
-import { ChannelScoping, Permission, RawGuildConfig, rawGuildConfigSchema } from "./schema";
+
+import { Alert, ChannelScoping, Permission, RawGuildConfig, rawGuildConfigSchema } from "./schema";
 import { client, prisma } from "@/index";
 import { MessageReportStatus, UserReportStatus } from "@utils/reports";
 import { fromZodError } from "zod-validation-error";
 import { InteractionReplyData } from "@utils/types";
 import { pluralize, startCronJob } from "@/utils";
+import { Snowflake } from "discord-api-types/v10";
 import { RequestStatus } from "@utils/requests";
+import { LOG_ENTRY_DATE_FORMAT } from "@utils/constants";
+import { capitalize } from "lodash";
 
 import Logger from "@utils/logger";
-import { LOG_ENTRY_DATE_FORMAT } from "@utils/constants";
 
 export default class GuildConfig {
     private constructor(public readonly data: RawGuildConfig, public readonly guild: Guild) {
@@ -142,25 +144,14 @@ export default class GuildConfig {
                     orderBy: { created_at: "asc" }
                 });
 
-                Logger.info(`Count: ${unresolvedRequests.length}`);
-                Logger.info(`Threshold: ${alertConfig.count_threshold}`);
+                const alertExceedsThreshold = GuildConfig._entityExceedsAlertThresholds({
+                    name: `${request.type} request`,
+                    count: unresolvedRequests.length,
+                    createdAt: unresolvedRequests.at(0)?.created_at,
+                    config: alertConfig
+                });
 
-                if (!unresolvedRequests.length || unresolvedRequests.length < alertConfig.count_threshold) {
-                    Logger.info("Count is below the threshold, no actions need to be taken");
-                }
-
-                const createdAtThreshold = Date.now() - alertConfig.age_threshold;
-                const oldestReportCreatedAt = unresolvedRequests[0].created_at.getTime();
-
-                Logger.info(`Oldest ${request.type} request created at: ${new Date(oldestReportCreatedAt).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
-                Logger.info(`Created at threshold: ${new Date(createdAtThreshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
-
-                if (oldestReportCreatedAt > createdAtThreshold) {
-                    Logger.info(`Oldest ${request.type} request is below the age threshold, no actions need to be taken`);
-                    return;
-                }
-
-                Logger.info("Count exceeds the threshold, sending reminder");
+                if (!alertExceedsThreshold) return;
 
                 const [oldestRequest] = unresolvedRequests;
                 const oldestRequestUrl = messageLink(request.channel_id, oldestRequest.id, this.guild.id);
@@ -177,6 +168,58 @@ export default class GuildConfig {
                 });
             });
         }
+    }
+
+    /**
+     * Check whether an alert needs to be sent.
+     * The following checks are performed:
+     *
+     * - Does the entity count exceed the threshold?
+     * - Is the oldest entity older than the age threshold?
+     *
+     * @param data.name - The name of the entity
+     * @param data.count - The count of the entity
+     * @param data.createdAt - The creation date of the oldest entity
+     * @param data.config - The alert configuration for the entity
+     * @returns Whether an alert needs to be sent
+     * @private
+     */
+    private static _entityExceedsAlertThresholds(data: {
+        name: string,
+        count: number,
+        createdAt?: Date,
+        config: Alert
+    }): boolean {
+        const { count, createdAt, config, name } = data;
+        const capitalizedName = capitalize(name);
+
+        Logger.info(`${capitalizedName} count: ${count}`);
+        Logger.info(`${capitalizedName} count threshold: ${config.count_threshold}`);
+
+        if (count < config.count_threshold) {
+            Logger.info(`${capitalizedName} count is below the threshold, no actions need to be taken`);
+        } else {
+            Logger.info(`${capitalizedName} count exceeds the threshold, sending alert`);
+            return true;
+        }
+
+        if (!createdAt) return false;
+
+        const createdAtFormatted = createdAt.toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
+        const createdAtThreshold = new Date(Date.now() - config.age_threshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
+        const age = Date.now() - createdAt.getTime();
+
+        Logger.info(`Oldest ${name} created at: ${createdAtFormatted}`);
+        Logger.info(`${capitalizedName} created at threshold: ${createdAtThreshold}`);
+
+        if (age > config.age_threshold) {
+            Logger.info(`Oldest ${name} is below the age threshold, no actions need to be taken`);
+        } else {
+            Logger.info(`Oldest ${name} exceeds the age threshold, sending alert`);
+            return true;
+        }
+
+        return false;
     }
 
     async startMessageReportReviewReminderCronJob(): Promise<void> {
@@ -216,25 +259,14 @@ export default class GuildConfig {
                 orderBy: { created_at: "asc" }
             });
 
-            Logger.info(`Count: ${unresolvedReports.length}`);
-            Logger.info(`Threshold: ${alertConfig.count_threshold}`);
+            const alertExceedsThreshold = GuildConfig._entityExceedsAlertThresholds({
+                name: "message report",
+                count: unresolvedReports.length,
+                createdAt: unresolvedReports.at(0)?.created_at,
+                config: alertConfig
+            });
 
-            if (!unresolvedReports.length || unresolvedReports.length < alertConfig.count_threshold) {
-                Logger.info("Count is below the threshold, no actions need to be taken");
-            }
-
-            const createdAtThreshold = Date.now() - alertConfig.age_threshold;
-            const oldestReportCreatedAt = unresolvedReports[0].created_at.getTime();
-
-            Logger.info(`Oldest message report created at: ${new Date(oldestReportCreatedAt).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
-            Logger.info(`Created at threshold: ${new Date(createdAtThreshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
-
-            if (oldestReportCreatedAt > createdAtThreshold) {
-                Logger.info("Oldest report is below the age threshold, no actions need to be taken");
-                return;
-            }
-
-            Logger.info("Count exceeds the threshold, sending reminder");
+            if (!alertExceedsThreshold) return;
             const embeds = [];
 
             if (alertConfig.embed) {
@@ -347,25 +379,14 @@ export default class GuildConfig {
                 orderBy: { created_at: "asc" }
             });
 
-            Logger.info(`Count: ${unresolvedReports.length}`);
-            Logger.info(`Threshold: ${alertConfig.count_threshold}`);
+            const alertExceedsThreshold = GuildConfig._entityExceedsAlertThresholds({
+                name: "user report",
+                count: unresolvedReports.length,
+                createdAt: unresolvedReports.at(0)?.created_at,
+                config: alertConfig
+            });
 
-            if (!unresolvedReports.length || unresolvedReports.length < alertConfig.count_threshold) {
-                Logger.info("Count is below the threshold, no actions need to be taken");
-            }
-
-            const createdAtThreshold = Date.now() - alertConfig.age_threshold;
-            const oldestReportCreatedAt = unresolvedReports[0].created_at.getTime();
-
-            Logger.info(`Oldest user report created at: ${new Date(oldestReportCreatedAt).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
-            Logger.info(`Created at threshold: ${new Date(createdAtThreshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT)}`);
-
-            if (oldestReportCreatedAt > createdAtThreshold) {
-                Logger.info("Oldest report is below the age threshold, no actions need to be taken");
-                return;
-            }
-
-            Logger.info("Count exceeds the threshold, sending reminder");
+            if (!alertExceedsThreshold) return;
             const embeds = [];
 
             if (alertConfig.embed) {

@@ -322,7 +322,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
     }).catch(() => null);
 
     if (!request) {
-        config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, the request was not found.`);
+        config.sendNotification(`${userMention(reviewerId)} The request was not found or it failed validation.`);
         return;
     }
 
