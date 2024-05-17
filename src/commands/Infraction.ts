@@ -736,13 +736,14 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
     private static _formatInfractionSearchFields(infractions: InfractionPayload[]): APIEmbedField[] {
         return infractions.map(infraction => {
-            const cleanReason = stripLinks(infraction.reason ?? DEFAULT_INFRACTION_REASON);
-            const croppedReason = elipsify(cleanReason, 800);
+            const cleanContent = stripLinks(infraction.reason ?? DEFAULT_INFRACTION_REASON);
+            const croppedContent = elipsify(cleanContent, 800);
+            const contentType = infraction.flag === Flag.Quick ? "Message" : "Reason";
 
             const entries = [
                 Infraction._formatInfractionSearchEntry("Created", time(infraction.created_at, TimestampStyles.RelativeTime)),
                 Infraction._formatInfractionSearchEntry("Executor", userMention(infraction.executor_id)),
-                Infraction._formatInfractionSearchEntry("Reason", croppedReason)
+                Infraction._formatInfractionSearchEntry(contentType, croppedContent)
             ];
 
             if (infraction.expires_at) {
