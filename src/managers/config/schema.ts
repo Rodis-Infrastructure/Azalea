@@ -292,6 +292,7 @@ const mediaChannelSchema = z.object({
 
 const nicknameCensorshipSchema = z.object({
     exclude_roles: z.array(snowflakeSchema).max(25).default([]),
+    exclusion_response: messageContentSchema.default("You do not have permission to censor this user's nickname."),
     // $RAND will be replaced with a random 5-digit number
     nickname: stringSchema.max(32).default("Censored User $RAND")
 });

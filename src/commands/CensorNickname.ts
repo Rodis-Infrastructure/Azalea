@@ -3,7 +3,7 @@ import {
     ChatInputCommandInteraction,
     Colors,
     EmbedBuilder,
-    GuildMember, roleMention
+    GuildMember
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
@@ -58,12 +58,11 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
             return "You can't censor the nickname of someone who isn't in the server";
         }
 
-        const { exclude_roles, nickname } = config.data.nickname_censorship;
+        const { exclude_roles, nickname, exclusion_response } = config.data.nickname_censorship;
 
         // Check if any of the user's roles are excluded from censorship
         if (exclude_roles.some(role => target.roles.cache.has(role))) {
-            const formattedRoles = exclude_roles.map(roleMention).join(", ");
-            return `You can't censor the nickname of someone who has any of the following roles: ${formattedRoles}`;
+            return exclusion_response;
         }
 
         if (!target.manageable) {
