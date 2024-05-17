@@ -1,4 +1,15 @@
-import { Colors, EmbedBuilder, GuildMember, hyperlink, Message, messageLink, userMention } from "discord.js";
+import {
+    Colors,
+    EmbedBuilder,
+    escapeInlineCode,
+    GuildMember,
+    hyperlink,
+    inlineCode,
+    Message,
+    messageLink,
+    userMention
+} from "discord.js";
+
 import { DEFAULT_MUTE_DURATION, EMBED_FIELD_CHAR_LIMIT } from "./constants";
 import { RequestValidationError } from "./errors";
 import { Snowflake } from "discord-api-types/v10";
@@ -399,8 +410,10 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
         ? new Date(Date.now() + request.duration)
         : null;
 
+    const formattedReason = `(${inlineCode(escapeInlineCode(request.reason))})`;
+
     config.sendNotification(
-        `${userMention(request.author_id)}'s ${request.type} request has been approved by ${userMention(reviewerId)} (\`${request.reason}\`)`,
+        `${userMention(request.author_id)}'s ${request.type} request has been approved by ${userMention(reviewerId)} ${formattedReason}`,
         false
     );
 

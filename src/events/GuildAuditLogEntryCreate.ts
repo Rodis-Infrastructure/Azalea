@@ -2,10 +2,12 @@ import {
     AuditLogEvent,
     Colors,
     EmbedBuilder,
+    escapeInlineCode,
     Events,
     Guild,
     GuildAuditLogsEntry,
     GuildMember,
+    inlineCode,
     Snowflake,
     time,
     TimestampStyles,
@@ -42,8 +44,9 @@ export default class GuildAuditLogEntryCreate extends EventListener {
         if (!executor) return;
 
         const parsedReason = reason ?? DEFAULT_INFRACTION_REASON;
+        const formattedReason = `(${inlineCode(escapeInlineCode(parsedReason))})`;
 
-        let notification = `${target} has been $ACTION by ${executor} (\`${parsedReason}\`)`;
+        let notification = `${target} has been $ACTION by ${executor} ${formattedReason}`;
         let action: Action | undefined;
 
         const setAction = (actionType: Action, str: string): void => {

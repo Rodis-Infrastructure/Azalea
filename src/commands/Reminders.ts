@@ -2,8 +2,8 @@ import {
     APIEmbedField,
     ApplicationCommandOptionType,
     ChatInputCommandInteraction,
-    EmbedBuilder,
-    GuildTextBasedChannel,
+    EmbedBuilder, escapeInlineCode,
+    GuildTextBasedChannel, inlineCode,
     Snowflake,
     time,
     TimestampStyles,
@@ -150,8 +150,9 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 
         const dateTimestamp = time(expiresAt, TimestampStyles.LongDateTime);
         const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);
+        const formattedReminder = `(${inlineCode(escapeInlineCode(reminder))})`;
 
-        return `Successfully created a reminder for ${dateTimestamp} | ${relativeTimestamp} (\`${reminder}\`)`;
+        return `Successfully created a reminder for ${dateTimestamp} | ${relativeTimestamp} ${formattedReminder}`;
     }
 
     private static async _list(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
