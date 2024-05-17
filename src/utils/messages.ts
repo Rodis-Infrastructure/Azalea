@@ -356,7 +356,7 @@ export async function temporaryReply(message: DiscordMessage, content: string, t
 // Returns an entry in the format: `[DD/MM/YYYY, HH:MM:SS] AUTHOR_ID — MESSAGE_CONTENT`
 export async function formatMessageLogEntry(message: Message): Promise<string> {
     const timestamp = new Date(message.created_at).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
-    let content = message.content ?? EMPTY_MESSAGE_CONTENT;
+    let content: string | undefined;
 
     // If the message is a sticker, it cannot have message content
     if (message.sticker_id) {
@@ -368,6 +368,12 @@ export async function formatMessageLogEntry(message: Message): Promise<string> {
             content = `Sticker "${sticker.name}": ${sticker.url}`;
         }
     }
+
+    if (message.content && content) {
+        content = ` | Message Content: ${message.content}`;
+    }
+
+    content ??= message.content ?? EMPTY_MESSAGE_CONTENT;
 
     return `[${timestamp}] ${message.author_id} — ${content}`;
 }
