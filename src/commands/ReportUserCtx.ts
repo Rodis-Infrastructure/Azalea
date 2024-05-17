@@ -70,7 +70,7 @@ export default class ReportUserCtx extends Command<UserContextMenuCommandInterac
 
         const modal = new ModalBuilder()
             .setCustomId(`report-user-${interaction.targetId}-${Boolean(report)}`)
-            .setTitle(`Report ${interaction.targetUser.username}`)
+            .setTitle(`Report @${interaction.targetUser.username}`)
             .setComponents(actionRow);
 
         await interaction.showModal(modal);
