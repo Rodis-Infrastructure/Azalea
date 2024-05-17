@@ -59,7 +59,7 @@ export default class ReportUserCtx extends Command<UserContextMenuCommandInterac
         const reason = new TextInputBuilder()
             .setCustomId("reason")
             .setLabel("Reason")
-            .setPlaceholder("Enter the reason for reporting this user")
+            .setPlaceholder(`Enter the reason for reporting @${interaction.targetUser.username}`)
             .setValue(report?.reason ?? "")
             .setRequired(true)
             .setMaxLength(EMBED_FIELD_CHAR_LIMIT)
@@ -70,7 +70,7 @@ export default class ReportUserCtx extends Command<UserContextMenuCommandInterac
 
         const modal = new ModalBuilder()
             .setCustomId(`report-user-${interaction.targetId}-${Boolean(report)}`)
-            .setTitle("Report User")
+            .setTitle(`Report ${interaction.targetUser.username}`)
             .setComponents(actionRow);
 
         await interaction.showModal(modal);
