@@ -674,7 +674,8 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 iconURL: user.displayAvatarURL(),
                 url: user.displayAvatarURL()
             })
-            .setFooter({ text: `ID: ${user.id}` });
+            // InfractionSearchNext.ts relies on this format
+            .setFooter({ text: `User ID: ${user.id}` });
 
         const fields = Infraction._formatInfractionSearchFields(infractions);
 

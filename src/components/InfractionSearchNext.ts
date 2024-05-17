@@ -34,8 +34,8 @@ export async function handleInfractionSearchPagination(interaction: ButtonIntera
 
     const embed = interaction.message.embeds[0];
 
-    // Format: "ID: {user_id}"
-    const targetId = embed.footer!.text.split(" ")[1];
+    // Format: "User ID: {user_id}"
+    const targetId = embed.footer!.text.split(": ")[1];
     const target = await client.users.fetch(targetId).catch(() => null);
 
     if (!target) {

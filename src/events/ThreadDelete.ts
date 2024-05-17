@@ -40,7 +40,7 @@ export default class ThreadDelete extends EventListener {
                     value: `\`#${thread.name}\``
                 }
             ])
-            .setFooter({ text: `ID: ${thread.id}` })
+            .setFooter({ text: `Thread ID: ${thread.id}` })
             .setTimestamp();
 
         log({
