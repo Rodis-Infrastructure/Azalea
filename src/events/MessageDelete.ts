@@ -198,7 +198,7 @@ async function updateMessageReportState(messageId: Snowflake, config: GuildConfi
 
     const newContent = `${alert.content}\n\nThe report is being handled by ${userMentionWithId(executorId)}`;
     const [rawEmbed] = alert.embeds;
-    const embed = new EmbedBuilder(rawEmbed.toJSON()).setColor(0x9C84EF); // Light purple
+    const embed = new EmbedBuilder(rawEmbed.toJSON()).setColor(Colors.Orange);
 
     alert.edit({
         content: newContent,
