@@ -31,14 +31,14 @@ export default class MessageUpdate extends EventListener {
         super(Events.MessageUpdate);
     }
 
-    async execute(_oldMessage: never, newMessage: PartialMessage | DiscordMessage): Promise<void> {
+    async execute(_oldMessage: never, newMessage: PartialMessage | DiscordMessage<true>): Promise<void> {
         const message = newMessage.partial
-            ? await newMessage.fetch() as DiscordMessage<true>
-            : newMessage as DiscordMessage<true>;
+            ? await newMessage.fetch().catch(() => null) as DiscordMessage<true> | null
+            : newMessage;
 
         // Terminate if the message can't be fetched or if there is no content
         // e.g. message is a sticker
-        if (message.author.bot) return;
+        if (!message || message.author.bot) return;
 
         const config = ConfigManager.getGuildConfig(message.guildId);
         if (!config) return;

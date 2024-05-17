@@ -26,12 +26,12 @@ export default class MessageCreate extends EventListener {
         super(Events.MessageCreate);
     }
 
-    async execute(newMessage: PartialMessage | Message): Promise<void> {
+    async execute(newMessage: PartialMessage | Message<true>): Promise<void> {
         const message = newMessage.partial
-            ? await newMessage.fetch() as Message<true>
-            : newMessage as Message<true>;
+            ? await newMessage.fetch().catch(() => null) as Message<true> | null
+            : newMessage;
 
-        if (message.author.id === client.user.id) return;
+        if (!message || message.author.id === client.user.id) return;
 
         const config = ConfigManager.getGuildConfig(message.guild.id);
         if (!config) return;

@@ -47,12 +47,16 @@ export default class MessageReactionAdd extends EventListener {
 
     async execute(addedReaction: MessageReaction | PartialMessageReaction, user: User): Promise<void> {
         const reaction = addedReaction.partial
-            ? await addedReaction.fetch()
+            ? await addedReaction.fetch().catch(() => null)
             : addedReaction;
 
+        if (!reaction) return;
+
         const message = reaction.message.partial
-            ? await reaction.message.fetch() as Message<true>
+            ? await reaction.message.fetch().catch(() => null) as Message<true> | null
             : reaction.message as Message<true>;
+
+        if (!message) return;
 
         const config = ConfigManager.getGuildConfig(message.guildId);
         if (!config) return;

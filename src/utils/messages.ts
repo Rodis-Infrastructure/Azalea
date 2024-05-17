@@ -330,17 +330,6 @@ export async function formatMessageContentForLog(content: string | null, sticker
     return "Sticker (failed to fetch)";
 }
 
-// Ignores messages that were sent in DMs. This function shouldn't be used on deleted messages
-export async function resolvePartialMessage(message: PartialMessage | DiscordMessage): Promise<DiscordMessage<true> | null> {
-    const fetchedMessage = message.partial
-        ? await message.fetch().catch(() => null)
-        : message;
-
-    if (!fetchedMessage?.inGuild()) return null;
-
-    return fetchedMessage;
-}
-
 /**
  * Send a temporary reply to a message and delete it after a specified time
  *
