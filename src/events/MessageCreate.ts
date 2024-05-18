@@ -64,11 +64,13 @@ export default class MessageCreate extends EventListener {
             }
         }
 
-        const autoReactionEmojis = config.getAutoReactionEmojis(message.channel.id, message.member!.roles.cache);
+        if (message.member) {
+            const autoReactionEmojis = config.getAutoReactionEmojis(message.channel.id, message.member.roles.cache);
 
-        // Add auto reactions to the message
-        for (const emoji of autoReactionEmojis) {
-            message.react(emoji).catch(() => null);
+            // Add auto reactions to the message
+            for (const emoji of autoReactionEmojis) {
+                message.react(emoji).catch(() => null);
+            }
         }
 
         const mediaChannel = config.data.media_channels
