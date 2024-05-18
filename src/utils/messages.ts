@@ -95,24 +95,27 @@ export class Messages {
 
         // Fetch remaining messages from the database if an insufficient amount was cached
         if (messages.length < limit) {
-            const createdAtThreshold = Date.now() - ConfigManager.globalConfig.database.messages.ttl;
+            const msCreatedAtThreshold = Date.now() - ConfigManager.globalConfig.database.messages.ttl;
 
-            // @formatter:off
-            const stored = await prisma.$queryRaw<Message[]>`
-                UPDATE Message
-                SET deleted = true
-                WHERE id IN (
-                    SELECT id FROM Message
-                    WHERE author_id = ${userId}
-                        AND channel_id = ${channelId}
-                        AND deleted = false
-                        AND created_at < ${createdAtThreshold}
-                    ORDER BY created_at DESC
-                    LIMIT ${limit - messages.length}
-                )
-                RETURNING *;
-            `;
-            // @formatter:on
+            // The messages have to be fetched first since LIMIT cannot be used with update()
+            const stored = await prisma.message.findMany({
+                orderBy: { created_at: "desc" },
+                take: limit - messages.length,
+                where: {
+                    author_id: userId,
+                    channel_id: channelId,
+                    created_at: { gt: new Date(msCreatedAtThreshold) },
+                    deleted: false
+                }
+            });
+
+            // Update the deletion state of the stored messages
+            await prisma.message.updateMany({
+                where: {
+                    id: { in: stored.map(message => message.id) }
+                },
+                data: { deleted: true }
+            });
 
             // Combined cached and stored messages
             return messages.concat(stored);
