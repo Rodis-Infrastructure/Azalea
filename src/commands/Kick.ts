@@ -1,13 +1,13 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, inlineCode } from "discord.js";
+import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
-import { escapeInlineCode } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import Sentry from "@sentry/node";
+import { formatInfractionReason } from "@/utils";
 
 /**
  * Kick a member from the server.
@@ -89,9 +89,9 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
             return `An error occurred while kicking the member (\`${sentryId}\`)`;
         }
 
-        const formattedReason = `(${inlineCode(escapeInlineCode(reason))})`;
+        const formattedReason = formatInfractionReason(reason);
 
-        // Ensure a public log of the action is made
+        // Ensure a public log of the action is made if executed ephemerally
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
             config.sendNotification(`${interaction.user} kicked ${member} - \`#${infraction.id}\` ${formattedReason}`, false);
         }

@@ -77,18 +77,18 @@ export default class Config extends Command<ChatInputCommandInteraction<"cached"
      * @private
      */
     private static _getGuildConfigAttachment(guildId: Snowflake): InteractionReplyData {
-        const guildConfig = ConfigManager.getGuildConfig(guildId);
+        const config = ConfigManager.getGuildConfig(guildId);
 
-        if (!guildConfig) {
+        if (!config) {
             return "This guild doesn't have a configuration.";
         }
 
-        const fullPath = path.resolve(`configs/${guildConfig.guild.id}.yml`);
-        const configFile = fs.readFileSync(fullPath, "utf-8");
-        const buffer = Buffer.from(configFile);
+        const filepath = path.resolve(`configs/${config.guild.id}.yml`);
+        const fileContent = fs.readFileSync(filepath, "utf-8");
+        const buffer = Buffer.from(fileContent);
 
         const file = new AttachmentBuilder(buffer, {
-            name: fullPath
+            name: filepath
         });
 
         return { files: [file] };

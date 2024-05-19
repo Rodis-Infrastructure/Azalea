@@ -4,7 +4,6 @@ import {
     ChatInputCommandInteraction,
     EmbedBuilder,
     GuildTextBasedChannel,
-    inlineCode,
     Snowflake,
     time,
     TimestampStyles,
@@ -14,7 +13,7 @@ import {
 import { InteractionReplyData } from "@utils/types";
 import { DURATION_FORMAT, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { client, prisma } from "./..";
-import { escapeInlineCode, pluralize } from "@/utils";
+import { formatInfractionReason, pluralize } from "@/utils";
 
 import Command from "@managers/commands/Command";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -151,7 +150,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 
         const dateTimestamp = time(expiresAt, TimestampStyles.LongDateTime);
         const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);
-        const formattedReminder = `(${inlineCode(escapeInlineCode(reminder))})`;
+        const formattedReminder = formatInfractionReason(reminder);
 
         return `Successfully created a reminder for ${dateTimestamp} | ${relativeTimestamp} ${formattedReminder}`;
     }

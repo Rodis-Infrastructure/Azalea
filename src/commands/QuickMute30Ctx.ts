@@ -1,7 +1,6 @@
 import {
     ApplicationCommandType,
     GuildMember,
-    inlineCode,
     Message,
     MessageContextMenuCommandInteraction,
     time,
@@ -11,7 +10,7 @@ import {
 import { InteractionReplyData } from "@utils/types";
 import { Action, Flag, handleInfractionCreate, MuteDuration } from "@utils/infractions";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { cropLines, elipsify, escapeInlineCode } from "@/utils";
+import { cropLines, elipsify, formatInfractionReason } from "@/utils";
 import { prisma } from "./..";
 
 import ConfigManager from "@managers/config/ConfigManager";
@@ -126,9 +125,9 @@ export async function handleQuickMute(data: {
         return `An error occurred while quick muting the member (\`${sentryId}\`)`;
     }
 
-    const formattedReason = `(${inlineCode(escapeInlineCode(reason))})`;
+    const formattedReason = formatInfractionReason(reason);
 
-    // Ensure a public log of the action is made
+    // Ensure a public log of the action is made if executed ephemerally
     if (config.inScope(channel, config.data.ephemeral_scoping)) {
         config.sendNotification(
             `${executor} set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`,

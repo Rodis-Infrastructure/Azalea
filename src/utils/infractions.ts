@@ -94,6 +94,7 @@ export async function handleInfractionExpirationChange(
     const { expires_at, updated_by, target_id } = data;
     let { id } = data;
 
+    const now = new Date();
     let infraction: Infraction;
 
     try {
@@ -102,7 +103,7 @@ export async function handleInfractionExpirationChange(
             const recentMuteInfraction = await prisma.infraction.findFirst({
                 where: {
                     action: Action.Mute,
-                    expires_at: { gt: new Date() },
+                    expires_at: { gt: now },
                     guild_id: config.guild.id,
                     target_id
                 },
@@ -118,8 +119,8 @@ export async function handleInfractionExpirationChange(
         infraction = await prisma.infraction.update({
             where: { id },
             data: {
-                updated_at: new Date(),
-                expires_at: expires_at ?? new Date(),
+                updated_at: now,
+                expires_at: expires_at ?? now,
                 updated_by
             }
         });

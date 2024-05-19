@@ -1,7 +1,6 @@
 import {
     ApplicationCommandOptionType,
     ChatInputCommandInteraction,
-    inlineCode,
     PermissionFlagsBits,
     time,
     TimestampStyles
@@ -17,7 +16,7 @@ import {
 import { Action, handleInfractionCreate } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
-import { escapeInlineCode } from "@/utils";
+import { formatInfractionReason } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -144,9 +143,9 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             return `An error occurred while muting the member (\`${sentryId}\`)`;
         }
 
-        const formattedReason = `(${inlineCode(escapeInlineCode(reason))})`;
+        const formattedReason = formatInfractionReason(reason);
 
-        // Ensure a public log of the action is made
+        // Ensure a public log of the action is made if executed ephemerally
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
             config.sendNotification(`${interaction.user} set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`, false);
         }

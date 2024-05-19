@@ -26,7 +26,14 @@ export default class RoleRequestSelectRole extends Component {
 
     async execute(interaction: StringSelectMenuInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-        const roleRequestConfig = config.data.role_requests!;
+        const roleRequestConfig = config.data.role_requests;
+
+        if (!roleRequestConfig) {
+            return {
+                content: "Role requests are not enabled in this guild.",
+                ephemeral: true
+            };
+        }
 
         if (!config.hasPermission(interaction.member, Permission.ManageRoleRequests)) {
             return {
@@ -55,23 +62,25 @@ export default class RoleRequestSelectRole extends Component {
             };
         }
 
+        const [requestEmbed] = interaction.message.embeds;
         await interaction.deferUpdate();
 
-        const userIdMatches = interaction.message.embeds[0].description!
+        // Extract user IDs from the embed's description
+        const userIdMatches = requestEmbed.description!
             .matchAll(/@(\d{17,19})/g);
 
         const userIds = Array.from(userIdMatches, match => match[1]);
+
         // Fetch the members that are mentioned in the embed
-        const memberPromises = userIds.map(userId =>
+        const memberFetchPromises = userIds.map(userId =>
             interaction.guild.members
                 .fetch(userId)
                 .catch(() => null)
         );
 
-        const nullableMembers = await Promise.all(memberPromises);
+        const nullableMembers = await Promise.all(memberFetchPromises);
         const members = nullableMembers.filter(Boolean) as GuildMember[];
         const buttonActionRow = new ActionRowBuilder<ButtonBuilder>(interaction.message.components[1].toJSON());
-        const [embedData] = interaction.message.embeds;
 
         const removeRolesButton = new ButtonBuilder()
             .setLabel("Remove role")
@@ -80,7 +89,7 @@ export default class RoleRequestSelectRole extends Component {
 
         buttonActionRow.addComponents(removeRolesButton);
 
-        const embed = new EmbedBuilder(embedData.toJSON())
+        const embed = new EmbedBuilder(requestEmbed.toJSON())
             .setColor(role.color)
             .setTitle(role.name)
             // RoleRequestRemoveRole.ts relies on this format
@@ -98,6 +107,8 @@ export default class RoleRequestSelectRole extends Component {
             }
 
             const expiresAt = new Date(Date.now() + selectedRole.ttl);
+
+            // Either create or update the role expiration time for each member
             const txn: Prisma.PrismaPromise<unknown>[] = members.map(member =>
                 prisma.temporaryRole.upsert({
                     where: {
@@ -120,6 +131,7 @@ export default class RoleRequestSelectRole extends Component {
                 })
             );
 
+            // Remove the role request message after the role expires
             txn.push(
                 prisma.temporaryMessage.create({
                     data: {
@@ -161,6 +173,7 @@ export default class RoleRequestSelectRole extends Component {
             components: [buttonActionRow]
         });
 
+        // There was an issue assigned the role to some members
         if (successfulMembers.length !== userIds.length) {
             const failedMembers = userIds
                 .filter(userId => !members.some(member => member.id === userId))
@@ -175,6 +188,7 @@ export default class RoleRequestSelectRole extends Component {
             return null;
         }
 
+        // The role was successfully assigned to all members
         await interaction.followUp({
             content: `Successfully assigned the role to ${members.length} ${pluralize(members.length, "member")}.`,
             ephemeral: true

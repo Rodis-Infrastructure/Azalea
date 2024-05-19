@@ -3,7 +3,6 @@ import {
     EmbedBuilder,
     GuildMember,
     hyperlink,
-    inlineCode,
     Message,
     messageLink,
     userMention
@@ -13,7 +12,7 @@ import { DEFAULT_MUTE_DURATION, EMBED_FIELD_CHAR_LIMIT } from "./constants";
 import { RequestValidationError } from "./errors";
 import { Snowflake } from "discord-api-types/v10";
 import { temporaryReply } from "./messages";
-import { escapeInlineCode, userMentionWithId } from "./index";
+import { formatInfractionReason, userMentionWithId } from "./index";
 import { TypedRegEx } from "typed-regex";
 import { Action, handleInfractionCreate } from "./infractions";
 import { client, prisma } from "./..";
@@ -409,7 +408,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
         ? new Date(Date.now() + request.duration)
         : null;
 
-    const formattedReason = `(${inlineCode(escapeInlineCode(request.reason))})`;
+    const formattedReason = formatInfractionReason(request.reason);
 
     config.sendNotification(
         `${userMention(request.author_id)}'s ${request.type} request has been approved by ${userMention(reviewerId)} ${formattedReason}`,

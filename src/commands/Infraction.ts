@@ -9,7 +9,6 @@ import {
     Colors,
     EmbedBuilder,
     GuildMember,
-    inlineCode,
     Snowflake,
     time,
     TimestampStyles,
@@ -24,10 +23,18 @@ import {
     MAX_MUTE_DURATION
 } from "@utils/constants";
 
+import {
+    elipsify,
+    humanizeTimestamp,
+    pluralize,
+    getInfractionReasonPreview,
+    userMentionWithId,
+    formatInfractionReason
+} from "@/utils";
+
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
 import { Prisma, Infraction as InfractionPayload } from "@prisma/client";
-import { elipsify, escapeInlineCode, humanizeTimestamp, pluralize, stripLinks, userMentionWithId } from "@/utils";
 import { log } from "@utils/logging";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { Action, getActionColor, parseInfractionType, Flag } from "@utils/infractions";
@@ -182,7 +189,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 }
 
                 const user = member?.user ?? interaction.options.getUser("user", true);
-                const filter = interaction.options.getString("filter") as InfractionSearchFilter | null ?? InfractionSearchFilter.All;
+                const filter = (interaction.options.getString("filter") ?? InfractionSearchFilter.All) as InfractionSearchFilter;
 
                 return Infraction.search({
                     guildId: interaction.guildId,
@@ -216,9 +223,8 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 });
             }
 
-            case InfractionSubcommand.Active: {
+            case InfractionSubcommand.Active:
                 return Infraction._listActive();
-            }
 
             case InfractionSubcommand.Archive: {
                 const infractionId = interaction.options.getInteger("infraction_id", true);
@@ -240,17 +246,14 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 return Infraction._info(infractionId, interaction.guildId);
             }
 
-            default: {
+            default:
                 return Promise.resolve("Unknown subcommand");
-            }
         }
     }
 
+    // List non-expired infractions
     private static async _listActive(): Promise<InteractionReplyData> {
-        const RESULTS_PER_PAGE = 5;
-
-        const activeInfractions = await prisma.infraction.findMany({
-            take: RESULTS_PER_PAGE,
+        const infractions = await prisma.infraction.findMany({
             orderBy: { id: "desc" },
             where: {
                 archived_at: null,
@@ -259,19 +262,20 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             }
         });
 
-        const count = activeInfractions.length;
+        const count = infractions.length;
 
         if (!count) {
             return "There are no active infractions";
         }
 
-        const mappedInfractions = activeInfractions.map(infraction => {
+        const mappedInfractions = infractions.map(infraction => {
             return `- \`#${infraction.id}\` ${userMention(infraction.target_id)} - Expires ${time(infraction.expires_at!, TimestampStyles.RelativeTime)}`;
         }).join("\n");
 
-        let content = `There ${pluralize(count, "is", "are")} currently ${count} active ${pluralize(activeInfractions.length, "infraction")}`;
+        let content = `There ${pluralize(count, "is", "are")} currently ${count} active ${pluralize(infractions.length, "infraction")}`;
         content += `\n\n${mappedInfractions}`;
 
+        // Ensure the list does not exceed the character limit
         if (content.length > 4000) {
             return "The list of active infractions is too long to display";
         }
@@ -673,7 +677,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             config
         });
 
-        const formattedReason = `(${inlineCode(escapeInlineCode(reason))})`;
+        const formattedReason = formatInfractionReason(reason);
         return `Successfully updated the reason of infraction \`#${infractionId}\` ${formattedReason}`;
     }
 
@@ -780,7 +784,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
     private static _formatInfractionSearchFields(infractions: InfractionPayload[]): APIEmbedField[] {
         return infractions.map(infraction => {
-            const cleanContent = stripLinks(infraction.reason ?? DEFAULT_INFRACTION_REASON);
+            const cleanContent = getInfractionReasonPreview(infraction.reason ?? DEFAULT_INFRACTION_REASON);
             const croppedContent = elipsify(cleanContent, 800);
             const contentType = infraction.flag === Flag.Quick ? "Message" : "Reason";
 

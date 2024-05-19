@@ -1,7 +1,8 @@
 import {
     ApplicationCommandOptionChoiceData,
     ApplicationCommandOptionType,
-    ChatInputCommandInteraction, User
+    ChatInputCommandInteraction,
+    User
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
@@ -35,13 +36,13 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
 
     execute(interaction: ChatInputCommandInteraction<"cached">): InteractionReplyData {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-        const choice = interaction.options.getString("query", true);
+        const selected = interaction.options.getString("query", true);
         const mention = interaction.options.getUser("mention");
-        const response = config.getQuickResponse(choice);
+        const response = config.getQuickResponse(selected);
 
         if (!response) {
             return {
-                content: "Response not found",
+                content: "Response not found.",
                 ephemeral: true
             };
         }
@@ -65,6 +66,7 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
         return choices.length ? choices : undefined;
     }
 
+    // Prepend the mention to the response if it exists
     private static _formatResponse(mention: User | null, response?: string): string | undefined {
         return [mention, response]
             .filter(Boolean)

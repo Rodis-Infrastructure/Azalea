@@ -86,15 +86,19 @@ export default class InteractionCreate extends EventListener {
             allowedMentions: { parse: [] }
         };
 
-        if (typeof response === "string") {
-            await interaction.reply({
+        const options = typeof response === "string"
+            ? { content: response }
+            : response;
+
+        if (interaction.deferred) {
+            await interaction.editReply({
                 ...defaultReplyOptions,
-                content: response
+                ...options
             });
         } else {
             await interaction.reply({
                 ...defaultReplyOptions,
-                ...response
+                ...options
             });
         }
     }

@@ -73,9 +73,9 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
             return `An error occurred while unbanning the member (\`${sentryId}\`)`;
         }
 
-        const formattedReason = `(${inlineCode(escapeInlineCode(reason))})`;
+        const formattedReason = formatInfractionReason(reason);
 
-        // Ensure a public log of the action is made
+        // Ensure a public log of the action is made if executed ephemerally
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
             config.sendNotification(`${interaction.user} unbanned ${user} - \`#${infraction.id}\` ${formattedReason}`, false);
         }

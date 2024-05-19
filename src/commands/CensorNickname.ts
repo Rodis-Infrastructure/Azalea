@@ -71,13 +71,14 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
 
         // Random 5-digit number
         const rand = Math.floor(Math.random() * 90000) + 10000;
+        // The user's nickname before it was censored
         const initialNickname = target.displayName;
         const censoredNickname = nickname
             .replace("$RAND", rand.toString())
             .replace("$USER_ID", target.id);
 
         // Update the user's nickname
-        await target.setNickname(censoredNickname, `Inappropriate nickname, censored by ${executorId}`);
+        await target.setNickname(censoredNickname, `Nickname censored by ${executorId}`);
 
         const embed = new EmbedBuilder()
             .setColor(Colors.Red)
@@ -110,6 +111,6 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
             config
         });
 
-        return `Changed ${target}'s nickname from \`${initialNickname}\` to \`${censoredNickname}\``;
+        return `Successfully changed ${target}'s nickname from \`${initialNickname}\` to \`${censoredNickname}\``;
     }
 }

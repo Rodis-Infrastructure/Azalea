@@ -128,13 +128,24 @@ export function elipsify(str: string, length: number): string {
         : str;
 }
 
-export function escapeInlineCode(str: string): string {
-    return str.replaceAll("`", "");
+// Removes all backticks from the string and wraps it in inline code formatting as well as parentheses
+export function formatInfractionReason(reason: string): string {
+    const cleanReason = reason.replaceAll("`", "");
+    return `(\`${cleanReason}\`)`;
 }
 
-// Remove links and unnecessary whitespace from a string
-export function stripLinks(str: string): string {
-    return str
+/**
+ * Cleans the reason by removing...
+ *
+ * - Links
+ * - Purge logs
+ * - Unnecessary whitespace
+ *
+ * @param reason - The reason to clean
+ * @returns The clean reason
+ */
+export function getInfractionReasonPreview(reason: string): string {
+    return reason
         // Remove links
         .replaceAll(/https?:\/\/[^\s\n\r]+/gi, "")
         // Remove purge log

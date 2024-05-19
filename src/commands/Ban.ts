@@ -1,16 +1,13 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, inlineCode } from "discord.js";
+import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
-import { Action, handleInfractionCreate } from "@utils/infractions";
+import { Action, handleInfractionCreate, handleInfractionExpirationChange } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
-import { client, prisma } from "./..";
-import { escapeInlineCode } from "@/utils";
+import { prisma } from "./..";
+import { formatInfractionReason } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import Sentry from "@sentry/node";
-
-// Constants
-const DEFAULT_DELETE_MESSAGE_SECONDS = 604800;
 
 /**
  * Bans a user from the server.
@@ -62,9 +59,9 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             return "Discord media links are not allowed in infraction reasons";
         }
 
-        // Delete 2 weeks' worth of messages if the option is true
+        // Delete a week worth of messages if the option is true
         const deleteMessageSeconds = interaction.options.getBoolean("delete_messages")
-            ? DEFAULT_DELETE_MESSAGE_SECONDS
+            ? config.data.delete_message_seconds_on_ban
             : 0;
 
         if (member && !member.bannable) {
@@ -88,20 +85,11 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             return `This user is already banned: \`${ban.reason ?? DEFAULT_INFRACTION_REASON}\``;
         }
 
-        const now = new Date();
-
-        await prisma.infraction.updateMany({
-            where: {
-                target_id: user.id,
-                guild_id: interaction.guildId,
-                expires_at: { gt: now }
-            },
-            data: {
-                expires_at: now,
-                updated_at: now,
-                updated_by: client.user.id
-            }
-        });
+        // End any active infractions
+        await handleInfractionExpirationChange({
+            updated_by: interaction.user.id,
+            target_id: user.id
+        }, config, false);
 
         // Log the infraction and store it in the database
         const infraction = await handleInfractionCreate({
@@ -127,9 +115,9 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             return `An error occurred while banning the member (\`${sentryId}\`)`;
         }
         
-        const formattedReason = `(${inlineCode(escapeInlineCode(reason))})`;
+        const formattedReason = formatInfractionReason(reason);
 
-        // Ensure a public log of the action is made
+        // Ensure a public log of the action is made if executed ephemerally
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
             config.sendNotification(`${interaction.user} banned ${user} - \`#${infraction.id}\` ${formattedReason}`, false);
         }

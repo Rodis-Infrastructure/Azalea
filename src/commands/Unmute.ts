@@ -86,9 +86,9 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
             target_id: member.id
         }, config, false);
 
-        const formattedReason = `(${inlineCode(escapeInlineCode(reason))})`;
+        const formattedReason = formatInfractionReason(reason);
 
-        // Ensure a public log of the action is made
+        // Ensure a public log of the action is made if executed ephemerally
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
             config.sendNotification(`${interaction.user} unmuted ${member} - \`#${infraction.id}\` ${formattedReason}`, false);
         }
