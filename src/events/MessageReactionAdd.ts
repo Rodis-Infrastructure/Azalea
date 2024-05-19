@@ -232,6 +232,7 @@ export default class MessageReactionAdd extends EventListener {
         const stickerId = message.stickers.first()?.id ?? null;
 
         const alert = new EmbedBuilder()
+            .setTitle("Message Report")
             .setThumbnail(message.author.displayAvatarURL())
             .setFields([
                 {

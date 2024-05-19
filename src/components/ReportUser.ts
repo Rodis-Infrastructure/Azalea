@@ -84,7 +84,8 @@ export default class ReportUser extends Component {
         const { interaction, targetId, reason, userReportChannel, config } = data;
 
         const embed = new EmbedBuilder()
-            .setColor(0x9C84EF) // Light purple
+            .setTitle("User Report")
+            .setColor(Colors.Blue)
             .setFields([
                 {
                     name: "Reported By",
