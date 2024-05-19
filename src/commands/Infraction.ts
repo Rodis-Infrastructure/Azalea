@@ -27,7 +27,7 @@ import {
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
 import { Prisma, Infraction as InfractionPayload } from "@prisma/client";
-import { elipsify, escapeInlineCode, humanizeTimestamp, stripLinks, userMentionWithId } from "@/utils";
+import { elipsify, escapeInlineCode, humanizeTimestamp, pluralize, stripLinks, userMentionWithId } from "@/utils";
 import { log } from "@utils/logging";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { Action, getActionColor, parseInfractionType, Flag } from "@utils/infractions";
@@ -108,6 +108,11 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                             required: true
                         }
                     ]
+                },
+                {
+                    name: InfractionSubcommand.Active,
+                    description: "List active infractions",
+                    type: ApplicationCommandOptionType.Subcommand
                 },
                 {
                     name: InfractionSubcommand.Reason,
@@ -211,6 +216,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 });
             }
 
+            case InfractionSubcommand.Active: {
+                return Infraction._listActive();
+            }
+
             case InfractionSubcommand.Archive: {
                 const infractionId = interaction.options.getInteger("infraction_id", true);
                 return Infraction._archive(infractionId, interaction.member, config);
@@ -235,6 +244,39 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 return Promise.resolve("Unknown subcommand");
             }
         }
+    }
+
+    private static async _listActive(): Promise<InteractionReplyData> {
+        const RESULTS_PER_PAGE = 5;
+
+        const activeInfractions = await prisma.infraction.findMany({
+            take: RESULTS_PER_PAGE,
+            orderBy: { id: "desc" },
+            where: {
+                archived_at: null,
+                archived_by: null,
+                expires_at: { gt: new Date() }
+            }
+        });
+
+        const count = activeInfractions.length;
+
+        if (!count) {
+            return "There are no active infractions";
+        }
+
+        const mappedInfractions = activeInfractions.map(infraction => {
+            return `- \`#${infraction.id}\` ${userMention(infraction.target_id)} - Expires ${time(infraction.expires_at!, TimestampStyles.RelativeTime)}`;
+        }).join("\n");
+
+        let content = `There ${pluralize(count, "is", "are")} currently ${count} active ${pluralize(activeInfractions.length, "infraction")}`;
+        content += `\n\n${mappedInfractions}`;
+
+        if (content.length > 4000) {
+            return "The list of active infractions is too long to display";
+        }
+
+        return content;
     }
 
     /**
@@ -813,5 +855,6 @@ enum InfractionSubcommand {
     Duration = "duration",
     Reason = "reason",
     Archive = "archive",
-    Restore = "restore"
+    Restore = "restore",
+    Active = "active"
 }
