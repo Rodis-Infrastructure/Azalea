@@ -45,7 +45,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
         const parsedReason = reason ?? DEFAULT_INFRACTION_REASON;
         const formattedReason = `(${inlineCode(escapeInlineCode(parsedReason))})`;
 
-        let notification = `${target} has been $ACTION by ${executor} ${formattedReason}`;
+        let notification = `${target} has been $ACTION by ${executor} - \`#$INFRACTION_ID\` ${formattedReason}`;
         let action: Action | undefined;
 
         const setAction = (actionType: Action, str: string): void => {
@@ -88,24 +88,26 @@ export default class GuildAuditLogEntryCreate extends EventListener {
                         const msDuration = Date.parse(muteDurationDiff.new as string);
                         const expiresAt = Math.floor(msDuration / 1000);
 
-                        setAction(Action.Mute, `muted until ${time(expiresAt, TimestampStyles.LongDateTime)}`);
+                        setAction(Action.Mute, `set on a timeout that will end ${time(expiresAt, TimestampStyles.RelativeTime)}`);
 
-                        try {
-                            await handleInfractionCreate({
-                                guild_id: guild.id,
-                                action: Action.Mute,
-                                executor_id: executor.id,
-                                target_id: target.id,
-                                reason: parsedReason,
-                                flag: flag,
-                                expires_at: new Date(msDuration)
-                            }, config);
+                        const infraction = await handleInfractionCreate({
+                            guild_id: guild.id,
+                            action: Action.Mute,
+                            executor_id: executor.id,
+                            target_id: target.id,
+                            reason: parsedReason,
+                            flag: flag,
+                            expires_at: new Date(msDuration)
+                        }, config);
 
-                            config.sendNotification(notification, false);
-                            return;
-                        } catch (error) {
-                            Sentry.captureException(error);
+                        if (infraction) {
+                            notification = notification.replace("$INFRACTION_ID", infraction.id.toString());
+                        } else {
+                            notification = notification.replace("$INFRACTION_ID", "unknown");
                         }
+
+                        config.sendNotification(notification, false);
+                        return;
                     }
 
                     // User has been unmuted
@@ -120,7 +122,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
 
         if (!action) return;
 
-        await handleInfractionCreate({
+        const infraction = await handleInfractionCreate({
             guild_id: guild.id,
             action,
             executor_id: executor.id,
@@ -128,6 +130,12 @@ export default class GuildAuditLogEntryCreate extends EventListener {
             reason: parsedReason,
             flag
         }, config);
+
+        if (infraction) {
+            notification = notification.replace("$INFRACTION_ID", infraction.id.toString());
+        } else {
+            notification = notification.replace("$INFRACTION_ID", "unknown");
+        }
 
         config.sendNotification(notification, false);
     }
