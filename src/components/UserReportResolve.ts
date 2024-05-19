@@ -18,7 +18,10 @@ export default class UserReportResolve extends Component {
         // Returns null if the report is not found
         const report = await prisma.userReport.update({
             where: { id: interaction.message.id },
-            data: { status: MessageReportStatus.Resolved }
+            data: {
+                status: MessageReportStatus.Resolved,
+                resolved_by: interaction.user.id
+            }
         }).catch(() => null);
 
         if (!report) {
