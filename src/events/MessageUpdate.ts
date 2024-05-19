@@ -37,23 +37,23 @@ export default class MessageUpdate extends EventListener {
             : newMessage;
 
         // Terminate if the message can't be fetched or if there is no content
-        // e.g. message is a sticker
-        if (!message || message.author.bot) return;
+        if (!message || message.author.bot || !message.content) return;
 
         const config = ConfigManager.getGuildConfig(message.guildId);
         if (!config) return;
 
-        MessageUpdate._log(message, config).catch(() => null);
+        const oldContent = await Messages.updateContent(message.id, message.content);
+        // Only proceed if the message content was changed
+        if (oldContent === message.content) return;
+
+        MessageUpdate._log(message, oldContent, config).catch(() => null);
         handleModerationRequest(message, config);
     }
 
-    private static async _log(message: DiscordMessage<true>, config: GuildConfig): Promise<void> {
+    private static async _log(message: DiscordMessage<true>, oldContent: string, config: GuildConfig): Promise<void> {
         const reference = message.reference?.messageId
             ? await Messages.get(message.reference.messageId)
             : null;
-
-        const oldContent = await Messages.updateContent(message.id, message.content);
-        if (oldContent === message.content) return;
 
         let logContent: MessageCreateOptions | null;
 
