@@ -6,7 +6,6 @@ import {
     Guild,
     GuildAuditLogsEntry,
     GuildMember,
-    inlineCode,
     Snowflake,
     time,
     TimestampStyles,
@@ -17,7 +16,7 @@ import { Action, Flag, handleInfractionCreate, handleInfractionExpirationChange 
 import { DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { client, prisma } from "./..";
 import { MessageReportStatus, UserReportStatus } from "@utils/reports";
-import { escapeInlineCode, pluralize } from "@/utils";
+import { formatInfractionReason, pluralize } from "@/utils";
 import { log } from "@utils/logging";
 import { LoggingEvent } from "@managers/config/schema";
 
@@ -43,7 +42,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
         if (!executor) return;
 
         const parsedReason = reason ?? DEFAULT_INFRACTION_REASON;
-        const formattedReason = `(${inlineCode(escapeInlineCode(parsedReason))})`;
+        const formattedReason = formatInfractionReason(parsedReason);
 
         let notification = `${target} has been $ACTION by ${executor} - \`#$INFRACTION_ID\` ${formattedReason}`;
         let action: Action | undefined;
