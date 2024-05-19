@@ -14,7 +14,7 @@ import { Snowflake } from "discord-api-types/v10";
 import { temporaryReply } from "./messages";
 import { formatInfractionReason, userMentionWithId } from "./index";
 import { TypedRegEx } from "typed-regex";
-import { Action, handleInfractionCreate } from "./infractions";
+import { Action, handleInfractionCreate, handleInfractionExpirationChange } from "./infractions";
 import { client, prisma } from "./..";
 import { log } from "./logging";
 import { Prisma } from "@prisma/client";
@@ -395,6 +395,11 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
             }
 
             await config.guild.members.ban(target, { reason: request.reason });
+            await handleInfractionExpirationChange({
+                updated_by: reviewerId,
+                target_id: request.target_id
+            }, config, false);
+
             handleModerationRequestApproveLog(LoggingEvent.BanRequestApprove, "Banned");
             break;
         }
@@ -506,18 +511,12 @@ export async function denyModerationRequest(messageId: Snowflake, reviewerId: Sn
             }
 
             const target = await config.guild.members.fetch(request.target_id).catch(() => null);
+            await target?.timeout(null);
 
-            // Unmute the target user
-            if (target && target.isCommunicationDisabled()) {
-                await target.timeout(null);
-                await handleInfractionCreate({
-                    guild_id: request.guild_id,
-                    executor_id: reviewerId,
-                    target_id: request.target_id,
-                    reason: "Ban request denied",
-                    action: Action.Unmute
-                }, config);
-            }
+            await handleInfractionExpirationChange({
+                updated_by: reviewerId,
+                target_id: request.target_id
+            }, config, false);
 
             handleModerationRequestDenyLog(LoggingEvent.BanRequestDeny, "Ban");
             break;
