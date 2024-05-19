@@ -162,6 +162,8 @@ async function clearMessageReports(userId: Snowflake, config: GuildConfig): Prom
         })
     ]);
 
+    if (!messageReports.length) return;
+
     const messageReportsIds = messageReports.map(report => report.id);
     const clearedMessageReports = await messageReportChannel.bulkDelete(messageReportsIds);
 
@@ -210,6 +212,8 @@ async function clearUserReports(userId: Snowflake, config: GuildConfig): Promise
             }
         })
     ]);
+
+    if (!userReports.length) return;
 
     const userReportsIds = userReports.map(report => report.id);
     const clearedUserReports = await userReportChannel.bulkDelete(userReportsIds);
