@@ -7,7 +7,7 @@ import {
     ButtonStyle,
     ChatInputCommandInteraction,
     Colors,
-    EmbedBuilder,
+    EmbedBuilder, Guild,
     GuildMember,
     Snowflake,
     time,
@@ -224,7 +224,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             }
 
             case InfractionSubcommand.Active:
-                return Infraction._listActive();
+                return Infraction._listActive(interaction.guild);
 
             case InfractionSubcommand.Archive: {
                 const infractionId = interaction.options.getInteger("infraction_id", true);
@@ -252,7 +252,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
     }
 
     // List non-expired infractions
-    private static async _listActive(): Promise<InteractionReplyData> {
+    private static async _listActive(guild: Guild): Promise<InteractionReplyData> {
         const infractions = await prisma.infraction.findMany({
             orderBy: { id: "desc" },
             where: {
@@ -268,11 +268,18 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             return "There are no active infractions";
         }
 
-        const mappedInfractions = infractions.map(infraction => {
-            return `- \`#${infraction.id}\` ${userMention(infraction.target_id)} - Expires ${time(infraction.expires_at!, TimestampStyles.RelativeTime)}`;
+        const mappedInfractions = infractions.map(async infraction => {
+            const targetIsInGuild = await guild.members.fetch(infraction.target_id)
+                .then(target => target.isCommunicationDisabled())
+                .catch(() => false);
+
+            const state = targetIsInGuild ? "🔇" : "❓";
+            return `- ${state} \`#${infraction.id}\` ${userMention(infraction.target_id)} - Expires ${time(infraction.expires_at!, TimestampStyles.RelativeTime)}`;
         }).join("\n");
 
         let content = `There ${pluralize(count, "is", "are")} currently ${count} active ${pluralize(infractions.length, "infraction")}`;
+
+        content += "\n\n🔇 Confirmed timed out\n❓ Unknown state";
         content += `\n\n${mappedInfractions}`;
 
         // Ensure the list does not exceed the character limit
