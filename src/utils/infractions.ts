@@ -207,9 +207,12 @@ export async function validateInfractionReason(reason: string, config: GuildConf
     const domainMatch = domainRegex.captures(reason);
 
     if (exclude_domains.domains.length && domainMatch) {
+        const parsedFailureMessage = exclude_domains.failure_message
+            .replace("$DOMAIN", domainMatch.domain);
+
         return {
             success: false,
-            message: exclude_domains.failure_message
+            message: parsedFailureMessage
         };
     }
 
@@ -224,12 +227,17 @@ export async function validateInfractionReason(reason: string, config: GuildConf
 
     for (const channel of channels) {
         if (!channel) continue;
+
         const inScope = config.inScope(channel, message_links.scoping);
 
         if (!inScope) {
+            const parsedFailureMessage = message_links.failure_message
+                .replace("$CHANNEL_ID", channel.id)
+                .replace("$CHANNEL_NAME", channel.name);
+
             return {
                 success: false,
-                message: message_links.failure_message
+                message: parsedFailureMessage
             };
         }
     }
