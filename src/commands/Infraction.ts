@@ -269,11 +269,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         }
 
         const infractionPromises = infractions.map(async infraction => {
-            const targetIsInGuild = await guild.members.fetch(infraction.target_id)
-                .then(target => target.isCommunicationDisabled())
-                .catch(() => false);
+            const state = await guild.members.fetch(infraction.target_id)
+                .then(target => target.isCommunicationDisabled() ? "🔇" : "🔊")
+                .catch(() => "❓");
 
-            const state = targetIsInGuild ? "🔇" : "❓";
             return `- ${state} \`#${infraction.id}\` ${userMention(infraction.target_id)} - Expires ${time(infraction.expires_at!, TimestampStyles.RelativeTime)}`;
         });
 
@@ -281,7 +280,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         const formattedInfractions = mappedInfractions.join("\n");
         let content = `There ${pluralize(count, "is", "are")} currently ${count} active ${pluralize(infractions.length, "infraction")}`;
 
-        content += "\n\n🔇 Confirmed timed out\n❓ Unknown state";
+        content += "\n\n🔇 Confirmed timed out\n🔊 Confirmed not timed out\n❓ Unknown state";
         content += `\n\n${formattedInfractions}`;
 
         // Ensure the list does not exceed the character limit
