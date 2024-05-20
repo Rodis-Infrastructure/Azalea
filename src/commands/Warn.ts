@@ -1,5 +1,5 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
-import { Action, handleInfractionCreate } from "@utils/infractions";
+import { Action, handleInfractionCreate, validateInfractionReason } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { formatInfractionReason } from "@/utils";
@@ -38,12 +38,12 @@ export default class Warn extends Command<ChatInputCommandInteraction<"cached">>
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const reason = interaction.options.getString("reason", true);
         const member = interaction.options.getMember("user");
+        const validationResult = await validateInfractionReason(reason, config);
 
-        // Don't allow Discord media links to be present in the reason if disabled
-        if (!config.data.allow_discord_media_links && (reason.includes("cdn.discord") || reason.includes("media.discord"))) {
-            return "Discord media links are not allowed in infraction reasons";
+        if (!validationResult.success) {
+            return validationResult.message;
         }
-        
+
         if (member && member.roles.highest.position >= interaction.member.roles.highest.position) {
             return "You cannot warn a user with a higher or equal role";
         }

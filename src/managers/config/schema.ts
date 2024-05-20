@@ -10,6 +10,7 @@ const cronSchema = z.string().regex(/^(@(annually|yearly|monthly|weekly|daily|ho
 const snowflakeSchema = z.string().regex(/^\d{17,19}$/gm);
 const emojiSchema = z.union([z.string().emoji(), snowflakeSchema]);
 const stringSchema = z.string().min(1);
+const domainSchema = z.string().regex(/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/gmi);
 const messageContentSchema = stringSchema.max(4000);
 
 // ————————————————————————————————————————————————————————————————————————————————
@@ -297,11 +298,20 @@ const nicknameCensorshipSchema = z.object({
     nickname: stringSchema.max(32).default("Censored User $RAND")
 });
 
+const infractionReasonsSchema = z.object({
+    // Domains to blacklist in infraction reasons
+    exclude_domains: z.array(domainSchema).default([]),
+    // Channels to blacklist in infraction reasons
+    message_links: channelScopingSchema.default(defaultChannelScoping)
+});
+
+export type InfractionReasons = z.infer<typeof infractionReasonsSchema>;
+
 // Guild config schema exported for validation
 export const rawGuildConfigSchema = z.object({
     logging: loggingSchema.default(defaultLogging),
     moderation_requests: z.array(moderationRequestSchema).default([]),
-    allow_discord_media_links: z.boolean().default(true),
+    infraction_reasons: infractionReasonsSchema.default({}),
     auto_reactions: z.array(autoReactionSchema).default([]),
     notification_channel: snowflakeSchema.optional(),
     media_conversion_channel: snowflakeSchema.optional(),

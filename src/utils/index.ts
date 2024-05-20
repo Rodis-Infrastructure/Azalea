@@ -177,3 +177,7 @@ export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronT
         color: AnsiColor.Orange
     });
 }
+
+export type ValidationResult<Success = boolean> = Success extends true
+    ? { success: true }
+    : { success: false; message: string };

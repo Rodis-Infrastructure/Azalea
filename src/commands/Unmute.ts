@@ -1,5 +1,11 @@
+import {
+    Action,
+    handleInfractionCreate,
+    handleInfractionExpirationChange,
+    validateInfractionReason
+} from "@utils/infractions";
+
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
-import { Action, handleInfractionCreate, handleInfractionExpirationChange } from "@utils/infractions";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
@@ -35,10 +41,10 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const member = interaction.options.getMember("member");
+        const validationResult = await validateInfractionReason(reason, config);
 
-        // Don't allow Discord media links to be present in the reason if disabled
-        if (!config.data.allow_discord_media_links && (reason.includes("cdn.discord") || reason.includes("media.discord"))) {
-            return "Discord media links are not allowed in infraction reasons";
+        if (!validationResult.success) {
+            return validationResult.message;
         }
 
         // Check if the member is in the server

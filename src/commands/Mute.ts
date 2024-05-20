@@ -13,7 +13,7 @@ import {
     DURATION_FORMAT
 } from "@utils/constants";
 
-import { Action, handleInfractionCreate } from "@utils/infractions";
+import { Action, handleInfractionCreate, validateInfractionReason } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
 import { formatInfractionReason } from "@/utils";
@@ -70,12 +70,12 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         const duration = interaction.options.getString("duration", true).trim();
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const member = interaction.options.getMember("member");
+        const validationResult = await validateInfractionReason(reason, config);
 
-        // Don't allow Discord media links to be present in the reason if disabled
-        if (!config.data.allow_discord_media_links && (reason.includes("cdn.discord") || reason.includes("media.discord"))) {
-            return "Discord media links are not allowed in infraction reasons";
+        if (!validationResult.success) {
+            return validationResult.message;
         }
-        
+
         // Check if the member is in the server
         // Users that are not in the server cannot be muted
         if (!member) {

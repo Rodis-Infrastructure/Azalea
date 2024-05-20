@@ -1,6 +1,6 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
-import { Action, handleInfractionCreate } from "@utils/infractions";
+import { Action, handleInfractionCreate, validateInfractionReason } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
 import { formatInfractionReason } from "@/utils";
@@ -35,12 +35,12 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const user = interaction.options.getUser("user", true);
+        const validationResult = await validateInfractionReason(reason, config);
 
-        // Don't allow Discord media links to be present in the reason if disabled
-        if (!config.data.allow_discord_media_links && (reason.includes("cdn.discord") || reason.includes("media.discord"))) {
-            return "Discord media links are not allowed in infraction reasons";
+        if (!validationResult.success) {
+            return validationResult.message;
         }
-        
+
         // Check if the user is banned by fetching their ban
         // If they are banned, the method will return their ban data
         // Otherwise, it will return null

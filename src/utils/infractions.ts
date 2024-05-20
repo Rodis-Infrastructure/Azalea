@@ -1,4 +1,4 @@
-import { humanizeTimestamp, userMentionWithId } from "./index";
+import { humanizeTimestamp, userMentionWithId, ValidationResult } from "./index";
 import { Infraction, Prisma } from "@prisma/client";
 import { ColorResolvable, Colors, EmbedBuilder } from "discord.js";
 import { Snowflake } from "discord-api-types/v10";
@@ -9,6 +9,7 @@ import { DEFAULT_INFRACTION_REASON } from "./constants";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import Sentry from "@sentry/node";
+import { TypedRegEx } from "typed-regex";
 
 /**
  * Handles the creation of a new infraction by:
@@ -197,6 +198,43 @@ export function parseInfractionType(action: Action, flag: Flag): string {
     return [Flag[flag], Action[action]]
         .filter(Boolean)
         .join(" ");
+}
+
+export async function validateInfractionReason(reason: string, config: GuildConfig): Promise<ValidationResult> {
+    const { exclude_domains, message_links } = config.data.infraction_reasons;
+
+    const domainRegex = TypedRegEx(`https?://(?<domain>${exclude_domains.join("|")})`, "i");
+    const domainMatch = domainRegex.captures(reason);
+
+    if (exclude_domains.length && domainMatch) {
+        return {
+            success: false,
+            message: `The reason contains a blacklisted domain: \`${domainMatch.domain}\``
+        };
+    }
+
+    const channelIdRegex = TypedRegEx(`channels/${config.guild.id}/(?<channelId>\\d{17,19})`, "g");
+    const channelIdMatches = channelIdRegex.captureAll(reason)
+        .filter((match): match is { channelId: string } => Boolean(match))
+        .map(({ channelId }) => channelId);
+
+    const channels = await Promise.all(
+        channelIdMatches.map(channelId => config.guild.channels.fetch(channelId).catch(() => null))
+    );
+
+    for (const channel of channels) {
+        if (!channel) continue;
+        const inScope = config.inScope(channel, message_links);
+
+        if (!inScope) {
+            return {
+                success: false,
+                message: `The reason contains a link to a message in a blacklisted channel: ${channel} (\`#${channel.name}\`)`
+            };
+        }
+    }
+
+    return { success: true };
 }
 
 type InfractionExpirationChangeData = {

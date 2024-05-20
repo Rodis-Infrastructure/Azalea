@@ -14,7 +14,12 @@ import { Snowflake } from "discord-api-types/v10";
 import { temporaryReply } from "./messages";
 import { formatInfractionReason, userMentionWithId } from "./index";
 import { TypedRegEx } from "typed-regex";
-import { Action, handleInfractionCreate, handleInfractionExpirationChange } from "./infractions";
+import {
+    Action,
+    handleInfractionCreate,
+    handleInfractionExpirationChange,
+    validateInfractionReason
+} from "./infractions";
 import { client, prisma } from "./..";
 import { log } from "./logging";
 import { Prisma } from "@prisma/client";
@@ -31,11 +36,11 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
         .find(requestConfig => requestConfig.channel_id === message.channel.id);
 
     if (!requestConfig) return;
-    
-    const hasMediaLink = message.content.includes("cdn.discord") || message.content.includes("media.discord");
 
-    if (!config.data.allow_discord_media_links && hasMediaLink) {
-        await temporaryReply(message, "Discord media links are not allowed in infraction reasons.", config.data.response_ttl);
+    const validationResult = await validateInfractionReason(message.content, config);
+
+    if (!validationResult.success) {
+        await temporaryReply(message, validationResult.message, config.data.response_ttl);
         return;
     }
 
