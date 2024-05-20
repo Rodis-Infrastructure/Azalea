@@ -269,7 +269,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         }
 
         let content = `There ${pluralize(count, "is", "are")} currently ${count} active ${pluralize(infractions.length, "infraction")}`;
-        content += "\n\n🔇 Confirmed timed out\n🔊 Confirmed not timed out\n❓ Unknown state\n\n";
+        content += "\n\n🔇 Confirmed timed out\n🔊 Confirmed not timed out\n⚠️ Confirmed banned\n❓ Unknown state\n\n";
 
         // Approximate the list length to prevent the message from being too long
         if (content.length + (count * 70) > 4000) {
@@ -277,9 +277,13 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         }
 
         const infractionPromises = infractions.map(async infraction => {
-            const state = await guild.members.fetch(infraction.target_id)
+            let state = await guild.members.fetch(infraction.target_id)
                 .then(target => target.isCommunicationDisabled() ? "🔇" : "🔊")
                 .catch(() => "❓");
+
+            state = state !== "❓" ? state : await guild.bans.fetch(infraction.target_id)
+                .then(() => "⚠️")
+                .catch(() => state);
 
             return `- ${state} \`#${infraction.id}\` ${userMention(infraction.target_id)} - Expires ${time(infraction.expires_at!, TimestampStyles.RelativeTime)}`;
         });
