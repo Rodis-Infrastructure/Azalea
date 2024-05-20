@@ -2,7 +2,7 @@ import {
     ApplicationCommandOptionType,
     ChatInputCommandInteraction,
     Message as DiscordMessage,
-    GuildTextBasedChannel
+    GuildTextBasedChannel, FetchMessagesOptions, SnowflakeUtil, time, TimestampStyles
 } from "discord.js";
 
 import { Messages, prepareMessageForStorage } from "@utils/messages";
@@ -11,12 +11,13 @@ import { InteractionReplyData } from "@utils/types";
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
 import { pluralize } from "@/utils";
-import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
+import { DURATION_FORMAT, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import GuildConfig from "@managers/config/GuildConfig";
 import Command from "@managers/commands/Command";
 import MessageBulkDelete from "@/events/MessageBulkDelete";
+import ms from "ms";
 
 export default class Purge extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -41,6 +42,11 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
                             type: ApplicationCommandOptionType.Integer,
                             minValue: 1,
                             maxValue: 100
+                        },
+                        {
+                            name: "period",
+                            description: "The period of time over which to remove the messages",
+                            type: ApplicationCommandOptionType.String
                         }
                     ]
                 },
@@ -48,14 +54,20 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
                     name: PurgeSubcommand.All,
                     description: "Purge all messages in the channel",
                     type: ApplicationCommandOptionType.Subcommand,
-                    options: [{
-                        name: "amount",
-                        description: "The amount of messages to purge",
-                        type: ApplicationCommandOptionType.Integer,
-                        required: true,
-                        minValue: 1,
-                        maxValue: 100
-                    }]
+                    options: [
+                        {
+                            name: "amount",
+                            description: "The amount of messages to purge",
+                            type: ApplicationCommandOptionType.Integer,
+                            required: true,
+                            minValue: 1,
+                            maxValue: 100
+                        }, {
+                            name: "period",
+                            description: "The period of time over which to remove the messages",
+                            type: ApplicationCommandOptionType.String
+                        }
+                    ]
                 }
             ]
         });
@@ -65,6 +77,20 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const subcommand = interaction.options.getSubcommand(true) as PurgeSubcommand;
         const amount = interaction.options.getInteger("amount") ?? 100;
+        const period = interaction.options.getString("period");
+
+        let msPeriod: number | undefined;
+
+        if (period) {
+            if (!DURATION_FORMAT.test(period)) {
+                return `Invalid period format. Please use the following format: \`<number><unit>\` (e.g. \`1d\`, \`2h\`, \`15m\`)`;
+            }
+
+            DURATION_FORMAT.lastIndex = 0;
+
+            // Ensure the period doesn't exceed the message TTL
+            msPeriod = ms(period);
+        }
 
         // Check if the bot can access the channel
         // This is necessary for purging messages
@@ -90,7 +116,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
                 const target = targetMember ?? interaction.options.getUser("user", true);
 
                 // Purge the user's messages
-                messages = await Purge.purgeUser(target.id, interaction.channel, amount);
+                messages = await Purge.purgeUser(target.id, interaction.channel, amount, msPeriod);
                 response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")} by ${target}`;
 
                 break;
@@ -99,11 +125,16 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
             // Purge all recent messages in the channel
             case PurgeSubcommand.All: {
                 // Purge the channel's recent messages
-                messages = await Purge._purgeAll(interaction.channel, amount);
+                messages = await Purge._purgeAll(interaction.channel, amount, msPeriod);
                 response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")}`;
 
                 break;
             }
+        }
+
+        if (msPeriod) {
+            const date = new Date(Date.now() - msPeriod);
+            response += ` created after ${time(date, TimestampStyles.LongDateTime)}`;
         }
 
         // If no messages were purged, don't respond with an amount
@@ -121,11 +152,20 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
      *
      * @param channel - The channel to purge messages from
      * @param amount - The maximum amount of messages to purge
+     * @param period - The period over which to remove the messages (in milliseconds)
      * @returns The purged messages
      */
-    private static async _purgeAll(channel: GuildTextBasedChannel, amount: number): Promise<Message[]> {
+    private static async _purgeAll(channel: GuildTextBasedChannel, amount: number, period?: number): Promise<Message[]> {
+        const options: FetchMessagesOptions = { limit: amount };
+
+        if (period) {
+            options.after = SnowflakeUtil.generate({
+                timestamp: Date.now() - period
+            }).toString();
+        }
+
         // Fetch recently sent messages in the channel
-        const messages = await channel.messages.fetch({ limit: amount });
+        const messages = await channel.messages.fetch(options);
         // Serialize the messages for storage
         const serializedMessages = messages.map(message => prepareMessageForStorage(message));
 
@@ -141,6 +181,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
         await channel.bulkDelete(messages);
         return serializedMessages;
     }
+
     /**
      * Handles logging for message purging
      *
@@ -169,12 +210,13 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
      *
      * @param targetId - The ID of the user to purge messages from
      * @param channel - The channel to purge messages from
+     * @param period - The period over which to remove the messages (in milliseconds)
      * @param amount - The maximum amount of messages to purge
      * @returns The purged messages
      */
-    static async purgeUser(targetId: Snowflake, channel: GuildTextBasedChannel, amount: number): Promise<Message[]> {
+    static async purgeUser(targetId: Snowflake, channel: GuildTextBasedChannel, amount: number, period?: number): Promise<Message[]> {
         // Get the user's messages from cache or the database
-        const messages = await Messages.deleteMessagesByUser(targetId, channel.id, amount);
+        const messages = await Messages.deleteMessagesByUser(targetId, channel.id, amount, period);
         // Map the messages by their IDs
         const messageIds = messages.map(message => message.id);
 

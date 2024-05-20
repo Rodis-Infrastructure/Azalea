@@ -75,10 +75,16 @@ export class Messages {
      *
      * @param userId - The target user's ID
      * @param channelId - The source channel's ID
+     * @param period - The period over which to remove the messages (in milliseconds)
      * @param limit - The maximum number of messages to return
      */
-    static async deleteMessagesByUser(userId: Snowflake, channelId: Snowflake, limit: number): Promise<Message[]> {
+    static async deleteMessagesByUser(userId: Snowflake, channelId: Snowflake, limit: number, period?: number): Promise<Message[]> {
         const messages = [];
+
+        // Ensure the period doesn't exceed the message TTL
+        if (!period || period > ConfigManager.globalConfig.database.messages.ttl) {
+            period = ConfigManager.globalConfig.database.messages.ttl;
+        }
 
         for (const message of Messages.dbQueue.values()) {
             if (
@@ -95,7 +101,7 @@ export class Messages {
 
         // Fetch remaining messages from the database if an insufficient amount was cached
         if (messages.length < limit) {
-            const msCreatedAtThreshold = Date.now() - ConfigManager.globalConfig.database.messages.ttl;
+            const msCreatedAtThreshold = Date.now() - period;
 
             // The messages have to be fetched first since LIMIT cannot be used with update()
             const stored = await prisma.message.findMany({
