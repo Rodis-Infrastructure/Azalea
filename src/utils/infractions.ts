@@ -203,13 +203,13 @@ export function parseInfractionType(action: Action, flag: Flag): string {
 export async function validateInfractionReason(reason: string, config: GuildConfig): Promise<ValidationResult> {
     const { exclude_domains, message_links } = config.data.infraction_reasons;
 
-    const domainRegex = TypedRegEx(`https?://(?<domain>${exclude_domains.join("|")})`, "i");
+    const domainRegex = TypedRegEx(`https?://(?<domain>${exclude_domains.domains.join("|")})`, "i");
     const domainMatch = domainRegex.captures(reason);
 
-    if (exclude_domains.length && domainMatch) {
+    if (exclude_domains.domains.length && domainMatch) {
         return {
             success: false,
-            message: `The reason contains a blacklisted domain: \`${domainMatch.domain}\``
+            message: exclude_domains.failure_message
         };
     }
 
@@ -224,12 +224,12 @@ export async function validateInfractionReason(reason: string, config: GuildConf
 
     for (const channel of channels) {
         if (!channel) continue;
-        const inScope = config.inScope(channel, message_links);
+        const inScope = config.inScope(channel, message_links.scoping);
 
         if (!inScope) {
             return {
                 success: false,
-                message: `The reason contains a link to a message in a blacklisted channel: ${channel} (\`#${channel.name}\`)`
+                message: message_links.failure_message
             };
         }
     }

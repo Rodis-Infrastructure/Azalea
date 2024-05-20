@@ -300,9 +300,15 @@ const nicknameCensorshipSchema = z.object({
 
 const infractionReasonsSchema = z.object({
     // Domains to blacklist in infraction reasons
-    exclude_domains: z.array(domainSchema).default([]),
+    exclude_domains: z.object({
+        failure_message: messageContentSchema.default("The reason contains a blacklisted domain: `$DOMAIN`"),
+        domains: z.array(domainSchema).default([])
+    }).default({}),
     // Channels to blacklist in infraction reasons
-    message_links: channelScopingSchema.default(defaultChannelScoping)
+    message_links: z.object({
+        failure_message: messageContentSchema.default("The reason contains a link to a message in a blacklisted channel: <#$CHANNEL_ID> (`$CHANNEL_NAME`)"),
+        scoping: channelScopingSchema.default(defaultChannelScoping)
+    }).default({})
 });
 
 export type InfractionReasons = z.infer<typeof infractionReasonsSchema>;
