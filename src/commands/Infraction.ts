@@ -37,7 +37,7 @@ import { prisma } from "./..";
 import { Prisma, Infraction as InfractionPayload } from "@prisma/client";
 import { log } from "@utils/logging";
 import { LoggingEvent, Permission } from "@managers/config/schema";
-import { Action, getActionColor, parseInfractionType, Flag } from "@utils/infractions";
+import { Action, getActionColor, parseInfractionType, Flag, validateInfractionReason } from "@utils/infractions";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import Command from "@managers/commands/Command";
@@ -646,6 +646,12 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         // Ensure the executor is either the original executor or has permission to manage infractions
         if (oldState.executor_id !== executor.id && !config.hasPermission(executor, Permission.ManageInfractions)) {
             return "You do not have permission to update the reason of this infraction.";
+        }
+
+        const validationResult = await validateInfractionReason(reason, config);
+
+        if (!validationResult.success) {
+            return validationResult.message;
         }
 
         const newState = await prisma.infraction.update({
