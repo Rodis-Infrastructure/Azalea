@@ -268,6 +268,14 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             return "There are no active infractions";
         }
 
+        let content = `There ${pluralize(count, "is", "are")} currently ${count} active ${pluralize(infractions.length, "infraction")}`;
+        content += "\n\n🔇 Confirmed timed out\n🔊 Confirmed not timed out\n❓ Unknown state\n\n";
+
+        // Approximate the list length to prevent the message from being too long
+        if (content.length + (count * 70) > 4000) {
+            return "Too many active infractions to list.";
+        }
+
         const infractionPromises = infractions.map(async infraction => {
             const state = await guild.members.fetch(infraction.target_id)
                 .then(target => target.isCommunicationDisabled() ? "🔇" : "🔊")
@@ -278,15 +286,8 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
         const mappedInfractions = await Promise.all(infractionPromises);
         const formattedInfractions = mappedInfractions.join("\n");
-        let content = `There ${pluralize(count, "is", "are")} currently ${count} active ${pluralize(infractions.length, "infraction")}`;
 
-        content += "\n\n🔇 Confirmed timed out\n🔊 Confirmed not timed out\n❓ Unknown state";
-        content += `\n\n${formattedInfractions}`;
-
-        // Ensure the list does not exceed the character limit
-        if (content.length > 4000) {
-            return "The list of active infractions is too long to display";
-        }
+        content += formattedInfractions;
 
         return content;
     }
