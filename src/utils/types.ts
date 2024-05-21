@@ -8,3 +8,4 @@ interface ObjectPropDiff {
 }
 
 export type InteractionReplyData = InteractionReplyOptions | string | null;
+export type Result = { success: true } | { success: false; message: string };

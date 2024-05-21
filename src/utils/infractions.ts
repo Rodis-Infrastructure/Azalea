@@ -1,4 +1,4 @@
-import { humanizeTimestamp, userMentionWithId, ValidationResult } from "./index";
+import { humanizeTimestamp, userMentionWithId } from "./index";
 import { Infraction, Prisma } from "@prisma/client";
 import { ColorResolvable, Colors, EmbedBuilder } from "discord.js";
 import { Snowflake } from "discord-api-types/v10";
@@ -6,10 +6,11 @@ import { prisma } from "./..";
 import { log } from "./logging";
 import { LoggingEvent } from "@managers/config/schema";
 import { DEFAULT_INFRACTION_REASON } from "./constants";
+import { TypedRegEx } from "typed-regex";
+import { Result } from "./types";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import Sentry from "@sentry/node";
-import { TypedRegEx } from "typed-regex";
 
 /**
  * Handles the creation of a new infraction by:
@@ -200,7 +201,7 @@ export function parseInfractionType(action: Action, flag: Flag): string {
         .join(" ");
 }
 
-export async function validateInfractionReason(reason: string, config: GuildConfig): Promise<ValidationResult> {
+export async function validateInfractionReason(reason: string, config: GuildConfig): Promise<Result> {
     const { exclude_domains, message_links } = config.data.infraction_reasons;
 
     const domainRegex = TypedRegEx(`https?://(?<domain>${exclude_domains.domains.join("|")})`, "i");
