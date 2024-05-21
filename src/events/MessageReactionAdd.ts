@@ -225,9 +225,6 @@ export default class MessageReactionAdd extends EventListener {
         // Add a flag if the message has attachments
         if (message.attachments.size) flags |= MessageReportFlag.HasAttachment;
 
-        // Add a flag if the message has stickers
-        if (message.stickers.size) flags |= MessageReportFlag.HasSticker;
-
         const mappedFlags = MessageReactionAdd._mapMessageReportFlags(flags);
         const stickerId = message.stickers.first()?.id ?? null;
 

@@ -30,6 +30,7 @@ export enum UserReportStatus {
 
 export enum MessageReportFlag {
     HasAttachment = 1 << 0,
+    /** @deprecated The sticker information is included in the message preview */
     HasSticker = 1 << 1,
     Updated = 1 << 2,
     Deleted = 1 << 3,
