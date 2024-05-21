@@ -9,10 +9,12 @@ database:
     messages:
         insert_cron: "0 0 * * *" # Every day at midnight
         delete_cron: "0 */6 * * *" # Every 6 hours
+        ttl: 2419200000 # 28 days
 ```
 
 * `database.messages.insert_cron`: The cron expression for the insertion of cached messages into the database.
 * `database.messages.delete_cron`: The cron expression for the deletion of messages older than 12 days from the database.
+* `database.messages.ttl`: The time-to-live (TTL) for messages in the database. Messages older than this value will be removed from the database.
 
 ## Guild Configuration
 
@@ -27,7 +29,7 @@ Non-object properties that are not nested within other properties.
 
 ```yaml
 default_purge_amount: 100
-response_ttl: 3000
+response_ttl: 3000 # 3 seconds
 notification_channel: "<channel_id>"
 media_conversion_channel: "<channel_id>"
 ```
@@ -82,3 +84,6 @@ logging:
   * `mute_request_deny` - Denying a mute request
   * `message_report_create` - Creating a message report
   * `message_report_resolve` - Resolving a message report (including quick actions)
+  * `user_report_create` - Creating a user report
+  * `user_report_resolve` - Resolving a user report
+  * `user_report_update` - Report initiator modifying the report reason
