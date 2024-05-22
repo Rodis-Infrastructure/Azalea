@@ -28,7 +28,7 @@ import {
     humanizeTimestamp,
     getInfractionReasonPreview,
     userMentionWithId,
-    formatInfractionReason
+    formatInfractionReason, pluralize
 } from "@/utils";
 
 import { InteractionReplyData } from "@utils/types";
@@ -296,7 +296,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
         const fields = Infraction._formatInfractionSearchFields(infractions, true);
         const embed = new EmbedBuilder()
-            .setTitle("Active Infractions")
+            .setTitle(`${activeInfractionCount} Active ${pluralize(activeInfractionCount, "Infraction")}`)
             .setFields(fields)
             .setTimestamp();
 
