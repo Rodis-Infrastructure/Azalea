@@ -262,23 +262,28 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
     static async listActive(page = 1): Promise<InteractionReplyData> {
         const RESULTS_PER_PAGE = 5;
         const skipMultiplier = page - 1;
+        const queryConditions = {
+            archived_at: null,
+            archived_by: null,
+            expires_at: { gt: new Date() }
+        };
 
         const infractions = await prisma.infraction.findMany({
             orderBy: { id: "desc" },
             skip: skipMultiplier * RESULTS_PER_PAGE,
             take: RESULTS_PER_PAGE,
-            where: {
-                archived_at: null,
-                archived_by: null,
-                expires_at: { gt: new Date() }
-            }
+            where: queryConditions
+        });
+
+        const activeInfractionCount = await prisma.infraction.count({
+            where: queryConditions
         });
 
         const components: ActionRowBuilder<ButtonBuilder>[] = [];
 
         // Add pagination if there are more results than can be displayed
-        if (infractions.length > RESULTS_PER_PAGE) {
-            const totalPageCount = Math.ceil(infractions.length / RESULTS_PER_PAGE);
+        if (activeInfractionCount > RESULTS_PER_PAGE) {
+            const totalPageCount = Math.ceil(activeInfractionCount / RESULTS_PER_PAGE);
             const actionRow = Infraction._getPaginationActionRow({
                 page,
                 totalPageCount,
