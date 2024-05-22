@@ -177,3 +177,7 @@ export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronT
         color: AnsiColor.Orange
     });
 }
+
+export function getFilePreviewUrl(fileUrl: string): string {
+    return `https://discord-fv.vercel.app/?url=${encodeURIComponent(fileUrl)}`;
+}
