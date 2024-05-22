@@ -286,9 +286,11 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             "\n"
         ].join("\n");
 
+        const estimatedLength = content.length + (count * 70);
+
         // Approximate the list length to prevent the message from being too long
-        if (content.length + (count * 70) > 4000) {
-            return "Too many active infractions to list.";
+        if (estimatedLength > 4000) {
+            return `Too many active infractions to list, there are currently \`${count}\` active infractions that would result in an estimated response length of \`${estimatedLength}\` characters`;
         }
 
         const infractionPromises = infractions.map(async infraction => {
