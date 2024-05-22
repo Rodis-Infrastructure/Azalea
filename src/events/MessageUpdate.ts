@@ -39,6 +39,10 @@ export default class MessageUpdate extends EventListener {
         // Terminate if the message can't be fetched or if there is no content
         if (!message || message.author.bot || !message.content) return;
 
+        // The message was edited in the last 5 seconds
+        const isRecent = Date.now() - message.createdAt.getTime() < 5000;
+        if (!isRecent) return;
+
         const config = ConfigManager.getGuildConfig(message.guildId);
         if (!config) return;
 
