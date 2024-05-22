@@ -170,7 +170,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         });
     }
 
-    execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+    async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const subcommand = interaction.options.getSubcommand(true);
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
@@ -185,7 +185,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                     config.hasPermission(member, Permission.ViewInfractions) &&
                     !config.hasPermission(interaction.member, Permission.ViewModerationActivity)
                 ) {
-                    return Promise.resolve("You do not have permission to view this user's infractions");
+                    return "You do not have permission to view this user's infractions";
                 }
 
                 const user = member?.user ?? interaction.options.getUser("user", true);
@@ -223,8 +223,16 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 });
             }
 
-            case InfractionSubcommand.Active:
+            case InfractionSubcommand.Active: {
+                if (!interaction.channel) {
+                    return "Failed to fetch the current channel.";
+                }
+
+                const ephemeral = config.inScope(interaction.channel, config.data.ephemeral_scoping);
+                await interaction.deferReply({ ephemeral });
+
                 return Infraction._listActive(interaction.guild);
+            }
 
             case InfractionSubcommand.Archive: {
                 const infractionId = interaction.options.getInteger("infraction_id", true);
@@ -235,7 +243,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 const infractionId = interaction.options.getInteger("infraction_id", true);
 
                 if (!config.hasPermission(interaction.member, Permission.ManageInfractions)) {
-                    return Promise.resolve("You do not have permission to restore infractions.");
+                    return "You do not have permission to restore infractions.";
                 }
 
                 return Infraction._restore(infractionId, interaction.user.id, config);
@@ -247,7 +255,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             }
 
             default:
-                return Promise.resolve("Unknown subcommand");
+                return "Unknown subcommand";
         }
     }
 
