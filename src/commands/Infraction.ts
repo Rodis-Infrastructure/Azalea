@@ -276,8 +276,15 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             return "There are no active infractions";
         }
 
-        let content = `There ${pluralize(count, "is", "are")} currently ${count} active ${pluralize(infractions.length, "infraction")}`;
-        content += "\n\n🔇 Confirmed timed out\n🔊 Confirmed not timed out\n⚠️ Confirmed banned\n❓ Unknown state\n\n";
+        let content = [
+            `There ${pluralize(count, "is", "are")} currently ${count} active ${pluralize(infractions.length, "infraction")}`,
+            "\n",
+            `${ActiveInfractionStatus.Muted} Confirmed timed out`,
+            `${ActiveInfractionStatus.Unmuted} Confirmed not timed out`,
+            `${ActiveInfractionStatus.Banned} Confirmed banned`,
+            `${ActiveInfractionStatus.Unknown} Unknown state`,
+            "\n"
+        ].join("\n");
 
         // Approximate the list length to prevent the message from being too long
         if (content.length + (count * 70) > 4000) {
@@ -286,11 +293,11 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
         const infractionPromises = infractions.map(async infraction => {
             let state = await guild.members.fetch(infraction.target_id)
-                .then(target => target.isCommunicationDisabled() ? "🔇" : "🔊")
-                .catch(() => "❓");
+                .then(target => target.isCommunicationDisabled() ? ActiveInfractionStatus.Muted : ActiveInfractionStatus.Unmuted)
+                .catch(() => ActiveInfractionStatus.Unknown);
 
-            state = state !== "❓" ? state : await guild.bans.fetch(infraction.target_id)
-                .then(() => "⚠️")
+            state = state !== ActiveInfractionStatus.Unknown ? state : await guild.bans.fetch(infraction.target_id)
+                .then(() => ActiveInfractionStatus.Banned)
                 .catch(() => state);
 
             return `- ${state} \`#${infraction.id}\` ${userMention(infraction.target_id)} - Expires ${time(infraction.expires_at!, TimestampStyles.RelativeTime)}`;
@@ -888,4 +895,11 @@ enum InfractionSubcommand {
     Archive = "archive",
     Restore = "restore",
     Active = "active"
+}
+
+enum ActiveInfractionStatus {
+    Muted = "🔇",
+    Unmuted = "🔊",
+    Banned = "⚠️",
+    Unknown = "❓"
 }
