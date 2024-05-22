@@ -11,7 +11,12 @@ import {
     StickerFormatType
 } from "discord.js";
 
-import { EMBED_FIELD_CHAR_LIMIT, EMPTY_MESSAGE_CONTENT, LOG_ENTRY_DATE_FORMAT } from "./constants";
+import {
+    EMBED_FIELD_CHAR_LIMIT,
+    EMPTY_MESSAGE_CONTENT,
+    LOG_ENTRY_DATE_FORMAT,
+    MESSAGE_DELETE_THRESHOLD
+} from "./constants";
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
 import { elipsify, pluralize, startCronJob, userMentionWithId } from "./index";
@@ -82,8 +87,8 @@ export class Messages {
         const messages = [];
 
         // Ensure the period doesn't exceed the message TTL
-        if (!period || period > ConfigManager.globalConfig.database.messages.ttl) {
-            period = ConfigManager.globalConfig.database.messages.ttl;
+        if (!period || period > MESSAGE_DELETE_THRESHOLD) {
+            period = MESSAGE_DELETE_THRESHOLD;
         }
 
         for (const message of Messages.dbQueue.values()) {

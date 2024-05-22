@@ -23,6 +23,9 @@ export const DEFAULT_MUTE_DURATION = 1000 * 60 * 60 * 24 * 28;
 // 28 days
 export const MAX_MUTE_DURATION = 1000 * 60 * 60 * 24 * 28;
 
+// 13 days
+export const MESSAGE_DELETE_THRESHOLD = 1000 * 60 * 60 * 24 * 13;
+
 export const EXIT_EVENTS = ["SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", "SIGABRT", "SIGBUS", "SIGFPE", "SIGUSR1", "SIGSEGV", "SIGUSR2", "SIGTERM", "uncaughtException", "unhandledRejection"];
 
 // The default permissions required to use commands.
