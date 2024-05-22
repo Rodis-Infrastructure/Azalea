@@ -91,12 +91,6 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             return `This user is already banned: \`${ban.reason ?? DEFAULT_INFRACTION_REASON}\``;
         }
 
-        // End any active infractions
-        await handleInfractionExpirationChange({
-            updated_by: interaction.user.id,
-            target_id: user.id
-        }, config, false);
-
         // Log the infraction and store it in the database
         const infraction = await handleInfractionCreate({
             executor_id: interaction.user.id,

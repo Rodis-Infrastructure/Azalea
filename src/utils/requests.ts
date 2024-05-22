@@ -150,7 +150,9 @@ async function handleAutomaticMute(data: {
         throw new RequestValidationError("Failed to fetch target, unable to perform auto-mute.");
     }
 
-    await target.timeout(DEFAULT_MUTE_DURATION, reason);
+    await target.timeout(DEFAULT_MUTE_DURATION, reason).catch(() => {
+        config.sendNotification(`${executor} Failed to mute ${target} automatically.`);
+    });
 
     // Store the infraction
     const infraction = await handleInfractionCreate({
@@ -400,11 +402,6 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
             }
 
             await config.guild.members.ban(target, { reason: request.reason });
-            await handleInfractionExpirationChange({
-                updated_by: reviewerId,
-                target_id: request.target_id
-            }, config, false);
-
             handleModerationRequestApproveLog(LoggingEvent.BanRequestApprove, "Banned");
             break;
         }
@@ -515,13 +512,17 @@ export async function denyModerationRequest(messageId: Snowflake, reviewerId: Sn
                 return;
             }
 
-            const target = await config.guild.members.fetch(request.target_id).catch(() => null);
-            await target?.timeout(null);
+            try {
+                const target = await config.guild.members.fetch(request.target_id);
 
-            await handleInfractionExpirationChange({
-                updated_by: reviewerId,
-                target_id: request.target_id
-            }, config, false);
+                await target.timeout(null);
+                await handleInfractionExpirationChange({
+                    updated_by: reviewerId,
+                    target_id: request.target_id
+                }, config, false);
+            } catch {
+                config.sendNotification(`${reviewerMention} Failed to unmute ${targetMention} on ban request denial.`);
+            }
 
             handleModerationRequestDenyLog(LoggingEvent.BanRequestDeny, "Ban");
             break;
