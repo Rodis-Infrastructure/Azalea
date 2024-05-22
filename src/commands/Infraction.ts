@@ -297,7 +297,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         });
 
         const mappedInfractions = await Promise.all(infractionPromises);
-        const formattedInfractions = mappedInfractions.join("\n");
+        const formattedInfractions = mappedInfractions.sort().join("\n");
 
         content += formattedInfractions;
 
