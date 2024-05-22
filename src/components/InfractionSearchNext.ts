@@ -22,7 +22,7 @@ export default class InfractionSearchNext extends Component {
  * @param pageOffset - The page offset (e.g. `-1` goes back and `1` goes forward)
  */
 export async function handleInfractionSearchPagination(interaction: ButtonInteraction<"cached">, pageOffset: number): Promise<InteractionReplyData> {
-    const embed = interaction.message.embeds[0];
+    const [embed] = interaction.message.embeds;
 
     // Format: "User ID: {user_id}"
     const targetId = embed.footer!.text.split(": ")[1];

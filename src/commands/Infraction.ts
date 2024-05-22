@@ -7,7 +7,7 @@ import {
     ButtonStyle,
     ChatInputCommandInteraction,
     Colors,
-    EmbedBuilder, Guild,
+    EmbedBuilder,
     GuildMember,
     Snowflake,
     time,
@@ -26,7 +26,6 @@ import {
 import {
     elipsify,
     humanizeTimestamp,
-    pluralize,
     getInfractionReasonPreview,
     userMentionWithId,
     formatInfractionReason
@@ -231,7 +230,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 const ephemeral = config.inScope(interaction.channel, config.data.ephemeral_scoping);
                 await interaction.deferReply({ ephemeral });
 
-                return Infraction._listActive(interaction.guild);
+                return Infraction.listActive();
             }
 
             case InfractionSubcommand.Archive: {
@@ -260,9 +259,14 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
     }
 
     // List non-expired infractions
-    private static async _listActive(guild: Guild): Promise<InteractionReplyData> {
+    static async listActive(page = 1): Promise<InteractionReplyData> {
+        const RESULTS_PER_PAGE = 5;
+        const skipMultiplier = page - 1;
+
         const infractions = await prisma.infraction.findMany({
             orderBy: { id: "desc" },
+            skip: skipMultiplier * RESULTS_PER_PAGE,
+            take: RESULTS_PER_PAGE,
             where: {
                 archived_at: null,
                 archived_by: null,
@@ -270,47 +274,31 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             }
         });
 
-        const count = infractions.length;
+        const components: ActionRowBuilder<ButtonBuilder>[] = [];
 
-        if (!count) {
-            return "There are no active infractions";
+        // Add pagination if there are more results than can be displayed
+        if (infractions.length > RESULTS_PER_PAGE) {
+            const totalPageCount = Math.ceil(infractions.length / RESULTS_PER_PAGE);
+            const actionRow = Infraction._getPaginationActionRow({
+                page,
+                totalPageCount,
+                nextButtonCustomId: "infraction-active-next",
+                backButtonCustomId: "infraction-active-back"
+            });
+
+            components.push(actionRow);
         }
 
-        let content = [
-            `There ${pluralize(count, "is", "are")} currently ${count} active ${pluralize(infractions.length, "infraction")}`,
-            "\n",
-            `${ActiveInfractionStatus.Muted} Confirmed timed out`,
-            `${ActiveInfractionStatus.Unmuted} Confirmed not timed out`,
-            `${ActiveInfractionStatus.Banned} Confirmed banned`,
-            `${ActiveInfractionStatus.Unknown} Unknown state`,
-            "\n"
-        ].join("\n");
+        const fields = Infraction._formatInfractionSearchFields(infractions, true);
+        const embed = new EmbedBuilder()
+            .setTitle("Active Infractions")
+            .setFields(fields)
+            .setTimestamp();
 
-        const estimatedLength = content.length + (count * 70);
-
-        // Approximate the list length to prevent the message from being too long
-        if (estimatedLength > 4000) {
-            return `Too many active infractions to list, there are currently \`${count}\` active infractions that would result in an estimated response length of \`${estimatedLength}\` characters`;
-        }
-
-        const infractionPromises = infractions.map(async infraction => {
-            let state = await guild.members.fetch(infraction.target_id)
-                .then(target => target.isCommunicationDisabled() ? ActiveInfractionStatus.Muted : ActiveInfractionStatus.Unmuted)
-                .catch(() => ActiveInfractionStatus.Unknown);
-
-            state = state !== ActiveInfractionStatus.Unknown ? state : await guild.bans.fetch(infraction.target_id)
-                .then(() => ActiveInfractionStatus.Banned)
-                .catch(() => state);
-
-            return `- ${state} \`#${infraction.id}\` ${userMention(infraction.target_id)} - Expires ${time(infraction.expires_at!, TimestampStyles.RelativeTime)}`;
-        });
-
-        const mappedInfractions = await Promise.all(infractionPromises);
-        const formattedInfractions = mappedInfractions.sort().join("\n");
-
-        content += formattedInfractions;
-
-        return content;
+        return {
+            embeds: [embed],
+            components
+        };
     }
 
     /**
@@ -784,32 +772,14 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         // Add pagination if there are more results than can be displayed
         if (infractionCount > RESULTS_PER_PAGE) {
             const totalPageCount = Math.ceil(infractionCount / RESULTS_PER_PAGE);
+            const actionRow = Infraction._getPaginationActionRow({
+                page,
+                totalPageCount,
+                nextButtonCustomId: "infraction-search-next",
+                backButtonCustomId: "infraction-search-back"
+            });
 
-            const pageCountButton = new ButtonBuilder()
-                // InfractionSearchNext.ts relies on this format
-                .setLabel(`${page} / ${totalPageCount}`)
-                .setCustomId("disabled")
-                .setDisabled(true)
-                .setStyle(ButtonStyle.Secondary);
-
-            const nextPageButton = new ButtonBuilder()
-                .setLabel("Next")
-                .setCustomId("infraction-search-next")
-                // Disable if the current page is the last page
-                .setDisabled(page === totalPageCount)
-                .setStyle(ButtonStyle.Primary);
-
-            const previousPageButton = new ButtonBuilder()
-                .setLabel("Back")
-                .setCustomId("infraction-search-back")
-                // Disable if the current page is the first page
-                .setDisabled(page === 1)
-                .setStyle(ButtonStyle.Primary);
-
-            const buttonActionRow = new ActionRowBuilder<ButtonBuilder>()
-                .setComponents(previousPageButton, pageCountButton, nextPageButton);
-
-            components.push(buttonActionRow);
+            components.push(actionRow);
         }
 
         return {
@@ -818,7 +788,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         };
     }
 
-    private static _formatInfractionSearchFields(infractions: InfractionPayload[]): APIEmbedField[] {
+    private static _formatInfractionSearchFields(infractions: InfractionPayload[], includeTarget = false): APIEmbedField[] {
         return infractions.map(infraction => {
             const cleanContent = getInfractionReasonPreview(infraction.reason ?? DEFAULT_INFRACTION_REASON);
             const croppedContent = elipsify(cleanContent, 800);
@@ -829,6 +799,11 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 Infraction._formatInfractionSearchEntry("Executor", userMention(infraction.executor_id)),
                 Infraction._formatInfractionSearchEntry(contentType, croppedContent)
             ];
+
+            if (includeTarget) {
+                const entry = Infraction._formatInfractionSearchEntry("Target", userMention(infraction.target_id));
+                entries.splice(1, 0, entry);
+            }
 
             if (infraction.expires_at) {
                 const durationEntry = Infraction._parseInfractionSearchDurationEntry(infraction.expires_at, infraction.created_at);
@@ -887,6 +862,38 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
     private static _formatInfractionSearchEntry(name: string, value: string): `> \`${string}\` | ${string}` {
         return `> \`${name}\` | ${value}`;
     }
+
+    private static _getPaginationActionRow(data: {
+        page: number,
+        totalPageCount: number,
+        nextButtonCustomId: string,
+        backButtonCustomId: string
+    }): ActionRowBuilder<ButtonBuilder> {
+        const { page, totalPageCount, nextButtonCustomId, backButtonCustomId } = data;
+
+        const pageCountButton = new ButtonBuilder()
+            .setLabel(`${page} / ${totalPageCount}`)
+            .setCustomId("disabled")
+            .setDisabled(true)
+            .setStyle(ButtonStyle.Secondary);
+
+        const nextPageButton = new ButtonBuilder()
+            .setLabel("Next")
+            .setCustomId(nextButtonCustomId)
+            // Disable if the current page is the last page
+            .setDisabled(page === totalPageCount)
+            .setStyle(ButtonStyle.Primary);
+
+        const previousPageButton = new ButtonBuilder()
+            .setLabel("Back")
+            .setCustomId(backButtonCustomId)
+            // Disable if the current page is the first page
+            .setDisabled(page === 1)
+            .setStyle(ButtonStyle.Primary);
+
+        return new ActionRowBuilder<ButtonBuilder>()
+            .setComponents(previousPageButton, pageCountButton, nextPageButton);
+    }
 }
 
 enum InfractionSubcommand {
@@ -897,11 +904,4 @@ enum InfractionSubcommand {
     Archive = "archive",
     Restore = "restore",
     Active = "active"
-}
-
-enum ActiveInfractionStatus {
-    Muted = "🔇",
-    Unmuted = "🔊",
-    Banned = "⚠️",
-    Unknown = "❓"
 }
