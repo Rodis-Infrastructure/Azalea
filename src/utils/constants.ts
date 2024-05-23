@@ -1,5 +1,7 @@
 import { EmbedField, GatewayIntentBits, Partials, PermissionFlagsBits } from "discord.js";
 
+export const DEFAULT_TIMEZONE = "UTC";
+
 export const LOG_ENTRY_DATE_FORMAT: Intl.DateTimeFormatOptions = {
     month: "2-digit",
     day: "2-digit",
@@ -7,7 +9,7 @@ export const LOG_ENTRY_DATE_FORMAT: Intl.DateTimeFormatOptions = {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    timeZone: "UTC",
+    timeZone: DEFAULT_TIMEZONE,
     hour12: false
 };
 

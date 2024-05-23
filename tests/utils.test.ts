@@ -3,7 +3,7 @@ import {
     cropLines,
     elipsify,
     formatInfractionReason,
-    getInfractionReasonPreview,
+    formatInfractionReasonPreview,
     getObjectDiff,
     humanizeTimestamp,
     pluralize,
@@ -69,7 +69,7 @@ describe("utils", () => {
         // Test data
         const oldState = { a: 1, b: 2, c: 3 };
         const newState = { a: 1, b: 3, c: 4 };
-        const runWithInvalidArguments = (): ObjectDiff => getObjectDiff(0, 0);
+        const runWithInvalidArguments = (): ObjectDiff => getObjectDiff(null, null);
 
         // Expected test results
         const expectedError = new Error("Both arguments must be objects");
@@ -125,7 +125,7 @@ describe("utils", () => {
         expect(formatInfractionReason(cleanReason)).toBe(expected);
     });
 
-    test(getInfractionReasonPreview.name, () => {
+    test(formatInfractionReasonPreview.name, () => {
         const LINK = "https://example.com";
         const PURGE_LOG = `(Purge log: ${LINK})`;
 
@@ -134,6 +134,6 @@ describe("utils", () => {
         const reason = `${cleanReason} ${LINK} ${PURGE_LOG}`;
 
         // Tests
-        expect(getInfractionReasonPreview(reason)).toBe(cleanReason);
+        expect(formatInfractionReasonPreview(reason)).toBe(cleanReason);
     });
 });

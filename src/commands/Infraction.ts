@@ -26,7 +26,7 @@ import {
 import {
     elipsify,
     humanizeTimestamp,
-    getInfractionReasonPreview,
+    formatInfractionReasonPreview,
     userMentionWithId,
     formatInfractionReason, pluralize
 } from "@/utils";
@@ -795,7 +795,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
     private static _formatInfractionSearchFields(infractions: InfractionPayload[], includeTarget = false): APIEmbedField[] {
         return infractions.map(infraction => {
-            const cleanContent = getInfractionReasonPreview(infraction.reason ?? DEFAULT_INFRACTION_REASON);
+            const cleanContent = formatInfractionReasonPreview(infraction.reason ?? DEFAULT_INFRACTION_REASON);
             const croppedContent = elipsify(cleanContent, 800);
             const contentType = infraction.flag === Flag.Quick ? "Message" : "Reason";
 

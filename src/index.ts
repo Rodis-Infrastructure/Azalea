@@ -1,6 +1,6 @@
 import { CLIENT_INTENTS, CLIENT_PARTIALS, EXIT_EVENTS } from "./utils/constants";
 import { PrismaClient } from "@prisma/client";
-import { handleProcessExit } from "./utils";
+import { startCleanupOperations } from "./utils";
 import { Client, Events } from "discord.js";
 
 import Sentry from "@sentry/node";
@@ -21,7 +21,7 @@ Sentry.init({
 // Handle process exit
 EXIT_EVENTS.forEach(event => {
     process.once(event, async () => {
-        await handleProcessExit(event);
+        await startCleanupOperations(event);
     });
 });
 
