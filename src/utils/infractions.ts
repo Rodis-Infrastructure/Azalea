@@ -2,7 +2,7 @@ import { humanizeTimestamp, userMentionWithId } from "./index";
 import { Infraction, Prisma } from "@prisma/client";
 import { ColorResolvable, Colors, EmbedBuilder } from "discord.js";
 import { Snowflake } from "discord-api-types/v10";
-import { prisma } from "./..";
+import { client, prisma } from "./..";
 import { log } from "./logging";
 import { LoggingEvent } from "@managers/config/schema";
 import { DEFAULT_INFRACTION_REASON } from "./constants";
@@ -74,92 +74,20 @@ export async function handleInfractionCreate(data: Prisma.InfractionCreateInput,
     return infraction;
 }
 
-/**
- * Handles the expiration date change of an infraction by:
- *
- * - Updating the expiration date in the database.
- * - Logging the change in the appropriate channel.
- *
- * @param data
- * @param data.id - ID of the infraction to modify (latest mute by default)
- * @param data.expires_at - New expiration date of the infraction ({@link Date.now} by default)
- * @param data.updated_by - ID of the user responsible for changing the duration
- * @param data.target_id - ID of the user the infraction is applied to (specify if no ID is passed)
- * @param config - The guild configuration
- * @param logChange - Whether to log the change in the appropriate channel
- */
-export async function handleInfractionExpirationChange(
-    data: InfractionExpirationChangeData,
-    config: GuildConfig,
-    logChange = true
-): Promise<void> {
-    const { expires_at, updated_by, target_id } = data;
-    let { id } = data;
-
+export async function endActiveInfractions(guildId: Snowflake, targetId: Snowflake): Promise<void> {
     const now = new Date();
-    let infraction: Infraction;
 
-    try {
-        // Use the most recent mute's ID if no ID is provided
-        if (!id) {
-            const recentMuteInfraction = await prisma.infraction.findFirst({
-                where: {
-                    action: Action.Mute,
-                    expires_at: { gt: now },
-                    guild_id: config.guild.id,
-                    target_id
-                },
-                select: {
-                    id: true
-                }
-            });
-
-            if (!recentMuteInfraction) return;
-            id = recentMuteInfraction.id;
+    await prisma.infraction.updateMany({
+        where: {
+            expires_at: { gt: now },
+            guild_id: guildId,
+            target_id: targetId
+        },
+        data: {
+            expires_at: now,
+            updated_at: now,
+            updated_by: client.user.id
         }
-
-        infraction = await prisma.infraction.update({
-            where: { id },
-            data: {
-                updated_at: now,
-                expires_at: expires_at ?? now,
-                updated_by
-            }
-        });
-    } catch (error) {
-        Sentry.captureException(error, { extra: { data } });
-        return;
-    }
-
-    if (!logChange) return;
-
-    const msExpiresAt = expires_at?.getTime() ?? Date.now();
-    const msDuration = msExpiresAt - infraction.created_at.getTime();
-    const humanizedDuration = humanizeTimestamp(msDuration);
-
-    const embedTitle = parseInfractionType(infraction.action, infraction.flag);
-    const embed = new EmbedBuilder()
-        .setColor(Colors.Green)
-        .setAuthor({ name: "Infraction Expiration Changed" })
-        .setTitle(embedTitle)
-        .setFields([
-            {
-                name: "Updated By",
-                value: userMentionWithId(updated_by)
-            },
-            {
-                name: "New Duration",
-                value: humanizedDuration
-            }
-        ])
-        .setFooter({ text: `#${infraction.id}` })
-        .setTimestamp();
-
-    await log({
-        event: LoggingEvent.InfractionUpdate,
-        message: { embeds: [embed] },
-        channel: null,
-        config
     });
 }
 
@@ -246,17 +174,12 @@ export async function validateInfractionReason(reason: string, config: GuildConf
     return { success: true };
 }
 
-type InfractionExpirationChangeData = {
-    id: number,
-    updated_by: Snowflake,
-    expires_at?: Date,
-    target_id?: never
-} | {
-    target_id: Snowflake,
-    updated_by: Snowflake,
-    expires_at?: Date,
-    id?: never
-};
+interface InfractionExpirationChangeData {
+    id: number;
+    updated_by: Snowflake;
+    expires_at: Date;
+    config: GuildConfig;
+}
 
 // The punishment associated with an infraction
 export enum Action {

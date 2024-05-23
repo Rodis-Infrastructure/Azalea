@@ -1,10 +1,4 @@
-import {
-    Action,
-    handleInfractionCreate,
-    handleInfractionExpirationChange,
-    validateInfractionReason
-} from "@utils/infractions";
-
+import { Action, handleInfractionCreate, validateInfractionReason } from "@utils/infractions";
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { InteractionReplyData } from "@utils/types";
@@ -114,7 +108,7 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             await prisma.infraction.delete({ where: { id: infraction.id } });
             return `An error occurred while banning the member (\`${sentryId}\`)`;
         }
-        
+
         const formattedReason = formatInfractionReason(reason);
 
         // Ensure a public log of the action is made if executed ephemerally

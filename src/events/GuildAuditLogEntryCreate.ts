@@ -12,7 +12,13 @@ import {
     User
 } from "discord.js";
 
-import { Action, Flag, handleInfractionCreate, handleInfractionExpirationChange } from "@utils/infractions";
+import {
+    Action,
+    endActiveInfractions,
+    Flag,
+    handleInfractionCreate
+} from "@utils/infractions";
+
 import { DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { client, prisma } from "./..";
 import { MessageReportStatus, UserReportStatus } from "@utils/reports";
@@ -112,11 +118,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
                     // User has been unmuted
                     if (!muteDurationDiff.new) {
                         setAction(Action.Unmute, "unmuted");
-
-                        await handleInfractionExpirationChange({
-                            updated_by: executor.id,
-                            target_id: target.id
-                        }, config, false);
+                        await endActiveInfractions(guild.id, target.id);
                     }
                 }
 

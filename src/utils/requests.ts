@@ -8,18 +8,19 @@ import {
     userMention
 } from "discord.js";
 
+import {
+    Action,
+    endActiveInfractions,
+    handleInfractionCreate,
+    validateInfractionReason
+} from "./infractions";
+
 import { DEFAULT_MUTE_DURATION, EMBED_FIELD_CHAR_LIMIT } from "./constants";
 import { RequestValidationError } from "./errors";
 import { Snowflake } from "discord-api-types/v10";
 import { temporaryReply } from "./messages";
 import { formatInfractionReason, userMentionWithId } from "./index";
 import { TypedRegEx } from "typed-regex";
-import {
-    Action,
-    handleInfractionCreate,
-    handleInfractionExpirationChange,
-    validateInfractionReason
-} from "./infractions";
 import { client, prisma } from "./..";
 import { log } from "./logging";
 import { Prisma } from "@prisma/client";
@@ -516,10 +517,7 @@ export async function denyModerationRequest(messageId: Snowflake, reviewerId: Sn
                 const target = await config.guild.members.fetch(request.target_id);
 
                 await target.timeout(null);
-                await handleInfractionExpirationChange({
-                    updated_by: reviewerId,
-                    target_id: request.target_id
-                }, config, false);
+                await endActiveInfractions(config.guild.id, request.target_id);
             } catch {
                 config.sendNotification(`${reviewerMention} Failed to unmute ${targetMention} on ban request denial.`);
             }

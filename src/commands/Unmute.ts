@@ -1,7 +1,7 @@
 import {
     Action,
+    endActiveInfractions,
     handleInfractionCreate,
-    handleInfractionExpirationChange,
     validateInfractionReason
 } from "@utils/infractions";
 
@@ -86,12 +86,7 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
             return `An error occurred while unmuting the member (\`${sentryId}\`)`;
         }
 
-        // Update the expiration date of the infraction to the current time
-        await handleInfractionExpirationChange({
-            updated_by: interaction.user.id,
-            target_id: member.id
-        }, config, false);
-
+        await endActiveInfractions(interaction.guildId, member.id);
         const formattedReason = formatInfractionReason(reason);
 
         // Ensure a public log of the action is made if executed ephemerally
