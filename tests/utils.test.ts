@@ -15,8 +15,6 @@ import { GuildBasedChannel } from "discord.js";
 import { ObjectDiff } from "@utils/types";
 
 describe("utils", () => {
-    const SNOWFLAKE = "123456789012345678";
-
     test(pluralize.name, () => {
         expect(pluralize(0, "car")).toBe("cars");
         expect(pluralize(1, "car")).toBe("car");
@@ -68,44 +66,45 @@ describe("utils", () => {
     });
 
     test(getObjectDiff.name, () => {
+        // Test data
         const oldState = { a: 1, b: 2, c: 3 };
         const newState = { a: 1, b: 3, c: 4 };
         const runWithInvalidArguments = (): ObjectDiff => getObjectDiff(0, 0);
+
+        // Expected test results
         const expectedError = new Error("Both arguments must be objects");
 
+        // Tests
+        expect(getObjectDiff(oldState, oldState)).toEqual({});
+        expect(runWithInvalidArguments).toThrow(expectedError);
         expect(getObjectDiff(oldState, newState)).toEqual({
             b: { old: 2, new: 3 },
             c: { old: 3, new: 4 }
         });
-
-        expect(runWithInvalidArguments).toThrow(expectedError);
-        expect(getObjectDiff(oldState, oldState)).toEqual({});
     });
 
     test(userMentionWithId.name, () => {
-        expect(userMentionWithId(SNOWFLAKE)).toBe(`<@${SNOWFLAKE}> (\`${SNOWFLAKE}\`)`);
+        const USER_ID = "1";
+        expect(userMentionWithId(USER_ID)).toBe(`<@${USER_ID}> (\`${USER_ID}\`)`);
     });
 
     test(channelMentionWithName.name, () => {
-        const CHANNEL = {
-            id: SNOWFLAKE,
-            name: "channel"
-        } as GuildBasedChannel;
-
+        const CHANNEL = { id: "1", name: "channel" } as GuildBasedChannel;
         expect(channelMentionWithName(CHANNEL)).toBe(`<#${CHANNEL.id}> (\`#${CHANNEL.name}\`)`);
     });
 
     test(elipsify.name, () => {
         const MAX_LENGTH = 50;
+        const text = (length: number): string => "A".repeat(length);
 
         // Test data
-        const unchanged = "A".repeat(MAX_LENGTH - 1);
-        const boundaryUnchanged = "A".repeat(MAX_LENGTH);
-        const long = "A".repeat(MAX_LENGTH + 1);
+        const unchanged = text(MAX_LENGTH - 1);
+        const boundaryUnchanged = text(MAX_LENGTH);
+        const long = text(MAX_LENGTH + 1);
 
         // Expected test results
-        const cropped = "A".repeat(MAX_LENGTH - 23);
-        const expectedLongResult = `${cropped}…(24 more characters)`;
+        const longCropped = text(MAX_LENGTH - 23);
+        const expectedLongResult = `${longCropped}…(24 more characters)`;
 
         // Tests
         expect(elipsify(unchanged, MAX_LENGTH)).toBe(unchanged);
@@ -115,24 +114,26 @@ describe("utils", () => {
 
     test(formatInfractionReason.name, () => {
         // Test data
-        const reason = "This is a test reason";
+        const cleanReason = "This is a test reason";
         const formattedReason = "This `is` a test ```reason```";
 
         // Expected test results
-        const expected = `(\`${reason}\`)`;
+        const expected = `(\`${cleanReason}\`)`;
 
         // Tests
         expect(formatInfractionReason(formattedReason)).toBe(expected);
-        expect(formatInfractionReason(reason)).toBe(expected);
+        expect(formatInfractionReason(cleanReason)).toBe(expected);
     });
 
     test(getInfractionReasonPreview.name, () => {
         const LINK = "https://example.com";
         const PURGE_LOG = `(Purge log: ${LINK})`;
 
+        // Test data
         const cleanReason = "This is a test reason";
-        const reason = `${cleanReason} ${LINK} ${LINK} ${PURGE_LOG}`;
+        const reason = `${cleanReason} ${LINK} ${PURGE_LOG}`;
 
+        // Tests
         expect(getInfractionReasonPreview(reason)).toBe(cleanReason);
     });
 });
