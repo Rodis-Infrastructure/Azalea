@@ -1,15 +1,30 @@
-import { humanizeTimestamp, pluralize } from "@/utils";
+import {
+    channelMentionWithName,
+    cropLines,
+    elipsify,
+    formatInfractionReason,
+    getInfractionReasonPreview,
+    getObjectDiff,
+    humanizeTimestamp,
+    pluralize,
+    userMentionWithId
+} from "@/utils";
+
 import { describe, expect, test } from "bun:test";
+import { GuildBasedChannel } from "discord.js";
+import { ObjectDiff } from "@utils/types";
 
 describe("utils", () => {
-    test("pluralize", () => {
+    const SNOWFLAKE = "123456789012345678";
+
+    test(pluralize.name, () => {
         expect(pluralize(0, "car")).toBe("cars");
         expect(pluralize(1, "car")).toBe("car");
         expect(pluralize(2, "car")).toBe("cars");
         expect(pluralize(2, "index", "indices")).toBe("indices");
     });
 
-    test("msToString", () => {
+    test(humanizeTimestamp.name, () => {
         const MINUTE = 1000 * 60;
         const HOUR = MINUTE * 60;
         const DAY = HOUR * 24;
@@ -31,5 +46,93 @@ describe("utils", () => {
         // Tests prioritization of larger units
         expect(humanizeTimestamp(MINUTE + HOUR + DAY)).toBe("1 day 1 hour 1 minute");
         expect(humanizeTimestamp((MINUTE + HOUR + DAY) * 2)).toBe("2 days 2 hours 2 minutes");
+    });
+
+    test(cropLines.name, () => {
+        const MAX_LINES = 3;
+        const text = (lines: number): string => `A${"\n".repeat(lines)}B`;
+
+        // Test data
+        const unchanged = text(MAX_LINES - 1);
+        const boundary = text(MAX_LINES);
+        const long = text(MAX_LINES + 1);
+
+        // Expected test results
+        const expectedBoundaryResult = "A\n\n(1 more line)";
+        const expectedLongResult = "A\n\n(2 more lines)";
+
+        // Tests
+        expect(cropLines(unchanged, MAX_LINES)).toBe(unchanged);
+        expect(cropLines(boundary, MAX_LINES)).toBe(expectedBoundaryResult);
+        expect(cropLines(long, MAX_LINES)).toBe(expectedLongResult);
+    });
+
+    test(getObjectDiff.name, () => {
+        const oldState = { a: 1, b: 2, c: 3 };
+        const newState = { a: 1, b: 3, c: 4 };
+        const runWithInvalidArguments = (): ObjectDiff => getObjectDiff(0, 0);
+        const expectedError = new Error("Both arguments must be objects");
+
+        expect(getObjectDiff(oldState, newState)).toEqual({
+            b: { old: 2, new: 3 },
+            c: { old: 3, new: 4 }
+        });
+
+        expect(runWithInvalidArguments).toThrow(expectedError);
+        expect(getObjectDiff(oldState, oldState)).toEqual({});
+    });
+
+    test(userMentionWithId.name, () => {
+        expect(userMentionWithId(SNOWFLAKE)).toBe(`<@${SNOWFLAKE}> (\`${SNOWFLAKE}\`)`);
+    });
+
+    test(channelMentionWithName.name, () => {
+        const CHANNEL = {
+            id: SNOWFLAKE,
+            name: "channel"
+        } as GuildBasedChannel;
+
+        expect(channelMentionWithName(CHANNEL)).toBe(`<#${CHANNEL.id}> (\`#${CHANNEL.name}\`)`);
+    });
+
+    test(elipsify.name, () => {
+        const MAX_LENGTH = 50;
+
+        // Test data
+        const unchanged = "A".repeat(MAX_LENGTH - 1);
+        const boundaryUnchanged = "A".repeat(MAX_LENGTH);
+        const long = "A".repeat(MAX_LENGTH + 1);
+
+        // Expected test results
+        const cropped = "A".repeat(MAX_LENGTH - 23);
+        const expectedLongResult = `${cropped}…(24 more characters)`;
+
+        // Tests
+        expect(elipsify(unchanged, MAX_LENGTH)).toBe(unchanged);
+        expect(elipsify(boundaryUnchanged, MAX_LENGTH)).toBe(boundaryUnchanged);
+        expect(elipsify(long, MAX_LENGTH)).toBe(expectedLongResult);
+    });
+
+    test(formatInfractionReason.name, () => {
+        // Test data
+        const reason = "This is a test reason";
+        const formattedReason = "This `is` a test ```reason```";
+
+        // Expected test results
+        const expected = `(\`${reason}\`)`;
+
+        // Tests
+        expect(formatInfractionReason(formattedReason)).toBe(expected);
+        expect(formatInfractionReason(reason)).toBe(expected);
+    });
+
+    test(getInfractionReasonPreview.name, () => {
+        const LINK = "https://example.com";
+        const PURGE_LOG = `(Purge log: ${LINK})`;
+
+        const cleanReason = "This is a test reason";
+        const reason = `${cleanReason} ${LINK} ${LINK} ${PURGE_LOG}`;
+
+        expect(getInfractionReasonPreview(reason)).toBe(cleanReason);
     });
 });

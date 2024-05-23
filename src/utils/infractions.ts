@@ -174,13 +174,6 @@ export async function validateInfractionReason(reason: string, config: GuildConf
     return { success: true };
 }
 
-interface InfractionExpirationChangeData {
-    id: number;
-    updated_by: Snowflake;
-    expires_at: Date;
-    config: GuildConfig;
-}
-
 // The punishment associated with an infraction
 export enum Action {
     Warn = 1,

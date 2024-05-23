@@ -13,8 +13,7 @@ import _ from "lodash";
 import fs from "fs";
 import Sentry from "@sentry/node";
 
-export function pluralize(count: number, singular: string, plural?: string): string {
-    plural ??= `${singular}s`;
+export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
     return count === 1 ? singular : plural;
 }
 
@@ -27,9 +26,10 @@ export function cropLines(str: string, maxLines: number): string {
     const lines = str.split("\n");
     const lineCount = lines.length;
     const croppedLines = lines.slice(0, maxLines);
+    const diff = lineCount - maxLines;
 
-    if (lineCount > maxLines) {
-        croppedLines.push(`(${lineCount - maxLines} more lines)`);
+    if (diff > 0) {
+        croppedLines.splice(-1, 1, `(${diff} more ${pluralize(diff, "line")})`);
     }
 
     return croppedLines.join("\n");
@@ -151,7 +151,8 @@ export function getInfractionReasonPreview(reason: string): string {
         // Remove purge log
         .replace(/ \(Purge log:.*/gi, "")
         // Remove unnecessary whitespace
-        .replaceAll(/\s{2,}/g, " ");
+        .replaceAll(/\s{2,}/g, " ")
+        .trim();
 }
 
 export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronTime"], onTick: () => Promise<void> | void): void {
