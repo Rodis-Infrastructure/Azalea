@@ -17,6 +17,7 @@ import {
     LOG_ENTRY_DATE_FORMAT,
     MESSAGE_DELETE_THRESHOLD
 } from "./constants";
+
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
 import { elipsify, pluralize, startCronJob, userMentionWithId } from "./index";
@@ -135,8 +136,9 @@ export class Messages {
         return messages;
     }
 
-    static set(message: DiscordMessage<true>): void {
-        const serializedMessage = prepareMessageForStorage(message);
+    // Add a message to the database queue
+    static queue(message: DiscordMessage<true>): void {
+        const serializedMessage = Messages.serialize(message);
         Messages.dbQueue.set(message.id, serializedMessage);
     }
 
@@ -215,30 +217,38 @@ export class Messages {
         }
 
         // Update the message in the database
+        // @formatter:off
         const { old_content } = await prisma.$queryRaw<{ old_content: string | null }>`
             UPDATE Message
             SET content = ${newContent}
-            WHERE id = ${id} RETURNING (
-                    SELECT content
-                    FROM Message
-                    WHERE id = ${id}
-                ) AS old_content;
+            WHERE id = ${id} 
+            RETURNING (
+                SELECT content
+                FROM Message
+                WHERE id = ${id}
+            ) AS old_content;
         `;
+        // @formatter:on
 
         return old_content ?? EMPTY_MESSAGE_CONTENT;
     }
 
     // Clear the cache and store the messages in the database
-    static async clear(): Promise<void> {
+    static async store(): Promise<void> {
         Logger.info("Storing cached messages...");
 
         // Insert all cached messages into the database
         const messages = Array.from(Messages.dbQueue.values());
-        const res = await prisma.message.createMany({ data: messages });
+        const { count } = await prisma.message.createMany({ data: messages });
 
         // Empty the cache
         Messages.dbQueue.clear();
-        Logger.info(`Stored ${res.count} ${pluralize(res.count, "message")}`);
+
+        if (!count) {
+            Logger.info("No messages were stored");
+        } else {
+            Logger.info(`Stored ${count} ${pluralize(count, "message")}`);
+        }
     }
 
     // Start a cron job that will clear the cache and store the messages in the database
@@ -247,42 +257,49 @@ export class Messages {
         const deletionCron = ConfigManager.globalConfig.database.messages.delete_cron;
         const ttl = ConfigManager.globalConfig.database.messages.ttl;
 
+        // Store cached messages
         startCronJob("STORE_MESSAGES", insertionCron, async () => {
-            await Messages.clear();
+            await Messages.store();
         });
 
+        // Remove messages that exceed the TTL from the database
         startCronJob("DELETE_OLD_MESSAGES", deletionCron, async () => {
             const createdAtThreshold = new Date(Date.now() - ttl);
             const createdAtString = createdAtThreshold.toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
 
             Logger.info(`Deleting messages created before ${createdAtString}...`);
 
-            const res = await prisma.message.deleteMany({
+            const { count } = await prisma.message.deleteMany({
                 where: { created_at: { lte: createdAtThreshold } }
             });
 
-            Logger.info(`Deleted ${res.count} ${pluralize(res.count, "message")} created before ${createdAtString}`);
+            if (!count) {
+                Logger.info(`No messages were created before ${createdAtString}`);
+            } else {
+                Logger.info(`Deleted ${count} ${pluralize(count, "message")} created before ${createdAtString}`);
+            }
         });
+    }
+
+    /** @returns Message object in a format appropriate for the database */
+    static serialize(message: DiscordMessage<true>): Message {
+        const stickerId = message.stickers.first()?.id ?? null;
+        const referenceId = message.reference?.messageId ?? null;
+
+        return {
+            id: message.id,
+            channel_id: message.channelId,
+            author_id: message.author.id,
+            guild_id: message.guildId,
+            created_at: message.createdAt,
+            content: message.content,
+            sticker_id: stickerId,
+            reference_id: referenceId,
+            deleted: false
+        };
     }
 }
 
-// @returns Message object in a format appropriate for the database
-export function prepareMessageForStorage(message: DiscordMessage<true>): Message {
-    const stickerId = message.stickers.first()?.id ?? null;
-    const referenceId = message.reference?.messageId ?? null;
-
-    return {
-        id: message.id,
-        channel_id: message.channelId,
-        author_id: message.author.id,
-        guild_id: message.guildId,
-        created_at: message.createdAt,
-        content: message.content,
-        sticker_id: stickerId,
-        reference_id: referenceId,
-        deleted: false
-    };
-}
 
 /**
  * Prepend a reference embed to an embed array passed by reference
@@ -300,6 +317,8 @@ export async function prependReferenceLog(reference: string | Message, embeds: E
     }
 
     const referenceUrl = messageLink(reference.channel_id, reference.id, reference.guild_id);
+    const messageContent = await formatMessageContentForShortLog(reference.content, reference.sticker_id, referenceUrl);
+
     const embed = new EmbedBuilder()
         .setColor(Colors.NotQuiteBlack)
         .setAuthor({ name: "Reference" })
@@ -310,7 +329,7 @@ export async function prependReferenceLog(reference: string | Message, embeds: E
             },
             {
                 name: "Message Content",
-                value: await formatMessageContentForLog(reference.content, reference.sticker_id, referenceUrl)
+                value: messageContent
             }
         ])
         .setTimestamp(reference.created_at);
@@ -320,7 +339,7 @@ export async function prependReferenceLog(reference: string | Message, embeds: E
 }
 
 // Escape code blocks, truncate the content if it's too long, and wrap it in a code block
-export async function formatMessageContentForLog(content: string | null, stickerId: string | null, url: string): Promise<string> {
+export async function formatMessageContentForShortLog(content: string | null, stickerId: string | null, url: string): Promise<string> {
     let rawContent = hyperlink("Jump to message", url);
 
     if (stickerId) {
@@ -338,7 +357,7 @@ export async function formatMessageContentForLog(content: string | null, sticker
         content = content.replace(/<(a?):([^:\n\r]+):(\d{17,19})>/g, "<$1\\:$2\\:$3>");
         // Escape code blocks
         content = escapeCodeBlock(content);
-        // Truncate the content if it's too long
+        // Truncate the content if it's too long (account for the formatting characters)
         content = elipsify(content, EMBED_FIELD_CHAR_LIMIT - rawContent.length - 6);
     } else {
         content = EMPTY_MESSAGE_CONTENT;
@@ -367,12 +386,11 @@ export async function temporaryReply(message: DiscordMessage, content: string, t
 }
 
 
-// Returns an entry in the format: `[DD/MM/YYYY, HH:MM:SS] AUTHOR_ID — MESSAGE_CONTENT`
-export async function formatMessageLogEntry(message: Message): Promise<string> {
+/** @returns An entry in the format: `[DD/MM/YYYY, HH:MM:SS] AUTHOR_ID — MESSAGE_CONTENT` */
+export async function formatBulkMessageLogEntry(message: Message): Promise<string> {
     const timestamp = new Date(message.created_at).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
     let content: string | undefined;
 
-    // If the message is a sticker, it cannot have message content
     if (message.sticker_id) {
         const sticker = await client.fetchSticker(message.sticker_id).catch(() => null);
 
@@ -394,14 +412,21 @@ export async function formatMessageLogEntry(message: Message): Promise<string> {
 
 
 interface PurgeOptions {
+    // The channel messages were purged from
     channelId: Snowflake;
+    // The purged messages
     messages: Message[];
 }
 
 interface MessageDeleteAuditLog {
+    // The user responsible for deleting the message
     executorId: Snowflake;
+    // The author of the deleted message
     targetId: Snowflake;
+    // The channel the message was deleted from
     channelId: Snowflake;
+    // The time the message was deleted
     createdAt: Date;
+    // The number of messages that were deleted
     count: number;
 }

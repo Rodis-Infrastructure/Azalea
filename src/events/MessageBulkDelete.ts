@@ -10,7 +10,7 @@ import {
 } from "discord.js";
 
 import { log, mapLogEntriesToFile } from "@utils/logging";
-import { formatMessageLogEntry, Messages } from "@utils/messages";
+import { formatBulkMessageLogEntry, Messages } from "@utils/messages";
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
 import { getFilePreviewUrl, pluralize } from "@/utils";
@@ -58,7 +58,7 @@ export default class MessageBulkDelete extends EventListener {
         // Format message log entries
         for (const message of messages) {
             const authorMention = userMention(message.author_id);
-            const messageEntry = await formatMessageLogEntry(message);
+            const messageEntry = await formatBulkMessageLogEntry(message);
             const subEntries = [messageEntry];
 
             if (!authorMentions.includes(authorMention)) {
@@ -69,7 +69,7 @@ export default class MessageBulkDelete extends EventListener {
                 const reference = await Messages.get(message.reference_id);
 
                 if (reference) {
-                    const referenceEntry = await formatMessageLogEntry(reference);
+                    const referenceEntry = await formatBulkMessageLogEntry(reference);
                     subEntries.unshift(`REF: ${referenceEntry}`);
                 }
             }

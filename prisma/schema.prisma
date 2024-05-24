@@ -59,7 +59,7 @@ model MessageReport {
   author_id       String
   reported_by     String
   created_at      DateTime @default(now())
-  status          String   @default("unresolved")
+  status          Int      @default(1) // Unresolved
   flags           Int
   message_deleted Boolean  @default(false)
   /// ID of the user that resolved the report
@@ -73,7 +73,7 @@ model UserReport {
   guild_id    String
   reported_by String
   created_at  DateTime @default(now())
-  status      String   @default("unresolved")
+  status      Int      @default(1) // Unresolved
   reason      String
   /// ID of the user that resolved the report
   resolved_by String?

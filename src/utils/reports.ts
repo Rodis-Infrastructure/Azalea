@@ -1,38 +1,37 @@
-/**
- * The status of a message report.
- *
- * - `QuickMute30`: The report has been resolved by muting the user for 30 minutes.
- * - `QuickMute60`: The report has been resolved by muting the user for an hour.
- * - `Resolved`: The report has been resolved.
- * - `Unresolved`: The report has not been resolved.
- * - `Expired`: The report has expired.
- */
+// The status of a message report.
 export enum MessageReportStatus {
-    QuickMute30 = "quick_mute_30",
-    QuickMute60 = "quick_mute_60",
-    Resolved = "resolved",
-    Unresolved = "unresolved",
-    Expired = "expired"
+    // The report has been resolved by muting the user for 30 minutes.
+    QuickMute30 = 1,
+    // The report has been resolved by muting the user for an hour.
+    QuickMute60 = 2,
+    // The report has been resolved.
+    Resolved = 3,
+    // The report has not been resolved.
+    Unresolved = 4,
+    // The report has expired.
+    Expired = 5
 }
 
-/**
- * The status of a user report.
- *
- * - `Resolved`: The report has been resolved.
- * - `Unresolved`: The report has not been resolved.
- * - `Expired`: The report has expired.
- */
+// The status of a user report.
 export enum UserReportStatus {
-    Resolved = "resolved",
-    Unresolved = "unresolved",
-    Expired = "expired"
+    // The report has been resolved.
+    Resolved = 1,
+    // The report has not been resolved.
+    Unresolved = 2,
+    // The report has expired.
+    Expired = 3
 }
 
+// Flags that provide additional context to a message report.
 export enum MessageReportFlag {
+    // The message has an attachment (e.g. image or video).
     HasAttachment = 1 << 0,
     /** @deprecated The sticker information is included in the message preview */
     HasSticker = 1 << 1,
+    // The message was modified.
     Updated = 1 << 2,
+    // The message was deleted.
     Deleted = 1 << 3,
+    // More than one message with the same content was reported (by the same author).
     Spam = 1 << 4
 }

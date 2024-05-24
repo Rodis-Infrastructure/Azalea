@@ -13,9 +13,8 @@ import {
 } from "discord.js";
 
 import {
-    formatMessageContentForLog,
+    formatMessageContentForShortLog,
     Messages,
-    prepareMessageForStorage,
     prependReferenceLog
 } from "@utils/messages";
 
@@ -49,7 +48,7 @@ export default class MessageDelete extends EventListener {
         // Serialize the message passed by the event
         // If there is sufficient data
         if (!message && !deletedMessage.partial && deletedMessage.inGuild()) {
-            message = prepareMessageForStorage(deletedMessage);
+            message = Messages.serialize(deletedMessage);
         }
 
         if (!message) return;
@@ -141,7 +140,7 @@ export async function handleShortMessageDeleteLog(
             },
             {
                 name: "Message Content",
-                value: await formatMessageContentForLog(message.content, message.sticker_id, messageUrl)
+                value: await formatMessageContentForShortLog(message.content, message.sticker_id, messageUrl)
             }
         ])
         .setTimestamp(message.created_at);

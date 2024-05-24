@@ -17,9 +17,9 @@ import {
 } from "discord.js";
 
 import {
-    formatMessageContentForLog,
-    formatMessageLogEntry,
-    prepareMessageForStorage,
+    formatMessageContentForShortLog,
+    formatBulkMessageLogEntry,
+    Messages,
     prependReferenceLog
 } from "@utils/messages";
 
@@ -242,7 +242,7 @@ export default class MessageReactionAdd extends EventListener {
                 },
                 {
                     name: "Message Content",
-                    value: await formatMessageContentForLog(croppedContent, stickerId, message.url)
+                    value: await formatMessageContentForShortLog(croppedContent, stickerId, message.url)
                 }
             ])
             .setTimestamp();
@@ -257,7 +257,7 @@ export default class MessageReactionAdd extends EventListener {
             // Insert the reference content before the actual message content
             alert.spliceFields(2, 0, {
                 name: `Reference from @${reference.author.username} (${reference.author.id})`,
-                value: await formatMessageContentForLog(croppedReference, referenceStickerId, reference.url)
+                value: await formatMessageContentForShortLog(croppedReference, referenceStickerId, reference.url)
             });
         }
 
@@ -435,8 +435,8 @@ export default class MessageReactionAdd extends EventListener {
         message: Message<true>,
         user: User
     ): Promise<MessageCreateOptions | null> {
-        const serializedMessage = prepareMessageForStorage(message);
-        const entry = await formatMessageLogEntry(serializedMessage);
+        const serializedMessage = Messages.serialize(message);
+        const entry = await formatBulkMessageLogEntry(serializedMessage);
         const file = mapLogEntriesToFile([entry]);
 
         return {

@@ -10,10 +10,9 @@ import {
 
 import {
     prependReferenceLog,
-    formatMessageContentForLog,
+    formatMessageContentForShortLog,
     Messages,
-    prepareMessageForStorage,
-    formatMessageLogEntry
+    formatBulkMessageLogEntry
 } from "@utils/messages";
 
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
@@ -93,8 +92,8 @@ export default class MessageUpdate extends EventListener {
             .setFields([
                 { name: "Author", value: `${message.author} (\`${message.author.id}\`)` },
                 { name: "Channel", value: `${message.channel} (\`#${message.channel.name}\`)` },
-                { name: "Content (Before)", value: await formatMessageContentForLog(oldContent, null, message.url) },
-                { name: "Content (After)", value: await formatMessageContentForLog(message.content, null, message.url) }
+                { name: "Content (Before)", value: await formatMessageContentForShortLog(oldContent, null, message.url) },
+                { name: "Content (After)", value: await formatMessageContentForShortLog(message.content, null, message.url) }
             ])
             .setTimestamp();
 
@@ -113,7 +112,7 @@ export default class MessageUpdate extends EventListener {
         reference: Message | null,
         oldContent: string
     ): Promise<MessageCreateOptions | null> {
-        const serializedMessage = prepareMessageForStorage(message);
+        const serializedMessage = Messages.serialize(message);
         const entry = await MessageUpdate._formatLogEntry(serializedMessage, reference, oldContent);
         const file = mapLogEntriesToFile([entry]);
         const maskedJumpURL = hyperlink("Jump to message", `<${message.url}>`);
@@ -127,8 +126,8 @@ export default class MessageUpdate extends EventListener {
 
     private static async _formatLogEntry(message: Message, reference: Message | null, oldContent: string): Promise<string> {
         const [oldMessageEntry, newMessageEntry] = await Promise.all([
-            formatMessageLogEntry({ ...message, content: oldContent }),
-            formatMessageLogEntry({ ...message, created_at: new Date() })
+            formatBulkMessageLogEntry({ ...message, content: oldContent }),
+            formatBulkMessageLogEntry({ ...message, created_at: new Date() })
         ]);
 
         const entries = [
@@ -137,7 +136,7 @@ export default class MessageUpdate extends EventListener {
         ];
 
         if (reference) {
-            const referenceEntry = await formatMessageLogEntry(reference);
+            const referenceEntry = await formatBulkMessageLogEntry(reference);
             entries.unshift(`REF: ${referenceEntry}`);
         }
 

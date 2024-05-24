@@ -76,7 +76,7 @@ export async function startCleanupOperations(event: string): Promise<void> {
     });
 
     try {
-        await Messages.clear();
+        await Messages.store();
         await terminateDbConnection();
     } catch (error) {
         Logger.log(event, `Cleanup operations failed: ${error}`, {

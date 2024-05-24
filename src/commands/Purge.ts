@@ -5,7 +5,7 @@ import {
     GuildTextBasedChannel, FetchMessagesOptions, SnowflakeUtil, time, TimestampStyles
 } from "discord.js";
 
-import { Messages, prepareMessageForStorage } from "@utils/messages";
+import { Messages } from "@utils/messages";
 import { handleShortMessageDeleteLog } from "@/events/MessageDelete";
 import { InteractionReplyData } from "@utils/types";
 import { Snowflake } from "discord-api-types/v10";
@@ -167,7 +167,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
         // Fetch recently sent messages in the channel
         const messages = await channel.messages.fetch(options);
         // Serialize the messages for storage
-        const serializedMessages = messages.map(message => prepareMessageForStorage(message));
+        const serializedMessages = messages.map(message => Messages.serialize(message));
 
         if (!messages.size) return [];
 

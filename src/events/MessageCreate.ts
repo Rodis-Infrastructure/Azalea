@@ -40,7 +40,7 @@ export default class MessageCreate extends EventListener {
         handleModerationRequest(message, config);
 
         if (message.author.bot) return;
-        Messages.set(message);
+        Messages.queue(message);
 
         // Handle media conversion
         if (
