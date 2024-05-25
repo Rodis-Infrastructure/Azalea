@@ -39,7 +39,7 @@ export default class MessageUpdate extends EventListener {
         if (!message || message.author.bot || !message.content) return;
 
         // The message was edited in the last 5 seconds
-        const isRecent = Date.now() - message.createdAt.getTime() < 5000;
+        const isRecent = !message.editedTimestamp || Date.now() - message.editedTimestamp < 5000;
         if (!isRecent) return;
 
         const config = ConfigManager.getGuildConfig(message.guildId);
