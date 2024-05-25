@@ -53,17 +53,27 @@ model Infraction {
 }
 
 model MessageReport {
+  /// ID of the report message
   id              String   @id
+  /// ID of the message that was reported
   message_id      String   @unique
+  /// Channel where the message was sent
   channel_id      String
+  /// Author of the reported message
   author_id       String
+  /// Author of the report
   reported_by     String
+  /// Where the report was created
   created_at      DateTime @default(now())
-  status          Int      @default(1) // Unresolved
+  /// Status of the report
+  status          Int      @default(4) // Unresolved
+  /// Additional report context
   flags           Int
+  /// Whether the message was deleted
   message_deleted Boolean  @default(false)
   /// ID of the user that resolved the report
   resolved_by     String?
+  /// Content of the reported message
   content         String?
 }
 
@@ -73,7 +83,7 @@ model UserReport {
   guild_id    String
   reported_by String
   created_at  DateTime @default(now())
-  status      Int      @default(1) // Unresolved
+  status      Int      @default(2) // Unresolved
   reason      String
   /// ID of the user that resolved the report
   resolved_by String?

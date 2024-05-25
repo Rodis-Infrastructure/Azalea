@@ -69,6 +69,7 @@ export default class MessageReactionAdd extends EventListener {
         const emojiId = MessageReactionAdd._getEmojiId(reaction.emoji);
         const executor = await message.guild.members.fetch(user.id);
 
+
         // All subsequent actions require the emoji configuration
         if (!config.data.emojis || !emojiId) return;
 
@@ -168,6 +169,7 @@ export default class MessageReactionAdd extends EventListener {
             throw new Error(`Invalid report channel passed to \`message_reports.alert_channel\` in the config for guild with ID ${config.guild.id}`);
         }
 
+        // Check if there is an existing report for a message with the same content
         const originalReport = await prisma.messageReport.findFirst({
             where: {
                 content: message.content,
@@ -177,7 +179,9 @@ export default class MessageReactionAdd extends EventListener {
         });
 
         const isSpam = originalReport
+            // Check if the report already has a "Spam" flag
             && !(originalReport.flags & MessageReportFlag.Spam)
+            // Check whether the message has already been reported
             && originalReport.message_id !== message.id;
 
         if (isSpam) {
