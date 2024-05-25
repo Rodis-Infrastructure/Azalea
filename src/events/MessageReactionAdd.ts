@@ -429,7 +429,8 @@ export default class MessageReactionAdd extends EventListener {
             .setTimestamp();
 
         const embeds = [embed];
-        await prependReferenceLog(message.id, embeds);
+        const serializedMessage = Messages.serialize(message);
+        await prependReferenceLog(serializedMessage, embeds);
 
         return { embeds };
     }
