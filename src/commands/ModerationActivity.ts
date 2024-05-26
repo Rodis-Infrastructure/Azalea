@@ -202,7 +202,7 @@ export default class ModerationActivity extends Command<ChatInputCommandInteract
         }
 
         const data = codeBlock("json", JSON.stringify(stats, null, 2));
-        const ephemeral = config.inScope(interaction.channel, config.data.moderation_activity_ephemeral_scoping);
+        const ephemeral = !config.inScope(interaction.channel, config.data.moderation_activity_ephemeral_scoping);
 
         return {
             content: `Data for ${user} [${value || "all-time"}]\n${data}`,
