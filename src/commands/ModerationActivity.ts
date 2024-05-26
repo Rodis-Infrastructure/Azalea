@@ -13,6 +13,7 @@ import { Action, Flag } from "@utils/infractions";
 import { Infraction, ModerationRequest } from "@prisma/client";
 
 import Command from "@managers/commands/Command";
+import ConfigManager from "@managers/config/ConfigManager";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -60,9 +61,14 @@ export default class ModerationActivity extends Command<ChatInputCommandInteract
     }
 
     async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+        if (!interaction.channel) {
+            return "Failed to fetch the current channel.";
+        }
+
         const month = interaction.options.getInteger("month");
         const year = interaction.options.getInteger("year");
         const user = interaction.options.getUser("user", true);
+        const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const formatArgs: string[] = [];
         const valueArgs: string[] = [];
 
@@ -196,6 +202,11 @@ export default class ModerationActivity extends Command<ChatInputCommandInteract
         }
 
         const data = codeBlock("json", JSON.stringify(stats, null, 2));
-        return `Data for ${user} [${value || "all-time"}]\n${data}`;
+        const ephemeral = config.inScope(interaction.channel, config.data.moderation_activity_ephemeral_scoping);
+
+        return {
+            content: `Data for ${user} [${value || "all-time"}]\n${data}`,
+            ephemeral
+        };
     }
 }
