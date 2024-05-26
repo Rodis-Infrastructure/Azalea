@@ -335,6 +335,7 @@ export const rawGuildConfigSchema = z.object({
     message_reports: reportSchema.optional(),
     user_reports: reportSchema.optional(),
     ephemeral_scoping: channelScopingSchema.default(defaultChannelScoping),
+    moderation_activity_ephemeral_scoping: channelScopingSchema.default(defaultChannelScoping),
     // Lifetime of non-ephemeral responses (milliseconds)
     // default: 3 seconds (3000ms)
     response_ttl: z.number().min(1000).default(3000),

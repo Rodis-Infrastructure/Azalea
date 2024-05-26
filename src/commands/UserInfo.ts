@@ -288,7 +288,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 }
 
 
-interface InfractionCount {
+export interface InfractionCount {
     ban_count: bigint | null;
     kick_count: bigint | null;
     mute_count: bigint | null;

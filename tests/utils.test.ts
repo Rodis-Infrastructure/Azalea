@@ -72,7 +72,7 @@ describe("utils", () => {
         const runWithInvalidArguments = (): ObjectDiff => getObjectDiff(null, null);
 
         // Expected test results
-        const expectedError = new Error("Both arguments must be objects");
+        const expectedError = new Error("Both parameters must be non-null objects");
 
         // Tests
         expect(getObjectDiff(oldState, oldState)).toEqual({});
