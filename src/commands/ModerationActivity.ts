@@ -61,10 +61,6 @@ export default class ModerationActivity extends Command<ChatInputCommandInteract
     }
 
     async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
-        if (!interaction.channel) {
-            return "Failed to fetch the current channel.";
-        }
-
         const month = interaction.options.getInteger("month");
         const year = interaction.options.getInteger("year");
         const user = interaction.options.getUser("user", true);
@@ -202,7 +198,9 @@ export default class ModerationActivity extends Command<ChatInputCommandInteract
         }
 
         const data = codeBlock("json", JSON.stringify(stats, null, 2));
-        const ephemeral = !config.inScope(interaction.channel, config.data.moderation_activity_ephemeral_scoping);
+        const ephemeral = interaction.channel
+            ? config.inScope(interaction.channel, config.data.moderation_activity_ephemeral_scoping)
+            : true;
 
         return {
             content: `Data for ${user} [${value || "all-time"}]\n${data}`,
