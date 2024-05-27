@@ -174,6 +174,17 @@ export async function validateInfractionReason(reason: string, config: GuildConf
     return { success: true };
 }
 
+export function getActiveMute(targetId: Snowflake, guildId: Snowflake): Promise<Infraction | null> {
+    return prisma.infraction.findFirst({
+        where: {
+            target_id: targetId,
+            guild_id: guildId,
+            action: Action.Mute,
+            expires_at: { gt: new Date() }
+        }
+    });
+}
+
 // The punishment associated with an infraction
 export enum Action {
     Warn = 1,

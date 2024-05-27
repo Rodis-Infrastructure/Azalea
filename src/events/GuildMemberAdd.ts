@@ -1,4 +1,5 @@
 import { Events, GuildMember } from "discord.js";
+import { getActiveMute } from "@utils/infractions";
 import { prisma } from "./..";
 
 import EventListener from "@managers/events/EventListener";
@@ -34,6 +35,18 @@ export default class GuildMemberAdd extends EventListener {
 
         for (const data of expiredRoles) {
             member.roles.remove(data.role_id).catch(() => null);
+        }
+
+        const activeMute = await getActiveMute(member.id, member.guild.id);
+
+        // If the member has a recent mute, we'll reapply it
+        if (activeMute) {
+            // The mute hasn't expired and the member isn't muted
+            const msDuration = activeMute.expires_at!.getTime() - now.getTime();
+            member.timeout(msDuration, `Re-applied mute #${activeMute.id}`);
+        } else if (member.isCommunicationDisabled()) {
+            // The mute has expired but the member is still muted
+            member.timeout(null, "Ended expired mute");
         }
     }
 }

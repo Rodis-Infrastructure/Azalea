@@ -8,7 +8,7 @@ import {
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
-import { Action, Flag, handleInfractionCreate, MuteDuration } from "@utils/infractions";
+import { Action, Flag, getActiveMute, handleInfractionCreate, MuteDuration } from "@utils/infractions";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { cropLines, elipsify, formatInfractionReason } from "@/utils";
 import { prisma } from "./..";
@@ -54,27 +54,29 @@ export async function handleQuickMute(data: {
     const { executor, targetMessage, duration } = data;
     const { content, member, channel } = targetMessage;
 
-    // Check if the member is in the server
-    // Users that are not in the server cannot be muted
-    if (!member) {
-        return "You can't mute someone who isn't in the server";
-    }
+    const config = ConfigManager.getGuildConfig(targetMessage.guildId, true);
 
-    const config = ConfigManager.getGuildConfig(member.guild.id, true);
+    if (member) {
+        // Compare roles to ensure the executor has permission to mute the target
+        if (member.roles.highest.position >= executor.roles.highest.position) {
+            return "You can't mute someone with the same or higher role than you";
+        }
 
-    // Compare roles to ensure the executor has permission to mute the target
-    if (member.roles.highest.position >= executor.roles.highest.position) {
-        return "You can't mute someone with the same or higher role than you";
-    }
+        // Check if the bot has permission to mute the member
+        if (!member.manageable) {
+            return "I do not have permission to mute this user";
+        }
 
-    // Check if the bot has permission to mute the member
-    if (!member.manageable) {
-        return "I do not have permission to mute this user";
-    }
+        // Check if the member is muted
+        if (member.isCommunicationDisabled()) {
+            return "You can't mute someone who is already muted";
+        }
+    } else {
+        const mute = await getActiveMute(targetMessage.author.id, targetMessage.guildId);
 
-    // Check if the member is muted
-    if (member.isCommunicationDisabled()) {
-        return "You can't mute someone who is already muted";
+        if (mute) {
+            return "You can't mute someone who is already muted";
+        }
     }
 
     // Check if the message has content
@@ -89,7 +91,7 @@ export async function handleQuickMute(data: {
     const expiresAt = new Date(expiresTimestamp);
 
     let reason = cropLines(content, 5);
-    const messages = await Purge.purgeUser(member.id, channel, config.data.default_purge_amount);
+    const messages = await Purge.purgeUser(targetMessage.author.id, channel, config.data.default_purge_amount);
 
     // Only append the purge logs if messages were purged
     if (messages.length) {
@@ -102,10 +104,10 @@ export async function handleQuickMute(data: {
 
     const infraction = await handleInfractionCreate({
         executor_id: executor.id,
-        guild_id: member.guild.id,
+        guild_id: targetMessage.guildId,
         action: Action.Mute,
         flag: Flag.Quick,
-        target_id: member.id,
+        target_id: targetMessage.author.id,
         expires_at: expiresAt,
         reason
     }, config);
@@ -114,15 +116,17 @@ export async function handleQuickMute(data: {
         return "An error occurred while storing the infraction";
     }
 
-    try {
-        // Quick mute the user
-        await member.timeout(duration, reason);
-    } catch (error) {
-        const sentryId = Sentry.captureException(error);
+    if (member) {
+        try {
+            // Quick mute the user
+            await member.timeout(duration, reason);
+        } catch (error) {
+            const sentryId = Sentry.captureException(error);
 
-        // If the quick mute fails, rollback the infraction
-        await prisma.infraction.delete({ where: { id: infraction.id } });
-        return `An error occurred while quick muting the member (\`${sentryId}\`)`;
+            // If the quick mute fails, rollback the infraction
+            await prisma.infraction.delete({ where: { id: infraction.id } });
+            return `An error occurred while quick muting the member (\`${sentryId}\`)`;
+        }
     }
 
     const formattedReason = formatInfractionReason(reason);
@@ -135,5 +139,9 @@ export async function handleQuickMute(data: {
         );
     }
 
-    return `Successfully set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`;
+    if (member) {
+        return `Successfully set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`;
+    } else {
+        return `Successfully stored the infraction (\`#${infraction.id}\`) but failed to quick mute the user as they are not in the server, I will try to mute them if they join back.`;
+    }
 }

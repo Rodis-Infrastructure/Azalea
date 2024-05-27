@@ -13,10 +13,10 @@ import {
     DURATION_FORMAT
 } from "@utils/constants";
 
-import { Action, handleInfractionCreate, validateInfractionReason } from "@utils/infractions";
+import { Action, getActiveMute, handleInfractionCreate, validateInfractionReason } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
-import { prisma } from "./..";
 import { formatInfractionReason } from "@/utils";
+import { prisma } from "./..";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -70,6 +70,7 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         const duration = interaction.options.getString("duration", true).trim();
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const member = interaction.options.getMember("member");
+        const user = member?.user ?? interaction.options.getUser("member", true);
         const validationResult = await validateInfractionReason(reason, config);
 
         if (!validationResult.success) {
@@ -77,23 +78,27 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         }
 
         // Check if the member is in the server
-        // Users that are not in the server cannot be muted
-        if (!member) {
-            return "You can't mute someone who isn't in the server";
-        }
+        if (member) {
+            // Check if the bot has permission to mute the member
+            if (!member.manageable || !interaction.guild.members.me?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+                return "I do not have permission to mute this user";
+            }
 
-        // Check if the bot has permission to mute the member
-        if (!member.manageable || !interaction.guild.members.me?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-            return "I do not have permission to mute this user";
-        }
+            if (member.roles.highest.position >= interaction.member.roles.highest.position) {
+                return "You cannot mute a user with a higher or equal role";
+            }
 
-        if (member.roles.highest.position >= interaction.member.roles.highest.position) {
-            return "You cannot mute a user with a higher or equal role";
-        }
+            // Check if the member is already muted
+            if (member.isCommunicationDisabled()) {
+                return "You can't mute someone who is already muted";
+            }
+        } else {
+            const mute = await getActiveMute(user.id, interaction.guildId);
 
-        // Check if the member is already muted
-        if (member.isCommunicationDisabled()) {
-            return "You can't mute someone who is already muted";
+            // Check if the user is already muted through their infraction history
+            if (mute) {
+                return "You can't mute someone who is already muted";
+            }
         }
 
         // Validate the duration format using regex
@@ -123,7 +128,7 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,
             action: Action.Mute,
-            target_id: member.id,
+            target_id: user.id,
             expires_at: expiresAt,
             reason
         }, config);
@@ -132,15 +137,17 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             return "An error occurred while storing the infraction";
         }
 
-        try {
-            // Mute the user
-            await member.timeout(msDuration, reason);
-        } catch (error) {
-            const sentryId = Sentry.captureException(error);
+        if (member) {
+            try {
+                // Mute the user
+                await member.timeout(msDuration, reason).catch(() => null);
+            } catch (error) {
+                const sentryId = Sentry.captureException(error);
 
-            // If the mute fails, rollback the infraction
-            await prisma.infraction.delete({ where: { id: infraction.id } });
-            return `An error occurred while muting the member (\`${sentryId}\`)`;
+                // If the mute fails, rollback the infraction
+                await prisma.infraction.delete({ where: { id: infraction.id } });
+                return `An error occurred while muting the member (\`${sentryId}\`)`;
+            }
         }
 
         const formattedReason = formatInfractionReason(reason);
@@ -150,6 +157,10 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             config.sendNotification(`${interaction.user} set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`, false);
         }
 
-        return `Successfully set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`;
+        if (member) {
+            return `Successfully set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`;
+        } else {
+            return `Successfully stored the infraction (\`#${infraction.id}\`) but failed to mute the user as they are not in the server, I will try to mute them if they join back.`;
+        }
     }
 }
