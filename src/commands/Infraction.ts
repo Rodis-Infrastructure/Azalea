@@ -558,14 +558,6 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             return "You do not have permission to update the duration of this mute.";
         }
 
-        const member = await config.guild.members
-            .fetch(oldState.target_id)
-            .catch(() => null);
-
-        if (!member) {
-            return "Unable to change the mute duration, the user is no longer in the server.";
-        }
-
         let msDuration = ms(duration);
 
         if (!msDuration || msDuration < 0) {
@@ -575,7 +567,12 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         // Prevent the duration from exceeding the threshold
         if (msDuration > MAX_MUTE_DURATION) msDuration = DEFAULT_MUTE_DURATION;
 
-        await member.timeout(msDuration, `Duration change of infraction #${infractionId}`);
+        const member = await config.guild.members
+            .fetch(oldState.target_id)
+            .catch(() => null);
+
+        await member?.timeout(msDuration, `Duration change of infraction #${infractionId}`);
+
         const msExpiresAt = oldState.created_at.getTime() + msDuration;
         const expiresAt = new Date(msExpiresAt);
 
