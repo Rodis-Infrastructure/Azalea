@@ -178,14 +178,6 @@ export default class MessageReactionAdd extends EventListener {
             }
         });
 
-        console.log({
-            content: message.content,
-            author_id: message.author.id,
-            status: MessageReportStatus.Unresolved
-        });
-        console.log(await prisma.messageReport.findFirst({ where: { author_id: message.author.id } }));
-        console.log(originalReport);
-
         const isSpam = originalReport
             // Check if the report already has a "Spam" flag
             && !(originalReport.flags & MessageReportFlag.Spam)
@@ -340,7 +332,7 @@ export default class MessageReactionAdd extends EventListener {
                 author_id: message.author.id,
                 channel_id: message.channelId,
                 content: message.content,
-                reported_by: message.author.id,
+                reported_by: reporterId,
                 status: MessageReportStatus.Unresolved,
                 flags
             },
