@@ -534,5 +534,6 @@ export enum RequestStatus {
     Pending = "pending",
     Approved = "approved",
     Denied = "denied",
+    Deleted = "deleted",
     Unknown = "unknown"
 }

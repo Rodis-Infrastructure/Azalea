@@ -30,6 +30,7 @@ import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import MessageBulkDelete from "./MessageBulkDelete";
 import { MessageReportStatus } from "@utils/reports";
+import { RequestStatus } from "@utils/requests";
 
 export default class MessageDelete extends EventListener {
     constructor() {
@@ -55,6 +56,17 @@ export default class MessageDelete extends EventListener {
 
         const config = ConfigManager.getGuildConfig(message.guild_id);
         if (!config) return;
+
+        const isModerationRequestChannel = config.data.moderation_requests
+            .some(requestConfig => requestConfig.channel_id === message.channel_id);
+
+        // Update the moderation request status to deleted
+        if (isModerationRequestChannel) {
+            await prisma.moderationRequest.update({
+                where: { id: message.id },
+                data: { status: RequestStatus.Deleted }
+            }).catch(() => null);
+        }
 
         this.handleMessageDeleteLog(message, config).catch(() => null);
     }
