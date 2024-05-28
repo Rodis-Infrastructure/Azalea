@@ -135,7 +135,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
         if (flags.length) {
             const formattedFlags = flags
                 .map(inlineCode)
-                .join(" ");
+                .join("\n");
 
             embed.addFields({
                 name: "Flags",
