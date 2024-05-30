@@ -167,9 +167,10 @@ export function humanizeTimestamp(ms: number): string {
 
     return units
         .map(({ unit, value }) => {
-            const count = Math.floor(ms / value);
+            const count = Math.round(ms / value);
+            const isInRange = count > 0 && count < 60;
             ms %= value;
-            return count && `${count} ${pluralize(count, unit)}`;
+            return isInRange && `${count} ${pluralize(count, unit)}`;
         })
         .filter(Boolean)
         .join(" ") || "< 1 minute";
