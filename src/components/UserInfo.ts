@@ -34,7 +34,6 @@ export default class UserInfo extends Component {
 
         return UserInfoCommand.get({
             executor: interaction.member,
-            channel: interaction.channel,
             config,
             member,
             user

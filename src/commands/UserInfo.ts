@@ -12,7 +12,6 @@ import {
     TimestampStyles,
     User,
     Snowflake,
-    GuildTextBasedChannel,
     InteractionReplyOptions
 } from "discord.js";
 
@@ -51,7 +50,6 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
         return UserInfo.get({
-            channel: interaction.channel,
             executor: interaction.member,
             config,
             member,
@@ -73,10 +71,9 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
         member: GuildMember | null;
         user: User;
         config: GuildConfig;
-        channel: GuildTextBasedChannel | null;
         executor: GuildMember;
     }): Promise<InteractionReplyOptions> {
-        const { member, user, config, channel, executor } = data;
+        const { member, user, config, executor } = data;
         const surfaceName = member?.nickname ?? user.displayName;
 
         const embed = new EmbedBuilder()
@@ -152,11 +149,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 
         const components: ActionRowBuilder<ButtonBuilder>[] = [];
 
-        let ephemeral = channel
-            ? config.inScope(channel, config.data.ephemeral_scoping)
-            : true;
-
-        // Executor has permission to view infractions
+        // Executor has permission to view infractions and the target does not have permission to view infractions
         if (config.hasPermission(executor, Permission.ViewInfractions) && (!member || !config.hasPermission(member, Permission.ViewInfractions))) {
             await UserInfo._getReceivedInfractions(embed, user.id, config.guild.id);
 
@@ -171,23 +164,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             components.push(buttonRow);
         }
 
-        // Executor has permission to view moderation activity
-        // Target has permission to view infractions (staff)
-        if (
-            config.hasPermission(executor, Permission.ViewModerationActivity) &&
-            member && config.hasPermission(member, Permission.ViewInfractions)
-        ) {
-            await UserInfo._getDealtInfractions(embed, user.id, config.guild.id);
-
-            // Only allow the executor to view the moderation activity
-            ephemeral = true;
-        }
-
-        return {
-            embeds: [embed],
-            components,
-            ephemeral
-        };
+        return { embeds: [embed], components };
     }
 
     /**
@@ -214,39 +191,6 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 
         embed.addFields({
             name: "Infractions Received",
-            inline: embed.data.fields!.length >= 3,
-            value: `Bans: \`${infractions.ban_count ?? 0}\`\n`
-                + `Kicks: \`${infractions.kick_count ?? 0}\`\n`
-                + `Mutes: \`${infractions.mute_count ?? 0}\`\n`
-                + `Warns: \`${infractions.warn_count ?? 0}\`\n`
-                + `Notes: \`${infractions.note_count ?? 0}\``
-        });
-    }
-
-    /**
-     * Appends an infraction count field to the passed embed
-     *
-     * @param embed - The embed to append the field to
-     * @param userId - ID of the user to count infractions for
-     * @param guildId - The source guild's ID
-     * @private
-     */
-    private static async _getDealtInfractions(embed: EmbedBuilder, userId: Snowflake, guildId: Snowflake): Promise<void> {
-        const [infractions] = await prisma.$queryRaw<InfractionCount[]>`
-            SELECT SUM(action = ${Action.Ban})  as ban_count,
-                   SUM(action = ${Action.Kick}) as kick_count,
-                   SUM(action = ${Action.Mute}) as mute_count,
-                   SUM(action = ${Action.Warn}) as warn_count,
-                   SUM(action = ${Action.Note}) as note_count
-            FROM Infraction
-            WHERE (executor_id = ${userId} or request_author_id = ${userId})
-              AND guild_id = ${guildId}
-              AND archived_at IS NULL
-              AND archived_by IS NULL;
-        `;
-
-        embed.addFields({
-            name: "Infractions Dealt",
             inline: embed.data.fields!.length >= 3,
             value: `Bans: \`${infractions.ban_count ?? 0}\`\n`
                 + `Kicks: \`${infractions.kick_count ?? 0}\`\n`

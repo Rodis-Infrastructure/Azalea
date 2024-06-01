@@ -20,7 +20,6 @@ export default class UserInfoCtx extends Command<UserContextMenuCommandInteracti
             member: interaction.targetMember,
             user: interaction.targetUser,
             executor: interaction.member,
-            channel: interaction.channel,
             config
         });
     }

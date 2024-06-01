@@ -1,8 +1,12 @@
 import {
+    ActionRowBuilder,
     ApplicationCommandOptionChoiceData,
     ApplicationCommandOptionType,
+    ButtonBuilder,
+    ButtonStyle,
     ChatInputCommandInteraction,
-    codeBlock
+    EmbedBuilder,
+    Snowflake
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
@@ -11,6 +15,7 @@ import { RequestStatus } from "@utils/requests";
 import { ModerationRequestType } from "@managers/config/schema";
 import { Action, Flag } from "@utils/infractions";
 import { Infraction, ModerationRequest } from "@prisma/client";
+import { capitalize } from "lodash";
 
 import Command from "@managers/commands/Command";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -25,7 +30,7 @@ const months: ApplicationCommandOptionChoiceData<number>[] = Array.from({ length
     return { name: month, value: i + 1 };
 });
 
-export default class ModerationActivity extends Command<ChatInputCommandInteraction<"cached">> {
+export default class Moderation extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
         super({
             name: "moderation",
@@ -65,40 +70,131 @@ export default class ModerationActivity extends Command<ChatInputCommandInteract
         const year = interaction.options.getInteger("year");
         const user = interaction.options.getUser("user", true);
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+        const moderationActivity = await Moderation._getActivity(user.id, interaction.guildId, { month, year });
+
+        const embed = new EmbedBuilder()
+            .setAuthor({
+                name: `Moderation activity of @${user.username}`,
+                iconURL: user.displayAvatarURL()
+            })
+            .setFields([
+                {
+                    name: "Requested (Approved)",
+                    value: Moderation._formatObjectProps(moderationActivity.requested.approved),
+                    inline: true
+                },
+                {
+                    name: "Requested (Denied)",
+                    value: Moderation._formatObjectProps(moderationActivity.requested.denied),
+                    inline: true
+                },
+                {
+                    name: "Reviewed (Approved)",
+                    value: Moderation._formatObjectProps(moderationActivity.reviewed.approved),
+                    inline: true
+                },
+                {
+                    name: "Reviewed (Denied)",
+                    value: Moderation._formatObjectProps(moderationActivity.reviewed.denied),
+                    inline: true
+                },
+                {
+                    name: "Executed",
+                    value: Moderation._formatObjectProps(moderationActivity.executed),
+                    inline: true
+                },
+                {
+                    name: "\u200b",
+                    value: "\u200b",
+                    inline: true
+                }
+            ])
+            .setFooter({ text: `User ID: ${user.id}` });
+
+        if (month) {
+            const strMonth = new Date(0, month - 1).toLocaleString(undefined, { month: "long" });
+            embed.setTitle(strMonth);
+        }
+
+        if (year) {
+            embed.setTitle(`${embed.data.title ?? ""} ${year}`);
+        }
+
+        if (!embed.data.title) {
+            embed.setTitle("All-Time");
+        }
+
+        const infractionsReceivedButton = new ButtonBuilder()
+            .setLabel("Infractions Received")
+            .setStyle(ButtonStyle.Secondary)
+            .setCustomId(`infraction-search-${user.id}`);
+
+        const infractionsDealtButton = new ButtonBuilder()
+            .setLabel("Infractions Dealt (WIP)")
+            .setStyle(ButtonStyle.Secondary)
+            .setCustomId("wip")
+            .setDisabled(true);
+
+        const actionRow = new ActionRowBuilder<ButtonBuilder>()
+            .setComponents(infractionsReceivedButton, infractionsDealtButton);
+
+        const ephemeral = interaction.channel
+            ? config.inScope(interaction.channel, config.data.moderation_activity_ephemeral_scoping)
+            : true;
+
+        return {
+            embeds: [embed],
+            components: [actionRow],
+            ephemeral
+        };
+    }
+
+    private static _formatObjectProps<K extends string>(obj: Record<K, number>): string {
+        return Object.entries(obj)
+            .map(([key, value]) => {
+                const separatedKey = key.replace(/([a-z])([A-Z])/g, "$1 $2");
+                return `${capitalize(separatedKey)}: \`${value}\``;
+            })
+            .join("\n");
+    }
+
+    private static async _getActivity(userId: Snowflake, guildId: Snowflake, filter?: ModerationActivityFilter): Promise<ModerationActivity> {
         const formatArgs: string[] = [];
         const valueArgs: string[] = [];
 
-        if (year) {
+        if (filter?.year) {
             formatArgs.push("%Y");
-            valueArgs.push(year.toString());
+            valueArgs.push(filter.year.toString());
         }
 
-        if (month) {
+        if (filter?.month) {
             formatArgs.push("%m");
-            valueArgs.push(month < 10 ? `0${month}` : month.toString());
+            valueArgs.push(filter.month < 10 ? `0${filter.month}` : filter.month.toString());
         }
 
         const format = formatArgs.join("-");
         const value = valueArgs.join("-");
 
         const infractions = await prisma.$queryRaw<Infraction[]>`
-            SELECT * FROM Infraction
+            SELECT *
+            FROM Infraction
             WHERE strftime(${format}, datetime(created_at / 1000, 'unixepoch')) = ${value}
-              AND executor_id = ${user.id}
-              AND guild_id = ${interaction.guildId}
+              AND executor_id = ${userId}
+              AND guild_id = ${guildId}
               AND archived_at IS NULL
               AND archived_by IS NULL
         `;
-        
+
         const requests = await prisma.$queryRaw<ModerationRequest[]>`
-            SELECT * FROM ModerationRequest
+            SELECT *
+            FROM ModerationRequest
             WHERE strftime(${format}, datetime(created_at / 1000, 'unixepoch')) = ${value}
-              AND author_id = ${user.id}
-              AND guild_id = ${interaction.guildId}
+              AND author_id = ${userId}
+              AND guild_id = ${guildId}
               AND status NOT IN (${RequestStatus.Pending}, ${RequestStatus.Unknown})
         `;
 
-        const stats = {
+        const moderationActivity = {
             executed: {
                 bans: 0,
                 manualMutes: 0,
@@ -123,51 +219,51 @@ export default class ModerationActivity extends Command<ChatInputCommandInteract
             if (!infraction.request_author_id) {
                 switch (infraction.action) {
                     case Action.Ban: {
-                        stats.executed.bans++;
+                        moderationActivity.executed.bans++;
                         break;
                     }
 
                     case Action.Kick: {
-                        stats.executed.kicks++;
+                        moderationActivity.executed.kicks++;
                         break;
                     }
 
                     case Action.Mute: {
                         if (infraction.flag === Flag.Quick) {
-                            stats.executed.quickMutes++;
+                            moderationActivity.executed.quickMutes++;
                         } else {
-                            stats.executed.manualMutes++;
+                            moderationActivity.executed.manualMutes++;
                         }
                         break;
                     }
 
                     case Action.Unban: {
-                        stats.executed.unbans++;
+                        moderationActivity.executed.unbans++;
                         break;
                     }
 
                     case Action.Unmute: {
-                        stats.executed.unmutes++;
+                        moderationActivity.executed.unmutes++;
                         break;
                     }
 
                     case Action.Warn: {
-                        stats.executed.warns++;
+                        moderationActivity.executed.warns++;
                         break;
                     }
                 }
             }
 
             // The infraction was reviewed by the user
-            if (infraction.executor_id === user.id && infraction.request_author_id) {
+            if (infraction.executor_id === userId && infraction.request_author_id) {
                 switch (infraction.action) {
                     case Action.Ban: {
-                        stats.reviewed.approved.bans++;
+                        moderationActivity.reviewed.approved.bans++;
                         break;
                     }
 
                     case Action.Mute: {
-                        stats.reviewed.approved.mutes++;
+                        moderationActivity.reviewed.approved.mutes++;
                         break;
                     }
                 }
@@ -179,32 +275,56 @@ export default class ModerationActivity extends Command<ChatInputCommandInteract
             switch (request.type) {
                 case ModerationRequestType.Ban: {
                     if (request.status === RequestStatus.Approved) {
-                        stats.requested.approved.bans++;
+                        moderationActivity.requested.approved.bans++;
                     } else if (request.status === RequestStatus.Denied) {
-                        stats.requested.denied.bans++;
+                        moderationActivity.requested.denied.bans++;
                     }
                     break;
                 }
 
                 case ModerationRequestType.Mute: {
                     if (request.status === RequestStatus.Approved) {
-                        stats.requested.approved.mutes++;
+                        moderationActivity.requested.approved.mutes++;
                     } else if (request.status === RequestStatus.Denied) {
-                        stats.requested.denied.mutes++;
+                        moderationActivity.requested.denied.mutes++;
                     }
                     break;
                 }
             }
         }
 
-        const data = codeBlock("json", JSON.stringify(stats, null, 2));
-        const ephemeral = interaction.channel
-            ? config.inScope(interaction.channel, config.data.moderation_activity_ephemeral_scoping)
-            : true;
-
-        return {
-            content: `Data for ${user} [${value || "all-time"}]\n${data}`,
-            ephemeral
-        };
+        return moderationActivity;
     }
+}
+
+interface ModerationActivityFilter {
+    month: number | null;
+    year: number | null;
+}
+
+interface ModerationActivity {
+    executed: InfractionsExecuted;
+    requested: InfractionRequests;
+    reviewed: InfractionRequests;
+}
+
+interface InfractionsExecuted {
+    bans: number;
+    manualMutes: number;
+    quickMutes: number;
+    kicks: number;
+    unbans: number;
+    unmutes: number;
+    warns: number;
+}
+
+interface InfractionRequests {
+    approved: {
+        bans: number;
+        mutes: number;
+    };
+    denied: {
+        bans: number;
+        mutes: number;
+    };
 }
