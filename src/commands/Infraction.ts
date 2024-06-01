@@ -47,12 +47,16 @@ import ms from "ms";
 export enum InfractionSearchFilter {
     // Show all infractions, including automatic ones
     All = "All",
+    // Don't show notes
+    Infractions = "Infractions",
     // Only show automatic infractions
     Automatic = "Automatic",
     // Only show non-automatic infractions (default)
     Manual = "Manual",
     // Only show archived infractions
-    Archived = "Archived"
+    Archived = "Archived",
+    // Only show notes
+    Notes = "Notes"
 }
 
 const infractionSearchFilterChoices: ApplicationCommandOptionChoiceData<string>[] = Object.keys(InfractionSearchFilter)
@@ -77,7 +81,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                         },
                         {
                             name: "filter",
-                            description: "The filter to apply to the search (excludes automatic infractions by default)",
+                            description: "The filter to apply to the search (excludes notes by default)",
                             type: ApplicationCommandOptionType.String,
                             choices: infractionSearchFilterChoices
                         }
@@ -188,7 +192,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 }
 
                 const user = member?.user ?? interaction.options.getUser("user", true);
-                const filter = (interaction.options.getString("filter") ?? InfractionSearchFilter.All) as InfractionSearchFilter;
+                const filter = (interaction.options.getString("filter") ?? InfractionSearchFilter.Infractions) as InfractionSearchFilter;
 
                 return Infraction.search({
                     guildId: interaction.guildId,
@@ -826,17 +830,29 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
     /** @returns Database query conditions */
     private static _parseSearchFilter(filter?: InfractionSearchFilter): Prisma.InfractionWhereInput {
         switch (filter) {
+            case InfractionSearchFilter.Infractions:
+                return { action: { not: Action.Note } };
+
             case InfractionSearchFilter.Manual:
-                return { flag: { not: Flag.Automatic } };
+                return {
+                    flag: { not: Flag.Automatic },
+                    action: { not: Action.Note }
+                };
 
             case InfractionSearchFilter.Automatic:
-                return { flag: Flag.Automatic };
+                return {
+                    flag: Flag.Automatic,
+                    action: { not: Action.Note }
+                };
 
             case InfractionSearchFilter.Archived:
                 return {
                     archived_at: { not: null },
                     archived_by: { not: null }
                 };
+
+            case InfractionSearchFilter.Notes:
+                return { action: Action.Note };
 
             default:
                 return {};

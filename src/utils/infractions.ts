@@ -111,6 +111,8 @@ export function getActionColor(action: Action): ColorResolvable {
             return Colors.Green;
         case Action.Warn:
             return Colors.Yellow;
+        case Action.Note:
+            return Colors.Purple;
         default:
             return Colors.NotQuiteBlack;
     }
@@ -193,6 +195,7 @@ export enum Action {
     Kick = 4,
     Unban = 5,
     Ban = 6,
+    Note = 7,
 }
 
 // Mute duration in milliseconds
