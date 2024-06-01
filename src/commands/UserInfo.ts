@@ -203,7 +203,8 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             SELECT SUM(action = ${Action.Ban})  as ban_count,
                    SUM(action = ${Action.Kick}) as kick_count,
                    SUM(action = ${Action.Mute}) as mute_count,
-                   SUM(action = ${Action.Warn}) as warn_count
+                   SUM(action = ${Action.Warn}) as warn_count,
+                   SUM(action = ${Action.Note}) as note_count
             FROM Infraction
             WHERE target_id = ${userId}
               AND guild_id = ${guildId}
@@ -217,7 +218,8 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             value: `Bans: \`${infractions.ban_count ?? 0}\`\n`
                 + `Kicks: \`${infractions.kick_count ?? 0}\`\n`
                 + `Mutes: \`${infractions.mute_count ?? 0}\`\n`
-                + `Warns: \`${infractions.warn_count ?? 0}\``
+                + `Warns: \`${infractions.warn_count ?? 0}\`\n`
+                + `Notes: \`${infractions.note_count ?? 0}\``
         });
     }
 
@@ -234,7 +236,8 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             SELECT SUM(action = ${Action.Ban})  as ban_count,
                    SUM(action = ${Action.Kick}) as kick_count,
                    SUM(action = ${Action.Mute}) as mute_count,
-                   SUM(action = ${Action.Warn}) as warn_count
+                   SUM(action = ${Action.Warn}) as warn_count,
+                   SUM(action = ${Action.Note}) as note_count
             FROM Infraction
             WHERE (executor_id = ${userId} or request_author_id = ${userId})
               AND guild_id = ${guildId}
@@ -248,7 +251,8 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             value: `Bans: \`${infractions.ban_count ?? 0}\`\n`
                 + `Kicks: \`${infractions.kick_count ?? 0}\`\n`
                 + `Mutes: \`${infractions.mute_count ?? 0}\`\n`
-                + `Warns: \`${infractions.warn_count ?? 0}\``
+                + `Warns: \`${infractions.warn_count ?? 0}\`\n`
+                + `Notes: \`${infractions.note_count ?? 0}\``
         });
     }
 
@@ -293,4 +297,5 @@ export interface InfractionCount {
     kick_count: bigint | null;
     mute_count: bigint | null;
     warn_count: bigint | null;
+    note_count: bigint | null;
 }
