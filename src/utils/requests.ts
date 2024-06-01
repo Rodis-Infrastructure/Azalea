@@ -105,6 +105,9 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
             },
             update: {
                 target_id: request.target_id,
+                // The author is only updated if the original
+                // request was made by a bot
+                author_id: request.author_id,
                 reason: request.reason,
                 duration: request.duration
             }
@@ -202,7 +205,7 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
 
     // Check if the request is a duplicate
     const originalRequest = await prisma.moderationRequest.findFirst({
-        select: { id: true },
+        select: { id: true, author_id: true },
         where: {
             NOT: { id: request.id },
             target_id: matches.targetId,
@@ -213,8 +216,13 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
     });
 
     if (originalRequest) {
-        const requestUrl = messageLink(request.channelId, originalRequest.id, request.guildId);
-        throw new RequestValidationError(`A mute request for this user is already pending: ${requestUrl}`);
+        const originalRequestAuthor = await client.users.fetch(originalRequest.author_id);
+
+        // Ignore requests made by bots
+        if (!originalRequestAuthor.bot && !request.author.bot) {
+            const requestUrl = messageLink(request.channelId, originalRequest.id, request.guildId);
+            throw new RequestValidationError(`A mute request for this user is already pending: ${requestUrl}`);
+        }
     }
 
     const target = await config.guild.members
@@ -277,7 +285,7 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
 
     // Check if the request is a duplicate
     const originalRequest = await prisma.moderationRequest.findFirst({
-        select: { id: true },
+        select: { id: true, author_id: true },
         where: {
             NOT: { id: request.id },
             target_id: matches.targetId,
@@ -288,8 +296,13 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
     });
 
     if (originalRequest) {
-        const requestUrl = messageLink(request.channelId, originalRequest.id, request.guildId);
-        throw new RequestValidationError(`A ban request for this user is already pending: ${requestUrl}`);
+        const originalRequestAuthor = await client.users.fetch(originalRequest.author_id);
+
+        // Ignore requests made by bots
+        if (!originalRequestAuthor.bot && !request.author.bot) {
+            const requestUrl = messageLink(request.channelId, originalRequest.id, request.guildId);
+            throw new RequestValidationError(`A ban request for this user is already pending: ${requestUrl}`);
+        }
     }
 
     const target = await config.guild.members
@@ -303,6 +316,14 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
         target.roles.highest.position >= request.member.roles.highest.position
     ) {
         throw new RequestValidationError("You cannot mute a member with a higher or equal role.");
+    }
+
+    const isBanned = await config.guild.bans.fetch(matches.targetId)
+        .then(() => true)
+        .catch(() => false);
+
+    if (isBanned) {
+        throw new RequestValidationError("The target user is already banned.");
     }
 
     return [target, {
