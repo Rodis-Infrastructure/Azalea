@@ -71,12 +71,12 @@ export default class GuildConfig {
     // Start the cron job for each scheduled message
     async startScheduledMessageCronJobs(): Promise<void> {
         // Start the cron job for each scheduled message
-        for (const scheduledMessage of this.data.scheduled_messages) {
+        for (const schedule of this.data.scheduled_messages) {
             const channel = await this.guild.channels
-                .fetch(scheduledMessage.channel_id)
+                .fetch(schedule.channel_id)
                 .catch(() => null);
 
-            const stringifiedData = JSON.stringify(scheduledMessage);
+            const stringifiedData = JSON.stringify(schedule);
 
             if (!channel) {
                 Logger.error(`Failed to mount scheduled message, unknown channel.\ndata: ${stringifiedData}`);
@@ -89,9 +89,18 @@ export default class GuildConfig {
             }
 
             // Start the cron job for the scheduled message
-            startCronJob("SCHEDULED_MESSAGE", scheduledMessage.cron, () => {
-                Logger.info(`Sending message: ${stringifiedData}`);
-                channel.send(scheduledMessage.content);
+            startCronJob("SCHEDULED_MESSAGE", schedule.cron, () => {
+                const randomMessageIdx = Math.floor(Math.random() * schedule.messages.length);
+                const randomMessage = schedule.messages[randomMessageIdx];
+                const stringifiedMessage = JSON.stringify(randomMessage);
+
+                Logger.info(`Sending messages[${randomMessageIdx}] in #${channel.name} (${channel.id}): ${stringifiedMessage}`);
+
+                if (typeof randomMessage === "string") {
+                    channel.send(randomMessage);
+                } else {
+                    channel.send({ embeds: [randomMessage] });
+                }
             });
         }
     }

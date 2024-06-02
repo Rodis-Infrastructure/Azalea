@@ -68,6 +68,8 @@ const embedSchema = z.object({
     thumbnail: embedMediaSchema.optional()
 });
 
+const messageSchema = z.union([messageContentSchema, embedSchema]);
+
 // ————————————————————————————————————————————————————————————————————————————————
 // Enums
 // ————————————————————————————————————————————————————————————————————————————————
@@ -192,8 +194,8 @@ const scheduledMessageSchema = z.object({
     channel_id: snowflakeSchema,
     // Cron expression for when to send the message
     cron: cronSchema,
-    // Message content
-    content: messageContentSchema
+    // Message
+    messages: messageSchema.array().nonempty()
 });
 
 const autoReactionSchema = z.object({
