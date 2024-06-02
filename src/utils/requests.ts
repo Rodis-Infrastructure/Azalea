@@ -216,14 +216,9 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
         }
     });
 
-    if (originalRequest) {
-        const originalRequestAuthor = await client.users.fetch(originalRequest.author_id);
-
-        // Ignore requests made by bots
-        if (!originalRequestAuthor.bot && !request.author.bot) {
-            const requestUrl = messageLink(request.channelId, originalRequest.id, request.guildId);
-            throw new RequestValidationError(`A mute request for this user is already pending: ${requestUrl}`);
-        }
+    if (originalRequest && !request.author.bot) {
+        const requestUrl = messageLink(request.channelId, originalRequest.id, request.guildId);
+        await temporaryReply(request, `A mute request for this user is already pending: ${requestUrl}`, config.data.response_ttl);
     }
 
     const target = await config.guild.members
@@ -296,14 +291,9 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
         }
     });
 
-    if (originalRequest) {
-        const originalRequestAuthor = await client.users.fetch(originalRequest.author_id);
-
-        // Ignore requests made by bots
-        if (!originalRequestAuthor.bot && !request.author.bot) {
-            const requestUrl = messageLink(request.channelId, originalRequest.id, request.guildId);
-            throw new RequestValidationError(`A ban request for this user is already pending: ${requestUrl}`);
-        }
+    if (originalRequest && !request.author.bot) {
+        const requestUrl = messageLink(request.channelId, originalRequest.id, request.guildId);
+        await temporaryReply(request, `A ban request for this user is already pending: ${requestUrl}`, config.data.response_ttl);
     }
 
     const target = await config.guild.members
