@@ -151,7 +151,8 @@ async function handleAutomaticMute(data: {
 
     // Only guild members can be muted
     if (!target) {
-        throw new RequestValidationError("Failed to fetch target, unable to perform auto-mute.");
+        config.sendNotification("Failed to fetch target, unable to perform auto-mute.");
+        return null;
     }
 
     await target.timeout(DEFAULT_MUTE_DURATION, reason).catch(() => {
