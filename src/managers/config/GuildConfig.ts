@@ -89,7 +89,7 @@ export default class GuildConfig {
             }
 
             // Start the cron job for the scheduled message
-            startCronJob("SCHEDULED_MESSAGE", schedule.cron, () => {
+            startCronJob(`SCHEDULED_MESSAGE_${schedule.monitor_slug}`, schedule.cron, () => {
                 const randomMessageIdx = Math.floor(Math.random() * schedule.messages.length);
                 const randomMessage = schedule.messages[randomMessageIdx];
                 const stringifiedMessage = JSON.stringify(randomMessage);
