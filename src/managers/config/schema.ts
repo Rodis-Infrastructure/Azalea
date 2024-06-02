@@ -192,6 +192,8 @@ export type UserFlag = z.infer<typeof userFlagSchema>;
 const scheduledMessageSchema = z.object({
     // Channel to send the message in
     channel_id: snowflakeSchema,
+    // The slug of the monitor to set
+    monitor_slug: z.string().regex(/^[A-Z_]{1,50}$/g),
     // Cron expression for when to send the message
     cron: cronSchema,
     // Message
