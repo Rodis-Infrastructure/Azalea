@@ -10,28 +10,12 @@ import ComponentManager from "./managers/components/ComponentManager";
 import ConfigManager from "./managers/config/ConfigManager";
 import Logger from "./utils/logger";
 
-// Initialize Sentry
-Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV,
-    profilesSampleRate: 1,
-    tracesSampleRate: 1
-});
-
 // Handle process exit
 EXIT_EVENTS.forEach(event => {
     process.once(event, async () => {
         await startCleanupOperations(event);
     });
 });
-
-if (!process.env.DISCORD_TOKEN) {
-    throw new Error("No token provided! Configure the DISCORD_TOKEN environment variable.");
-}
-
-if (!process.env.SENTRY_DSN) {
-    throw new Error("No sentry DSN provided! Configure the SENTRY_DSN environment variable.");
-}
 
 // Database client
 export const prisma = new PrismaClient();
@@ -47,6 +31,22 @@ export const client: Client<true> = new Client({
 });
 
 async function main(): Promise<void> {
+    if (!process.env.DISCORD_TOKEN) {
+        throw new Error("No token provided! Configure the DISCORD_TOKEN environment variable.");
+    }
+
+    if (!process.env.SENTRY_DSN) {
+        throw new Error("No sentry DSN provided! Configure the SENTRY_DSN environment variable.");
+    }
+
+    // Initialize Sentry
+    Sentry.init({
+        dsn: process.env.SENTRY_DSN,
+        environment: process.env.NODE_ENV,
+        profilesSampleRate: 1,
+        tracesSampleRate: 1
+    });
+
     // Cache all components
     await ComponentManager.cache();
 
@@ -70,12 +70,14 @@ async function main(): Promise<void> {
     client.emit(Events.ClientReady, client);
 }
 
-// Perform closing operations on error
-main()
-    .catch(error => {
-        const sentryId = Sentry.captureException(error);
-        Logger.error(`An unhandled error occurred: ${sentryId}`);
-        Logger.error(error);
+if (process.env.NODE_ENV !== "test") {
+    // Perform closing operations on error
+    main()
+        .catch(error => {
+            const sentryId = Sentry.captureException(error);
+            Logger.error(`An unhandled error occurred: ${sentryId}`);
+            Logger.error(error);
 
-        process.exit(0);
-    });
+            process.exit(0);
+        });
+}
