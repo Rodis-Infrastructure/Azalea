@@ -15,14 +15,13 @@ import { client, prisma } from "@/index";
 import { MessageReportStatus, UserReportStatus } from "@utils/reports";
 import { fromZodError } from "zod-validation-error";
 import { InteractionReplyData } from "@utils/types";
-import { pluralize, startCronJob } from "@/utils";
+import { pluralize, randInt, startCronJob } from "@/utils";
 import { Snowflake } from "discord-api-types/v10";
 import { RequestStatus } from "@utils/requests";
 import { LOG_ENTRY_DATE_FORMAT } from "@utils/constants";
 import { capitalize } from "lodash";
 
 import Logger from "@utils/logger";
-import random from "random";
 
 export default class GuildConfig {
     private constructor(public readonly data: RawGuildConfig, public readonly guild: Guild) {
@@ -91,10 +90,11 @@ export default class GuildConfig {
 
             // Start the cron job for the scheduled message
             startCronJob(`SCHEDULED_MESSAGE_${schedule.monitor_slug}`, schedule.cron, () => {
-                const randomMessage = random.choice(schedule.messages) ?? schedule.messages[0];
+                const randomMessageIdx = randInt(schedule.messages.length);
+                const randomMessage = schedule.messages[randomMessageIdx];
                 const stringifiedMessage = JSON.stringify(randomMessage);
 
-                Logger.info(`Sending message in #${channel.name} (${channel.id}): ${stringifiedMessage}`);
+                Logger.info(`Sending messages[${randomMessageIdx}] in #${channel.name} (${channel.id}): ${stringifiedMessage}`);
 
                 if (typeof randomMessage === "string") {
                     channel.send(randomMessage);

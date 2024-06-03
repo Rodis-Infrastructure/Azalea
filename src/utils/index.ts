@@ -271,3 +271,14 @@ export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronT
 export function getFilePreviewUrl(url: string): string {
     return `https://discord-fv.vercel.app/?url=${encodeURIComponent(url)}`;
 }
+
+/**
+ * Generates a random number in the given range (inclusive)
+ *
+ * @param max - The maximum value of the random integer
+ * @param min - The minimum value of the random integer, defaults to 0
+ * @returns A random integer between the given range
+ */
+export function randInt(max: number, min = 0): number {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
