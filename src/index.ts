@@ -1,3 +1,4 @@
+// eslint-disable-next-line @dword-design/import-alias/prefer-alias
 import { CLIENT_INTENTS, CLIENT_PARTIALS, EXIT_EVENTS } from "@utils/constants";
 import { PrismaClient } from "@prisma/client";
 import { startCleanupOperations } from "./utils";
