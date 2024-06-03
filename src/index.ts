@@ -1,4 +1,4 @@
-import { CLIENT_INTENTS, CLIENT_PARTIALS, EXIT_EVENTS } from "./utils/constants";
+import { CLIENT_INTENTS, CLIENT_PARTIALS, EXIT_EVENTS } from "@utils/constants";
 import { PrismaClient } from "@prisma/client";
 import { startCleanupOperations } from "./utils";
 import { Client, Events } from "discord.js";
@@ -75,6 +75,7 @@ if (process.env.NODE_ENV !== "test") {
     main()
         .catch(error => {
             const sentryId = Sentry.captureException(error);
+
             Logger.error(`An unhandled error occurred: ${sentryId}`);
             Logger.error(error);
 
