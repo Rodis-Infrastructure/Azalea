@@ -22,6 +22,7 @@ import { LOG_ENTRY_DATE_FORMAT } from "@utils/constants";
 import { capitalize } from "lodash";
 
 import Logger from "@utils/logger";
+import random from "random";
 
 export default class GuildConfig {
     private constructor(public readonly data: RawGuildConfig, public readonly guild: Guild) {
@@ -90,11 +91,10 @@ export default class GuildConfig {
 
             // Start the cron job for the scheduled message
             startCronJob(`SCHEDULED_MESSAGE_${schedule.monitor_slug}`, schedule.cron, () => {
-                const randomMessageIdx = Math.floor(Math.random() * schedule.messages.length);
-                const randomMessage = schedule.messages[randomMessageIdx];
+                const randomMessage = random.choice(schedule.messages) ?? schedule.messages[0];
                 const stringifiedMessage = JSON.stringify(randomMessage);
 
-                Logger.info(`Sending messages[${randomMessageIdx}] in #${channel.name} (${channel.id}): ${stringifiedMessage}`);
+                Logger.info(`Sending message in #${channel.name} (${channel.id}): ${stringifiedMessage}`);
 
                 if (typeof randomMessage === "string") {
                     channel.send(randomMessage);
