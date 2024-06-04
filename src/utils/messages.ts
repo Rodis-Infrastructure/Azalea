@@ -3,7 +3,7 @@ import {
     Collection,
     Colors,
     EmbedBuilder,
-    escapeCodeBlock,
+    escapeCodeBlock, GuildTextBasedChannel,
     hyperlink,
     Message as DiscordMessage,
     messageLink,
@@ -410,6 +410,21 @@ export async function formatBulkMessageLogEntry(message: Message): Promise<strin
     return `[${timestamp}] ${message.author_id} — ${content}`;
 }
 
+/**
+ * Tries to fetch the messages in the given channel,
+ * if the message is not found in the channel, it will try to fetch it from the cache/database.
+ *
+ * @param channel - The channel to fetch the message from
+ * @param messageId - The ID of the message to fetch
+ */
+export async function fetchMessage(messageId: Snowflake, channel: GuildTextBasedChannel): Promise<Message | null> {
+    try {
+        const message = await channel.messages.fetch(messageId);
+        return Messages.serialize(message);
+    } catch {
+        return Messages.get(messageId);
+    }
+}
 
 interface PurgeOptions {
     // The channel messages were purged from

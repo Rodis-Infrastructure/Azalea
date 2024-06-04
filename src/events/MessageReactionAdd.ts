@@ -83,8 +83,8 @@ export default class MessageReactionAdd extends EventListener {
                 }, true);
 
                 // Mention the executor with the error response
-                if (!res.includes("Success")) {
-                    config.sendNotification(`${user} ${res}`);
+                if (!res.success) {
+                    config.sendNotification(`${user} ${res.message}`);
                 }
             } catch (error) {
                 const sentryId = Sentry.captureException(error);
@@ -104,8 +104,8 @@ export default class MessageReactionAdd extends EventListener {
                 }, true);
 
                 // Mention the executor with the error response
-                if (!res.includes("Success")) {
-                    config.sendNotification(`${user} ${res}`);
+                if (!res.success) {
+                    config.sendNotification(`${user} ${res.message}`);
                 }
             } catch (error) {
                 const sentryId = Sentry.captureException(error);

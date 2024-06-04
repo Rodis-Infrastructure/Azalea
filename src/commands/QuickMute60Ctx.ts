@@ -13,12 +13,14 @@ export default class QuickMute60Ctx extends Command<MessageContextMenuCommandInt
         });
     }
 
-    execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+    async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
         // Perform a 1-hour quick mute
-        return handleQuickMute({
+        const { message } = await handleQuickMute({
             executor: interaction.member,
             targetMessage: interaction.targetMessage,
             duration: MuteDuration.Long
         });
+
+        return message;
     }
 }
