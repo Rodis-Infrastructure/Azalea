@@ -539,7 +539,9 @@ export async function denyModerationRequest(messageId: Snowflake, reviewerId: Sn
         }
     }
 
-    config.sendNotification(`${userMention(request.author_id)} ${requestLink} against ${targetMention} has been denied by ${reviewerMention}.`);
+    // The reviewer cannot be null at this point due to the permission checks
+    const reviewerName = reviewer!.nickname ?? reviewer!.displayName;
+    config.sendNotification(`${userMention(request.author_id)} ${requestLink} against ${targetMention} has been denied by \`${reviewerName}\`.`);
 }
 
 export enum RequestStatus {
