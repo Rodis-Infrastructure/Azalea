@@ -2,7 +2,12 @@ import {
     ApplicationCommandOptionType,
     ChatInputCommandInteraction,
     Message as DiscordMessage,
-    GuildTextBasedChannel, FetchMessagesOptions, SnowflakeUtil, time, TimestampStyles
+    GuildTextBasedChannel,
+    FetchMessagesOptions,
+    SnowflakeUtil,
+    time,
+    TimestampStyles,
+    ChannelType
 } from "discord.js";
 
 import { Messages } from "@utils/messages";
@@ -44,6 +49,12 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
                             maxValue: 100
                         },
                         {
+                            name: "channel",
+                            description: "The channel to purge the messages in (current channel by default)",
+                            type: ApplicationCommandOptionType.Channel,
+                            channel_types: [ChannelType.GuildText]
+                        },
+                        {
                             name: "period",
                             description: "The period of time over which to remove the messages",
                             type: ApplicationCommandOptionType.String
@@ -62,7 +73,14 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
                             required: true,
                             minValue: 1,
                             maxValue: 100
-                        }, {
+                        },
+                        {
+                            name: "channel",
+                            description: "The channel to purge the messages in (current channel by default)",
+                            type: ApplicationCommandOptionType.Channel,
+                            channel_types: [ChannelType.GuildText]
+                        },
+                        {
                             name: "period",
                             description: "The period of time over which to remove the messages",
                             type: ApplicationCommandOptionType.String
