@@ -9,7 +9,7 @@ export default abstract class GuildCommand<T extends CommandInteraction> extends
      * @param data The data for the command.
      * @protected
      */
-    protected constructor(public config: GuildConfig, public data: ApplicationCommandData) {
+    protected constructor(public readonly config: GuildConfig, public data: ApplicationCommandData) {
         super(data);
     }
 }

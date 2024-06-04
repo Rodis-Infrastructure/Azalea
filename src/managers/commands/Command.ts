@@ -8,7 +8,7 @@ export default abstract class Command<T extends CommandInteraction> {
      * @param data The data for the command.
      * @protected
      */
-    protected constructor(public data: ApplicationCommandData) {}
+    protected constructor(public readonly data: ApplicationCommandData) {}
 
     /**
      * Handles the command interaction. Mentions are disabled by default.
@@ -23,10 +23,9 @@ export default abstract class Command<T extends CommandInteraction> {
     autocomplete?(interaction: AutocompleteInteraction): Promise<void> | void;
 
     build(): ApplicationCommandData {
-        return {
-            defaultMemberPermissions: DEFAULT_COMMAND_PERMISSIONS,
-            dmPermission: DEFAULT_DM_PERMISSION,
-            ...this.data
-        };
+        this.data.defaultMemberPermissions ??= DEFAULT_COMMAND_PERMISSIONS;
+        this.data.dmPermission ??= DEFAULT_DM_PERMISSION;
+
+        return this.data;
     }
 }
