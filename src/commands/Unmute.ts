@@ -96,13 +96,13 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
 
         // Ensure a public log of the action is made if executed ephemerally
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} unmuted ${member} - \`#${infraction.id}\` ${formattedReason}`, false);
+            config.sendNotification(`${interaction.user} unmuted ${user} - \`#${infraction.id}\` ${formattedReason}`, false);
         }
 
         if (member) {
-            return `Successfully unmuted ${member} - \`#${infraction.id}\` ${formattedReason}`;
+            return `Successfully unmuted ${user} - \`#${infraction.id}\` ${formattedReason}`;
         } else {
-            return `User not in server, I will try to unmute ${member} if they rejoin - \`#${infraction.id}\` ${formattedReason}`;
+            return `User not in server, I will try to unmute ${user} if they rejoin - \`#${infraction.id}\` ${formattedReason}`;
         }
     }
 }

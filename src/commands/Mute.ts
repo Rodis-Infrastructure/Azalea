@@ -154,13 +154,13 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
 
         // Ensure a public log of the action is made if executed ephemerally
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`, false);
+            config.sendNotification(`${interaction.user} set ${user} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`, false);
         }
 
         if (member) {
-            return `Successfully set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`;
+            return `Successfully set ${user} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`;
         } else {
-            return `User not in server, I will try to set ${member} on a timeout that will end ${relativeTimestamp} if they rejoin - \`#${infraction.id}\` ${formattedReason}`;
+            return `User not in server, I will try to set ${user} on a timeout that will end ${relativeTimestamp} if they rejoin - \`#${infraction.id}\` ${formattedReason}`;
         }
     }
 }
