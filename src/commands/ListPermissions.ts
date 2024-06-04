@@ -18,17 +18,12 @@ export default class ListPermissions extends Command<ChatInputCommandInteraction
 
     execute(interaction: ChatInputCommandInteraction<"cached">): InteractionReplyData {
         const channel = interaction.options.getChannel("channel") ?? interaction.channel;
-        const bot = interaction.guild.members.me;
 
         if (!channel) {
             return "Failed to find the channel.";
         }
 
-        if (!bot) {
-            return "Failed to fetch myself as a member.";
-        }
-
-        const permissions = channel.permissionsFor(bot).serialize();
+        const permissions = interaction.appPermissions.serialize();
         const permissionList = Object.entries(permissions).map(([permission, value]) => {
             permission = permission.replace(/(?<=[a-z]|[A-Z]{4})([A-Z])/g, " $1");
             return `${value ? "+" : "-"} ${permission}`;

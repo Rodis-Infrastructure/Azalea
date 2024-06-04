@@ -80,7 +80,7 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         // Check if the member is in the server
         if (member) {
             // Check if the bot has permission to mute the member
-            if (!member.manageable || !interaction.guild.members.me?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+            if (!member.manageable || !interaction.appPermissions.has(PermissionFlagsBits.ModerateMembers)) {
                 return "I do not have permission to mute this user";
             }
 
