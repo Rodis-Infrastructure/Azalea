@@ -92,10 +92,11 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
     }
 
     async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
-        const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const subcommand = interaction.options.getSubcommand(true) as PurgeSubcommand;
+        const channel = interaction.options.getChannel<ChannelType.GuildText>("channel") ?? interaction.channel;
         const amount = interaction.options.getInteger("amount") ?? 100;
         const period = interaction.options.getString("period");
+        const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
         let msPeriod: number | undefined;
 
@@ -112,7 +113,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
 
         // Check if the bot can access the channel
         // This is necessary for purging messages
-        if (!interaction.channel) {
+        if (!channel) {
             return Promise.resolve("Failed to get the channel.");
         }
 
@@ -134,7 +135,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
                 const target = targetMember ?? interaction.options.getUser("user", true);
 
                 // Purge the user's messages
-                messages = await Purge.purgeUser(target.id, interaction.channel, amount, msPeriod);
+                messages = await Purge.purgeUser(target.id, channel, amount, msPeriod);
                 response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")} by ${target}`;
 
                 break;
@@ -143,7 +144,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
             // Purge all recent messages in the channel
             case PurgeSubcommand.All: {
                 // Purge the channel's recent messages
-                messages = await Purge._purgeAll(interaction.channel, amount, msPeriod);
+                messages = await Purge._purgeAll(channel, amount, msPeriod);
                 response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")}`;
 
                 break;
@@ -161,7 +162,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
         }
 
         // Link to the log for ease of access
-        const logURLs = await Purge.log(messages, interaction.channel, config);
+        const logURLs = await Purge.log(messages, channel, config);
         return `${response}: ${logURLs.join(" ")}`;
     }
 
