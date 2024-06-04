@@ -9,7 +9,10 @@ export default class ReportMessageCtx extends Command<MessageContextMenuCommandI
     constructor() {
         super({
             name: "Report message",
-            type: ApplicationCommandType.Message
+            type: ApplicationCommandType.Message,
+            nameLocalizations: {
+                ru: "Пожаловаться на сообщение"
+            }
         });
     }
 

@@ -19,7 +19,10 @@ export default class ReportUserCtx extends Command<UserContextMenuCommandInterac
     constructor() {
         super({
             name: "Report user",
-            type: ApplicationCommandType.User
+            type: ApplicationCommandType.User,
+            nameLocalizations: {
+                ru: "Пожаловаться на пользователя"
+            }
         });
     }
 
