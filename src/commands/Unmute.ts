@@ -102,7 +102,7 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
         if (member) {
             return `Successfully unmuted ${member} - \`#${infraction.id}\` ${formattedReason}`;
         } else {
-            return `Successfully stored the infraction (\`#${infraction.id}\`) but failed to unmute the user as they are not in the server, I will try to unmute them if they join back.`;
+            return `User not in server, I will try to unmute ${member} if they rejoin - \`#${infraction.id}\` ${formattedReason}`;
         }
     }
 }

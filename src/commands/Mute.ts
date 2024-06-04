@@ -160,7 +160,7 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         if (member) {
             return `Successfully set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`;
         } else {
-            return `Successfully stored the infraction (\`#${infraction.id}\`) but failed to mute the user as they are not in the server, I will try to mute them if they join back.`;
+            return `User not in server, I will try to set ${member} on a timeout that will end ${relativeTimestamp} if they rejoin - \`#${infraction.id}\` ${formattedReason}`;
         }
     }
 }
