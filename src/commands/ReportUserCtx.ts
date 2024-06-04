@@ -21,7 +21,9 @@ export default class ReportUserCtx extends Command<UserContextMenuCommandInterac
             name: "Report user",
             type: ApplicationCommandType.User,
             nameLocalizations: {
-                ru: "Пожаловаться на пользователя"
+                ru: "Пожаловаться на пользователя",
+                id: "Laporkan akun",
+                fr: "Signaler l'utilisateur"
             }
         });
     }

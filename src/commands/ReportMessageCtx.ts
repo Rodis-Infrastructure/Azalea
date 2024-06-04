@@ -11,7 +11,9 @@ export default class ReportMessageCtx extends Command<MessageContextMenuCommandI
             name: "Report message",
             type: ApplicationCommandType.Message,
             nameLocalizations: {
-                ru: "Пожаловаться на сообщение"
+                ru: "Пожаловаться на сообщение",
+                id: "Laporkan pesan",
+                fr: "Signaler le message"
             }
         });
     }
