@@ -7,7 +7,7 @@ import {
     GuildMember, hyperlink,
     messageLink,
     Role,
-    roleMention
+    roleMention, time, TimestampStyles
 } from "discord.js";
 
 import { Alert, ChannelScoping, Permission, RawGuildConfig, rawGuildConfigSchema } from "./schema";
@@ -130,12 +130,6 @@ export default class GuildConfig {
                 continue;
             }
 
-            const getAlertEmbed = (unresolvedRequestCount: number, oldestRequestUrl: string): EmbedBuilder => new EmbedBuilder()
-                .setColor(Colors.Red)
-                .setTitle("Request Review Reminder")
-                .setDescription(`There are currently \`${unresolvedRequestCount}\` unresolved ${request.type} requests starting from ${oldestRequestUrl}`)
-                .setFooter({ text: `This message appears when there are too many pending ${request.type} requests or if any of them exceed the age threshold` });
-
             const mentionedRoles = alertConfig.mentioned_roles
                 .map(roleMention)
                 .join(" ") || "";
@@ -153,27 +147,23 @@ export default class GuildConfig {
                     orderBy: { created_at: "asc" }
                 });
 
-                const alertExceedsThreshold = GuildConfig._entityExceedsAlertThresholds({
+                const oldestRequest = unresolvedRequests.at(0);
+                const oldestRequestUrl = oldestRequest && messageLink(alertConfig.channel_id, oldestRequest.id, this.guild.id);
+
+                const alert = GuildConfig._entityExceedsAlertThresholds({
                     name: `${request.type} request`,
                     count: unresolvedRequests.length,
-                    createdAt: unresolvedRequests.at(0)?.created_at,
+                    createdAt: oldestRequest?.created_at,
+                    oldestEntityUrl: oldestRequestUrl,
                     config: alertConfig
                 });
 
-                if (!alertExceedsThreshold) return;
-
-                const [oldestRequest] = unresolvedRequests;
-                const oldestRequestUrl = messageLink(request.channel_id, oldestRequest.id, this.guild.id);
-                const embeds = [];
-
-                if (alertConfig.embed) {
-                    embeds.push(getAlertEmbed(unresolvedRequests.length, oldestRequestUrl));
-                }
+                if (!alert) return;
 
                 // Send the alert to the channel
                 channel.send({
                     content: `${mentionedRoles} Pending ${request.type} requests`,
-                    embeds
+                    embeds: alertConfig.embed ? [alert] : undefined
                 });
             });
         }
@@ -188,19 +178,39 @@ export default class GuildConfig {
      *
      * @param data.name - The name of the entity
      * @param data.count - The count of the entity
+     * @param data.oldestEntityUrl - The URL of the oldest entity
      * @param data.createdAt - The creation date of the oldest entity
      * @param data.config - The alert configuration for the entity
-     * @returns Whether an alert needs to be sent
+     * @returns The alert embed, if the entity exceeds the thresholds
      * @private
      */
     private static _entityExceedsAlertThresholds(data: {
         name: string,
         count: number,
+        oldestEntityUrl?: string,
         createdAt?: Date,
         config: Alert
-    }): boolean {
+    }): EmbedBuilder | null {
         const { count, createdAt, config, name } = data;
         const capitalizedName = capitalize(name);
+        const createdAtDateThreshold = new Date(Date.now() - config.age_threshold);
+        const fullyCapitalizedName = name
+            .split(" ")
+            .map(capitalize)
+            .join(" ");
+
+        const oldestEntityHyperlink = hyperlink("here", data.oldestEntityUrl ?? "");
+        const alert = new EmbedBuilder()
+            .setColor(Colors.Red)
+            .setTitle(`${fullyCapitalizedName} Review Reminder`)
+            .setDescription(`There ${pluralize(count, "is", "are")} currently \`${count}\` unresolved ${pluralize(count, name)}, starting from ${oldestEntityHyperlink}`)
+            .setFields({
+                name: "Alert Conditions",
+                value: "This alert is sent whenever **at least one** of the following conditions is met:\n\n" +
+                    `- There are ${config.count_threshold}+ unresolved ${name}\n` +
+                    `- The oldest ${name} was created before ${time(createdAtDateThreshold, TimestampStyles.LongDateTime)}`
+            })
+            .setTimestamp();
 
         Logger.info(`${capitalizedName} count: ${count}`);
         Logger.info(`${capitalizedName} count threshold: ${config.count_threshold}`);
@@ -209,14 +219,14 @@ export default class GuildConfig {
             Logger.info(`${capitalizedName} count is below the threshold, no actions need to be taken`);
         } else {
             Logger.info(`${capitalizedName} count exceeds the threshold, sending alert`);
-            return true;
+            return alert;
         }
 
-        if (!createdAt) return false;
+        if (!createdAt) return null;
 
         const now = Date.now();
         const createdAtFormatted = createdAt.toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
-        const createdAtThreshold = new Date(now - config.age_threshold).toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
+        const createdAtThreshold = createdAtDateThreshold.toLocaleString(undefined, LOG_ENTRY_DATE_FORMAT);
         const age = now - createdAt.getTime();
 
         Logger.info(`Oldest ${name} created at: ${createdAtFormatted}`);
@@ -224,12 +234,12 @@ export default class GuildConfig {
 
         if (age > config.age_threshold) {
             Logger.info(`Oldest ${name} exceeds the age threshold, sending alert`);
-            return true;
+            return alert;
         } else {
             Logger.info(`Oldest ${name} is below the age threshold, no actions need to be taken`);
         }
 
-        return false;
+        return null;
     }
 
     async startMessageReportReviewReminderCronJob(): Promise<void> {
@@ -252,14 +262,6 @@ export default class GuildConfig {
             return;
         }
 
-        const getAlertEmbed = (unresolvedReportCount: number, oldestReportLink: string): EmbedBuilder => new EmbedBuilder()
-            .setColor(Colors.Red)
-            .setTitle("Message Report Review Reminder")
-            .setDescription(`There are currently \`${unresolvedReportCount}\` unresolved message reports, starting from ${hyperlink("here", oldestReportLink)}`)
-            .setFooter({
-                text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved message reports or the oldest report is too old`
-            });
-
         const mentionedRoles = alertConfig.mentioned_roles
             .map(roleMention)
             .join(" ") || "";
@@ -271,27 +273,23 @@ export default class GuildConfig {
                 orderBy: { created_at: "asc" }
             });
 
-            const alertExceedsThreshold = GuildConfig._entityExceedsAlertThresholds({
+            const oldestReport = unresolvedReports.at(0);
+            const oldestReportUrl = oldestReport && messageLink(alertConfig.channel_id, oldestReport.id, this.guild.id);
+
+            const alert = GuildConfig._entityExceedsAlertThresholds({
                 name: "message report",
                 count: unresolvedReports.length,
-                createdAt: unresolvedReports.at(0)?.created_at,
+                createdAt: oldestReport?.created_at,
+                oldestEntityUrl: oldestReportUrl,
                 config: alertConfig
             });
 
-            if (!alertExceedsThreshold || !unresolvedReports.length) return;
-            const embeds = [];
-
-            if (alertConfig.embed) {
-                const oldestReportLink = messageLink(alertConfig.channel_id, unresolvedReports[0].id, this.guild.id);
-                const embed = getAlertEmbed(unresolvedReports.length, oldestReportLink);
-
-                embeds.push(embed);
-            }
+            if (!alert) return;
 
             // Send the alert to the channel
             channel.send({
                 content: `${mentionedRoles} Pending message reports`,
-                embeds
+                embeds: alertConfig.embed ? [alert] : undefined
             });
         });
     }
@@ -376,14 +374,6 @@ export default class GuildConfig {
             return;
         }
 
-        const getAlertEmbed = (unresolvedReportCount: number, oldestReportLink: string): EmbedBuilder => new EmbedBuilder()
-            .setColor(Colors.Red)
-            .setTitle("User Report Review Reminder")
-            .setDescription(`There are currently \`${unresolvedReportCount}\` unresolved user reports, starting from ${hyperlink("here", oldestReportLink)}`)
-            .setFooter({
-                text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved user reports or the oldest report is too old`
-            });
-
         const mentionedRoles = alertConfig.mentioned_roles
             .map(roleMention)
             .join(" ") || "";
@@ -395,27 +385,23 @@ export default class GuildConfig {
                 orderBy: { created_at: "asc" }
             });
 
-            const alertExceedsThreshold = GuildConfig._entityExceedsAlertThresholds({
+            const oldestReport = unresolvedReports.at(0);
+            const oldestReportUrl = oldestReport && messageLink(alertConfig.channel_id, oldestReport.id, this.guild.id);
+
+            const alert = GuildConfig._entityExceedsAlertThresholds({
                 name: "user report",
                 count: unresolvedReports.length,
-                createdAt: unresolvedReports.at(0)?.created_at,
+                createdAt: oldestReport?.created_at,
+                oldestEntityUrl: oldestReportUrl,
                 config: alertConfig
             });
 
-            if (!alertExceedsThreshold || !unresolvedReports.length) return;
-            const embeds = [];
-
-            if (alertConfig.embed) {
-                const oldestReportLink = messageLink(alertConfig.channel_id, unresolvedReports[0].id, this.guild.id);
-                const embed = getAlertEmbed(unresolvedReports.length, oldestReportLink);
-
-                embeds.push(embed);
-            }
+            if (!alert) return;
 
             // Send the alert to the channel
             channel.send({
                 content: `${mentionedRoles} Pending user reports`,
-                embeds
+                embeds: alertConfig.embed ? [alert] : undefined
             });
         });
     }
