@@ -114,18 +114,18 @@ export default class GuildConfig {
             const alertConfig = request.alert;
             if (!alertConfig) return;
 
-            const channel = await this.guild.channels
+            const alertChannel = await this.guild.channels
                 .fetch(alertConfig.channel_id)
                 .catch(() => null);
 
             const stringifiedData = JSON.stringify(request);
 
-            if (!channel) {
+            if (!alertChannel) {
                 Logger.error(`Failed to mount moderation request alert, unknown channel: ${stringifiedData}`);
                 continue;
             }
 
-            if (!channel.isTextBased()) {
+            if (!alertChannel.isTextBased()) {
                 Logger.error(`Failed to mount moderation request alert, channel is not text-based: ${stringifiedData}`);
                 continue;
             }
@@ -148,7 +148,7 @@ export default class GuildConfig {
                 });
 
                 const oldestRequest = unresolvedRequests.at(0);
-                const oldestRequestUrl = oldestRequest && messageLink(alertConfig.channel_id, oldestRequest.id, this.guild.id);
+                const oldestRequestUrl = oldestRequest && messageLink(request.channel_id, oldestRequest.id, this.guild.id);
 
                 const alert = GuildConfig._entityExceedsAlertThresholds({
                     name: `${request.type} request`,
@@ -161,7 +161,7 @@ export default class GuildConfig {
                 if (!alert) return;
 
                 // Send the alert to the channel
-                channel.send({
+                alertChannel.send({
                     content: `${mentionedRoles} Pending ${request.type} requests`,
                     embeds: alertConfig.embed ? [alert] : undefined
                 });
@@ -244,20 +244,22 @@ export default class GuildConfig {
 
     async startMessageReportReviewReminderCronJob(): Promise<void> {
         const alertConfig = this.data.message_reports?.alert;
-        if (!alertConfig) return;
+        const reportChannelId = this.data.message_reports?.report_channel;
 
-        const channel = await this.guild.channels
+        if (!alertConfig || !reportChannelId) return;
+
+        const alertChannel = await this.guild.channels
             .fetch(alertConfig.channel_id)
             .catch(() => null);
 
         const stringifiedData = JSON.stringify(alertConfig);
 
-        if (!channel) {
+        if (!alertChannel) {
             Logger.error(`Failed to mount message report review reminders, unknown channel: ${stringifiedData}`);
             return;
         }
 
-        if (!channel.isTextBased()) {
+        if (!alertChannel.isTextBased()) {
             Logger.error(`Failed to mount message report review reminders, channel is not text-based: ${stringifiedData}`);
             return;
         }
@@ -274,7 +276,7 @@ export default class GuildConfig {
             });
 
             const oldestReport = unresolvedReports.at(0);
-            const oldestReportUrl = oldestReport && messageLink(alertConfig.channel_id, oldestReport.id, this.guild.id);
+            const oldestReportUrl = oldestReport && messageLink(reportChannelId, oldestReport.id, this.guild.id);
 
             const alert = GuildConfig._entityExceedsAlertThresholds({
                 name: "message report",
@@ -287,7 +289,7 @@ export default class GuildConfig {
             if (!alert) return;
 
             // Send the alert to the channel
-            channel.send({
+            alertChannel.send({
                 content: `${mentionedRoles} Pending message reports`,
                 embeds: alertConfig.embed ? [alert] : undefined
             });
@@ -356,20 +358,22 @@ export default class GuildConfig {
 
     async startUserReportReviewReminderCronJob(): Promise<void> {
         const alertConfig = this.data.user_reports?.alert;
-        if (!alertConfig) return;
+        const reportChannelId = this.data.user_reports?.report_channel;
 
-        const channel = await this.guild.channels
+        if (!alertConfig || !reportChannelId) return;
+
+        const alertChannel = await this.guild.channels
             .fetch(alertConfig.channel_id)
             .catch(() => null);
 
         const stringifiedData = JSON.stringify(alertConfig);
 
-        if (!channel) {
+        if (!alertChannel) {
             Logger.error(`Failed to mount user report review reminders, unknown channel: ${stringifiedData}`);
             return;
         }
 
-        if (!channel.isTextBased()) {
+        if (!alertChannel.isTextBased()) {
             Logger.error(`Failed to mount user report review reminders, channel is not text-based: ${stringifiedData}`);
             return;
         }
@@ -386,7 +390,7 @@ export default class GuildConfig {
             });
 
             const oldestReport = unresolvedReports.at(0);
-            const oldestReportUrl = oldestReport && messageLink(alertConfig.channel_id, oldestReport.id, this.guild.id);
+            const oldestReportUrl = oldestReport && messageLink(reportChannelId, oldestReport.id, this.guild.id);
 
             const alert = GuildConfig._entityExceedsAlertThresholds({
                 name: "user report",
@@ -399,7 +403,7 @@ export default class GuildConfig {
             if (!alert) return;
 
             // Send the alert to the channel
-            channel.send({
+            alertChannel.send({
                 content: `${mentionedRoles} Pending user reports`,
                 embeds: alertConfig.embed ? [alert] : undefined
             });
