@@ -172,9 +172,12 @@ export default class MessageReactionAdd extends EventListener {
         // Check if there is an existing report for a message with the same content
         const originalReport = await prisma.messageReport.findFirst({
             where: {
-                content: message.content,
                 author_id: message.author.id,
-                status: MessageReportStatus.Unresolved
+                status: MessageReportStatus.Unresolved,
+                OR: [
+                    { content: message.content },
+                    { message_id: message.id }
+                ]
             }
         });
 
