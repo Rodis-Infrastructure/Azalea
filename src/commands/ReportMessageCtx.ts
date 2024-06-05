@@ -13,7 +13,8 @@ export default class ReportMessageCtx extends Command<MessageContextMenuCommandI
             nameLocalizations: {
                 ru: "Пожаловаться на сообщение",
                 id: "Laporkan pesan",
-                fr: "Signaler le message"
+                fr: "Signaler le message",
+                it: "Segnala messaggio"
             }
         });
     }

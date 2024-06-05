@@ -23,7 +23,8 @@ export default class ReportUserCtx extends Command<UserContextMenuCommandInterac
             nameLocalizations: {
                 ru: "Пожаловаться на пользователя",
                 id: "Laporkan akun",
-                fr: "Signaler l'utilisateur"
+                fr: "Signaler l'utilisateur",
+                it: "Segnala utente"
             }
         });
     }
