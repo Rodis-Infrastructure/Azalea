@@ -4,7 +4,7 @@ import {
     EmbedBuilder,
     Guild,
     GuildBasedChannel,
-    GuildMember,
+    GuildMember, hyperlink,
     messageLink,
     Role,
     roleMention
@@ -252,11 +252,13 @@ export default class GuildConfig {
             return;
         }
 
-        const getAlertEmbed = (unresolvedReportCount: number): EmbedBuilder => new EmbedBuilder()
+        const getAlertEmbed = (unresolvedReportCount: number, oldestReportLink: string): EmbedBuilder => new EmbedBuilder()
             .setColor(Colors.Red)
             .setTitle("Message Report Review Reminder")
-            .setDescription(`There are currently \`${unresolvedReportCount}\` unresolved message reports`)
-            .setFooter({ text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved message reports` });
+            .setDescription(`There are currently \`${unresolvedReportCount}\` unresolved message reports, starting from ${hyperlink("here", oldestReportLink)}`)
+            .setFooter({
+                text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved message reports or the oldest report is too old`
+            });
 
         const mentionedRoles = alertConfig.mentioned_roles
             .map(roleMention)
@@ -276,11 +278,14 @@ export default class GuildConfig {
                 config: alertConfig
             });
 
-            if (!alertExceedsThreshold) return;
+            if (!alertExceedsThreshold || !unresolvedReports.length) return;
             const embeds = [];
 
             if (alertConfig.embed) {
-                embeds.push(getAlertEmbed(unresolvedReports.length));
+                const oldestReportLink = messageLink(alertConfig.channel_id, unresolvedReports[0].id, this.guild.id);
+                const embed = getAlertEmbed(unresolvedReports.length, oldestReportLink);
+
+                embeds.push(embed);
             }
 
             // Send the alert to the channel
@@ -312,7 +317,6 @@ export default class GuildConfig {
             Logger.error(`Failed to mount user report removal, channel is not text-based: ${stringifiedData}`);
             return;
         }
-
 
         // Every hour on the hour
         startCronJob("USER_REPORT_REMOVAL", "0 * * * *", async () => {
@@ -372,11 +376,13 @@ export default class GuildConfig {
             return;
         }
 
-        const getAlertEmbed = (unresolvedReportCount: number): EmbedBuilder => new EmbedBuilder()
+        const getAlertEmbed = (unresolvedReportCount: number, oldestReportLink: string): EmbedBuilder => new EmbedBuilder()
             .setColor(Colors.Red)
             .setTitle("User Report Review Reminder")
-            .setDescription(`There are currently \`${unresolvedReportCount}\` unresolved user reports`)
-            .setFooter({ text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved user reports` });
+            .setDescription(`There are currently \`${unresolvedReportCount}\` unresolved user reports, starting from ${hyperlink("here", oldestReportLink)}`)
+            .setFooter({
+                text: `This message appears when there are ${alertConfig.count_threshold}+ unresolved user reports or the oldest report is too old`
+            });
 
         const mentionedRoles = alertConfig.mentioned_roles
             .map(roleMention)
@@ -396,11 +402,14 @@ export default class GuildConfig {
                 config: alertConfig
             });
 
-            if (!alertExceedsThreshold) return;
+            if (!alertExceedsThreshold || !unresolvedReports.length) return;
             const embeds = [];
 
             if (alertConfig.embed) {
-                embeds.push(getAlertEmbed(unresolvedReports.length));
+                const oldestReportLink = messageLink(alertConfig.channel_id, unresolvedReports[0].id, this.guild.id);
+                const embed = getAlertEmbed(unresolvedReports.length, oldestReportLink);
+
+                embeds.push(embed);
             }
 
             // Send the alert to the channel
@@ -432,7 +441,6 @@ export default class GuildConfig {
             Logger.error(`Failed to mount message report removal, channel is not text-based: ${stringifiedData}`);
             return;
         }
-
 
         // Every hour on the hour
         startCronJob("MESSAGE_REPORT_REMOVAL", "0 * * * *", async () => {
