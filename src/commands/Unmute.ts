@@ -14,8 +14,8 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
             description: "Unmute a member in the server",
             options: [
                 {
-                    name: "member",
-                    description: "The member to unmute",
+                    name: "user",
+                    description: "The user to unmute",
                     type: ApplicationCommandOptionType.User,
                     required: true
                 },
@@ -32,8 +32,8 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
     async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
-        const member = interaction.options.getMember("member");
-        const user = member?.user ?? interaction.options.getUser("member", true);
+        const member = interaction.options.getMember("user");
+        const user = member?.user ?? interaction.options.getUser("user", true);
         const validationResult = await InfractionUtil.validateReason(reason, config);
 
         if (!validationResult.success) {

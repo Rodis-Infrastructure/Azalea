@@ -42,8 +42,8 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             description: "Mute a member in the server",
             options: [
                 {
-                    name: "member",
-                    description: "The member to mute",
+                    name: "user",
+                    description: "The user to mute",
                     type: ApplicationCommandOptionType.User,
                     required: true
                 },
@@ -67,8 +67,8 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const duration = interaction.options.getString("duration", true).trim();
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
-        const member = interaction.options.getMember("member");
-        const user = member?.user ?? interaction.options.getUser("member", true);
+        const member = interaction.options.getMember("user");
+        const user = member?.user ?? interaction.options.getUser("user", true);
         const validationResult = await InfractionUtil.validateReason(reason, config);
 
         if (!validationResult.success) {
