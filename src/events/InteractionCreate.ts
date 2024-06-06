@@ -138,6 +138,7 @@ export default class InteractionCreate extends EventListener {
 
         embeds.push(embed);
 
+        // Add a timestamp to the last embed in the array
         if (!interactionOptionsEmbed) {
             embed.setTimestamp();
         } else {
@@ -160,7 +161,6 @@ export default class InteractionCreate extends EventListener {
             .setAuthor({ name: "Options" })
             .setTimestamp();
 
-        // Map slash command options
         if (interaction.isChatInputCommand()) {
             interactionType = "Slash Command";
             const mappedOptions = await InteractionCreate._parseChatInputCommandOptions(interaction.options.data);
@@ -181,7 +181,6 @@ export default class InteractionCreate extends EventListener {
             embed.setFields(await Promise.all(mappedOptions));
         }
 
-        // User context menu
         if (interaction.isUserContextMenuCommand()) {
             interactionType = "User Context Menu";
             embed.setFields({
@@ -197,7 +196,6 @@ export default class InteractionCreate extends EventListener {
             }
         }
 
-        // Message context menu
         if (interaction.isMessageContextMenuCommand()) {
             interactionType = "Message Context Menu";
 
@@ -221,7 +219,6 @@ export default class InteractionCreate extends EventListener {
             ]);
         }
 
-        // Button interactions
         if (interaction.isButton()) {
             interactionType = "Button";
             embed.setFields({
@@ -230,7 +227,6 @@ export default class InteractionCreate extends EventListener {
             });
         }
 
-        // Return the selected value(s) for select menus
         if (interaction.isAnySelectMenu()) {
             interactionType = "Select Menu";
 
@@ -255,7 +251,7 @@ export default class InteractionCreate extends EventListener {
             }
 
             if (interaction.isStringSelectMenu()) {
-                values = interaction.values.map(value => `- ${value}`);
+                values = interaction.values.map(value => `- \`${value}\``);
             }
 
             embed.setFields({
@@ -308,13 +304,13 @@ export default class InteractionCreate extends EventListener {
     /** @returns The interaction's name or custom ID */
     private static _parseInteractionName(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>): string {
         if (interaction.isChatInputCommand()) {
+            const subcommandGroup = interaction.options.getSubcommandGroup(false);
             const subcommand = interaction.options.getSubcommand(false);
+            const command = `/${interaction.commandName}`;
 
-            if (subcommand) {
-                return `/${interaction.commandName} ${subcommand}`;
-            } else {
-                return `/${interaction.commandName}`;
-            }
+            return [command, subcommandGroup, subcommand]
+                .filter(Boolean)
+                .join(" ");
         }
 
         if (interaction.isContextMenuCommand()) {
