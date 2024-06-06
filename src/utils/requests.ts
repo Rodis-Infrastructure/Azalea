@@ -431,7 +431,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
     const formattedReason = formatInfractionReason(request.reason);
 
     config.sendNotification(
-        `${userMention(request.author_id)}'s ${request.type} request has been approved by ${userMention(reviewerId)} ${formattedReason}`,
+        `${userMention(request.author_id)}'s ${request.type} request against ${userMention(request.target_id)} has been approved by ${userMention(reviewerId)} ${formattedReason}`,
         false
     );
 
