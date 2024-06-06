@@ -1,9 +1,7 @@
-import { Action, handleInfractionCreate, validateInfractionReason } from "@utils/infractions";
+import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { InteractionReplyData } from "@utils/types";
-import { prisma } from "./..";
-import { formatInfractionReason } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -42,7 +40,7 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
                 },
                 {
                     name: "delete_messages",
-                    description: "Whether to delete the user's messages",
+                    description: "Whether to delete the user's messages, false by default",
                     type: ApplicationCommandOptionType.Boolean
                 }
             ]
@@ -53,69 +51,67 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const member = interaction.options.getMember("user");
-        const validationResult = await validateInfractionReason(reason, config);
+        const validationResult = await InfractionUtil.validateReason(reason, config);
 
         if (!validationResult.success) {
             return validationResult.message;
         }
 
-        // Delete a week worth of messages if the option is true
-        const deleteMessageSeconds = interaction.options.getBoolean("delete_messages")
-            ? config.data.delete_message_seconds_on_ban
-            : 0;
+        if (member) {
+            if (!member.bannable) {
+                return "I do not have permission to ban this user";
+            }
 
-        if (member && !member.bannable) {
-            return "I do not have permission to ban this user";
-        }
-
-        if (member && member.roles.highest.position >= interaction.member.roles.highest.position) {
-            return "You cannot ban a user with a higher or equal role";
+            if (member.roles.highest.position >= interaction.member.roles.highest.position) {
+                return "You cannot ban a user with a higher or equal role";
+            }
         }
 
         const user = member?.user ?? interaction.options.getUser("user", true);
-
-        // Check if the user is already banned by fetching their ban
-        // If they are banned, the method will return their ban data
-        // Otherwise, it will return null
         const ban = await interaction.guild.bans
             .fetch(user.id)
             .catch(() => null);
 
         if (ban) {
-            return `This user is already banned: \`${ban.reason ?? DEFAULT_INFRACTION_REASON}\``;
+            const formattedReason = InfractionUtil.formatReason(ban.reason ?? DEFAULT_INFRACTION_REASON);
+            return `This user is already banned ${formattedReason}`;
         }
 
-        // Log the infraction and store it in the database
-        const infraction = await handleInfractionCreate({
+        const infraction = await InfractionManager.storeInfraction({
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,
-            action: Action.Ban,
+            action: InfractionAction.Ban,
             target_id: user.id,
             reason
-        }, config);
+        });
 
         if (!infraction) {
             return "An error occurred while storing the infraction";
         }
 
+        const deleteMessageSeconds = interaction.options.getBoolean("delete_messages")
+            ? config.data.delete_message_seconds_on_ban
+            : 0;
+
         try {
-            // Ban the user
             await interaction.guild.members.ban(user, { reason, deleteMessageSeconds });
         } catch (error) {
             const sentryId = Sentry.captureException(error);
+            await InfractionManager.deleteInfraction(infraction.id);
 
-            // If the ban fails, rollback the infraction
-            await prisma.infraction.delete({ where: { id: infraction.id } });
             return `An error occurred while banning the member (\`${sentryId}\`)`;
         }
 
-        const formattedReason = formatInfractionReason(reason);
+        InfractionManager.logInfraction(infraction, config);
+
+        const formattedReason = InfractionUtil.formatReason(reason);
+        const message = `banned ${user} - \`#${infraction.id}\` ${formattedReason}`;
 
         // Ensure a public log of the action is made if executed ephemerally
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} banned ${user} - \`#${infraction.id}\` ${formattedReason}`, false);
+            config.sendNotification(`${interaction.user} ${message}`, false);
         }
 
-        return `Successfully banned ${user} - \`#${infraction.id}\` ${formattedReason}`;
+        return `Successfully ${message}`;
     }
 }

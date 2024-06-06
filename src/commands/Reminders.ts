@@ -13,7 +13,8 @@ import {
 import { InteractionReplyData } from "@utils/types";
 import { DEFAULT_EMBED_COLOR, DURATION_FORMAT, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { client, prisma } from "./..";
-import { formatInfractionReason, pluralize } from "@/utils";
+import { pluralize } from "@/utils";
+import { InfractionUtil } from "@utils/infractions";
 
 import Command from "@managers/commands/Command";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -92,6 +93,10 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
     }
 
     private static async _create(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+        if (!interaction.channel) {
+            return "Failed to fetch the channel";
+        }
+
         const reminderCount = await prisma.reminder.count({
             where: {
                 author_id: interaction.user.id
@@ -100,10 +105,6 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 
         if (reminderCount === 10) {
             return "You cannot create more than 10 reminders at a time";
-        }
-
-        if (!interaction.channel) {
-            return "Failed to fetch the channel";
         }
 
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
@@ -143,14 +144,14 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
                     interaction.channel!.send(reminderMessage)
                 ]);
             }, msExpiresAt - Date.now());
-        } catch (err) {
-            const errorId = Sentry.captureException(err);
-            return `An error occurred while creating the reminder (\`${errorId}\`)`;
+        } catch (error) {
+            const sentryId = Sentry.captureException(error);
+            return `An error occurred while creating the reminder (\`${sentryId}\`)`;
         }
 
         const dateTimestamp = time(expiresAt, TimestampStyles.LongDateTime);
         const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);
-        const formattedReminder = formatInfractionReason(reminder);
+        const formattedReminder = InfractionUtil.formatReason(reminder);
 
         return `Successfully created a reminder for ${dateTimestamp} | ${relativeTimestamp} ${formattedReminder}`;
     }
@@ -192,7 +193,6 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 
     private static async _delete(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const reminderId = interaction.options.getString("reminder_id", true);
-
         const deletedReminder = await prisma.reminder.delete({
             where: {
                 id: reminderId,

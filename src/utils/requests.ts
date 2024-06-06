@@ -8,18 +8,12 @@ import {
     userMention
 } from "discord.js";
 
-import {
-    Action,
-    endActiveInfractions,
-    handleInfractionCreate,
-    validateInfractionReason
-} from "./infractions";
-
+import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
 import { DEFAULT_MUTE_DURATION, EMBED_FIELD_CHAR_LIMIT } from "./constants";
 import { RequestValidationError } from "./errors";
 import { Snowflake } from "discord-api-types/v10";
 import { temporaryReply } from "./messages";
-import { formatInfractionReason, userMentionWithId } from "./index";
+import { userMentionWithId } from "./index";
 import { TypedRegEx } from "typed-regex";
 import { client, prisma } from "./..";
 import { log } from "./logging";
@@ -38,7 +32,7 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
 
     if (!requestConfig) return;
 
-    const validationResult = await validateInfractionReason(message.content, config);
+    const validationResult = await InfractionUtil.validateReason(message.content, config);
 
     if (!validationResult.success) {
         await temporaryReply(message, validationResult.message, config.data.response_ttl);
@@ -160,14 +154,18 @@ async function handleAutomaticMute(data: {
     });
 
     // Store the infraction
-    const infraction = await handleInfractionCreate({
+    const infraction = await InfractionManager.storeInfraction({
         expires_at: new Date(Date.now() + DEFAULT_MUTE_DURATION),
         guild_id: config.guild.id,
         executor_id: executor.id,
         target_id: target.id,
-        action: Action.Mute,
+        action: InfractionAction.Mute,
         reason
-    }, config);
+    });
+
+    if (infraction) {
+        InfractionManager.logInfraction(infraction, config);
+    }
 
     return infraction?.id ?? null;
 }
@@ -421,21 +419,21 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
     }
 
     const action = request.type === ModerationRequestType.Mute
-        ? Action.Mute
-        : Action.Ban;
+        ? InfractionAction.Mute
+        : InfractionAction.Ban;
 
     const expiresAt = request.duration
         ? new Date(Date.now() + request.duration)
         : null;
 
-    const formattedReason = formatInfractionReason(request.reason);
+    const formattedReason = InfractionUtil.formatReason(request.reason);
 
     config.sendNotification(
         `${userMention(request.author_id)}'s ${request.type} request against ${userMention(request.target_id)} has been approved by ${userMention(reviewerId)} ${formattedReason}`,
         false
     );
 
-    await handleInfractionCreate({
+    const infraction = await InfractionManager.storeInfraction({
         expires_at: expiresAt,
         guild_id: request.guild_id,
         executor_id: reviewerId,
@@ -443,7 +441,11 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
         target_id: request.target_id,
         reason: request.reason,
         action
-    }, config);
+    });
+
+    if (infraction) {
+        InfractionManager.logInfraction(infraction, config);
+    }
 }
 
 /**
@@ -529,7 +531,7 @@ export async function denyModerationRequest(messageId: Snowflake, reviewerId: Sn
                 const target = await config.guild.members.fetch(request.target_id);
 
                 await target.timeout(null);
-                await endActiveInfractions(config.guild.id, request.target_id);
+                await InfractionManager.endActiveMutes(config.guild.id, request.target_id);
             } catch {
                 config.sendNotification(`${reviewerMention} Failed to unmute ${targetMention} on ban request denial.`);
             }

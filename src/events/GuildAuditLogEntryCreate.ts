@@ -9,16 +9,9 @@ import {
     User
 } from "discord.js";
 
-import {
-    Action,
-    endActiveInfractions,
-    Flag,
-    handleInfractionCreate
-} from "@utils/infractions";
-
+import { InfractionAction, InfractionFlag, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { client } from "./..";
-import { formatInfractionReason } from "@/utils";
 
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -39,31 +32,31 @@ export default class GuildAuditLogEntryCreate extends EventListener {
         if (!executor) return;
 
         const parsedReason = reason ?? DEFAULT_INFRACTION_REASON;
-        const formattedReason = formatInfractionReason(parsedReason);
+        const formattedReason = InfractionUtil.formatReason(parsedReason);
 
         let notification = `${target} has been $ACTION by ${executor} - \`#$INFRACTION_ID\` ${formattedReason}`;
-        let action: Action | undefined;
+        let action: InfractionAction | undefined;
 
-        const setAction = (actionType: Action, str: string): void => {
+        const setAction = (actionType: InfractionAction, str: string): void => {
             notification = notification.replace("$ACTION", str);
             action = actionType;
         };
 
         const flag = executor.bot
-            ? Flag.Automatic
-            : Flag.Native;
+            ? InfractionFlag.Automatic
+            : InfractionFlag.Native;
 
         switch (auditLog.action) {
             case AuditLogEvent.MemberKick:
-                setAction(Action.Kick, "kicked");
+                setAction(InfractionAction.Kick, "kicked");
                 break;
 
             case AuditLogEvent.MemberBanAdd:
-                setAction(Action.Ban, "banned");
+                setAction(InfractionAction.Ban, "banned");
                 break;
 
             case AuditLogEvent.MemberBanRemove:
-                setAction(Action.Unban, "unbanned");
+                setAction(InfractionAction.Unban, "unbanned");
                 break;
 
             case AuditLogEvent.MemberUpdate: {
@@ -75,20 +68,21 @@ export default class GuildAuditLogEntryCreate extends EventListener {
                         const msDuration = Date.parse(muteDurationDiff.new as string);
                         const expiresAt = Math.floor(msDuration / 1000);
 
-                        setAction(Action.Mute, `set on a timeout that will end ${time(expiresAt, TimestampStyles.RelativeTime)}`);
+                        setAction(InfractionAction.Mute, `set on a timeout that will end ${time(expiresAt, TimestampStyles.RelativeTime)}`);
 
-                        const infraction = await handleInfractionCreate({
+                        const infraction = await InfractionManager.storeInfraction({
                             guild_id: guild.id,
-                            action: Action.Mute,
+                            action: InfractionAction.Mute,
                             executor_id: executor.id,
                             target_id: target.id,
                             reason: parsedReason,
                             flag: flag,
                             expires_at: new Date(msDuration)
-                        }, config);
+                        });
 
                         if (infraction) {
                             notification = notification.replace("$INFRACTION_ID", infraction.id.toString());
+                            InfractionManager.logInfraction(infraction, config);
                         } else {
                             notification = notification.replace("$INFRACTION_ID", "unknown");
                         }
@@ -99,8 +93,8 @@ export default class GuildAuditLogEntryCreate extends EventListener {
 
                     // User has been unmuted
                     if (!muteDurationDiff.new) {
-                        setAction(Action.Unmute, "unmuted");
-                        await endActiveInfractions(guild.id, target.id);
+                        setAction(InfractionAction.Unmute, "unmuted");
+                        await InfractionManager.endActiveMutes(guild.id, target.id);
                     }
                 }
 
@@ -110,17 +104,18 @@ export default class GuildAuditLogEntryCreate extends EventListener {
 
         if (!action) return;
 
-        const infraction = await handleInfractionCreate({
+        const infraction = await InfractionManager.storeInfraction({
             guild_id: guild.id,
             action,
             executor_id: executor.id,
             target_id: target.id,
             reason: parsedReason,
             flag
-        }, config);
+        });
 
         if (infraction) {
             notification = notification.replace("$INFRACTION_ID", infraction.id.toString());
+            InfractionManager.logInfraction(infraction, config);
         } else {
             notification = notification.replace("$INFRACTION_ID", "unknown");
         }

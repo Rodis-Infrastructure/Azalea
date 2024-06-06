@@ -1,15 +1,7 @@
-import {
-    Action,
-    endActiveInfractions, getActiveMute,
-    handleInfractionCreate,
-    validateInfractionReason
-} from "@utils/infractions";
-
+import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { InteractionReplyData } from "@utils/types";
-import { prisma } from "./..";
-import { formatInfractionReason } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -42,37 +34,35 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const member = interaction.options.getMember("member");
         const user = member?.user ?? interaction.options.getUser("member", true);
-        const validationResult = await validateInfractionReason(reason, config);
+        const validationResult = await InfractionUtil.validateReason(reason, config);
 
         if (!validationResult.success) {
             return validationResult.message;
         }
 
         if (member) {
-            // Compare roles to ensure the executor has permission to unmute the target
             if (member.roles.highest.position >= interaction.member.roles.highest.position) {
                 return "You can't unmute someone with the same or higher role than you";
             }
 
-            // Check if the member is muted
             if (!member.isCommunicationDisabled()) {
                 return "You can't unmute someone who isn't muted";
             }
         } else {
-            const mute = await getActiveMute(user.id, interaction.guildId);
+            const isMuted = await InfractionManager.getActiveMute(user.id, interaction.guildId);
 
-            if (!mute) {
+            if (!isMuted) {
                 return "There are no active mutes for this user";
             }
         }
 
-        const infraction = await handleInfractionCreate({
+        const infraction = await InfractionManager.storeInfraction({
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,
-            action: Action.Unmute,
+            action: InfractionAction.Unmute,
             target_id: user.id,
             reason
-        }, config);
+        });
 
         if (!infraction) {
             return "An error occurred while storing the infraction";
@@ -80,27 +70,27 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
 
         if (member) {
             try {
-                // Unmute the user by setting the duration of the mute to null
                 await member.timeout(null, reason);
             } catch (error) {
                 const sentryId = Sentry.captureException(error);
+                InfractionManager.deleteInfraction(infraction.id);
 
-                // If the unmute fails, rollback the infraction
-                await prisma.infraction.delete({ where: { id: infraction.id } });
                 return `An error occurred while unmuting the member (\`${sentryId}\`)`;
             }
         }
 
-        await endActiveInfractions(interaction.guildId, user.id);
-        const formattedReason = formatInfractionReason(reason);
+        InfractionManager.logInfraction(infraction, config);
+        await InfractionManager.endActiveMutes(interaction.guildId, user.id);
 
-        // Ensure a public log of the action is made if executed ephemerally
+        const formattedReason = InfractionUtil.formatReason(reason);
+        const message = `unmuted ${user} - \`#${infraction.id}\` ${formattedReason}`;
+
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} unmuted ${user} - \`#${infraction.id}\` ${formattedReason}`, false);
+            config.sendNotification(`${interaction.user} ${message}`, false);
         }
 
         if (member) {
-            return `Successfully unmuted ${user} - \`#${infraction.id}\` ${formattedReason}`;
+            return `Successfully ${message}`;
         } else {
             return `User not in server, I will try to unmute ${user} if they rejoin - \`#${infraction.id}\` ${formattedReason}`;
         }

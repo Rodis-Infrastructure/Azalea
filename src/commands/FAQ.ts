@@ -38,7 +38,7 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const selected = interaction.options.getString("query", true);
         const mention = interaction.options.getUser("mention");
-        const response = config.getQuickResponse(selected);
+        const response = FAQ._getResponse(selected, config);
 
         if (!response) {
             return {
@@ -66,7 +66,10 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
         return choices.length ? choices : undefined;
     }
 
-    // Prepend the mention to the response if it exists
+    private static _getResponse(query: string, config: GuildConfig): InteractionReplyData {
+        return config.data.quick_responses.find(response => response.value === query)?.response ?? null;
+    }
+
     private static _formatResponse(mention: User | null, response?: string): string | undefined {
         return [mention, response]
             .filter(Boolean)

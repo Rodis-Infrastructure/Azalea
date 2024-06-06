@@ -19,7 +19,7 @@ import { InteractionReplyData } from "@utils/types";
 import { BLANK_EMBED_FIELD, DEFAULT_EMBED_COLOR, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { prisma } from "./..";
 import { Permission, UserFlag } from "@managers/config/schema";
-import { Action } from "@utils/infractions";
+import { InfractionAction } from "@utils/infractions";
 
 import Command from "@managers/commands/Command";
 import GuildConfig from "@managers/config/GuildConfig";
@@ -46,7 +46,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 
     execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const member = interaction.options.getMember("user");
-        const user = interaction.options.getUser("user", true);
+        const user = member?.user ?? interaction.options.getUser("user", true);
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
         return UserInfo.get({
@@ -90,7 +90,6 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             })
             .setFooter({ text: `User ID: ${user.id}` });
 
-        // Add the member's join date if available
         if (member?.joinedAt) {
             embed.addFields({
                 name: "Joined",
@@ -112,7 +111,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
                     reason: true
                 },
                 where: {
-                    action: Action.Ban,
+                    action: InfractionAction.Ban,
                     target_id: user.id,
                     guild_id: config.guild.id
                 }
@@ -178,11 +177,11 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
      */
     private static async _getReceivedInfractions(embed: EmbedBuilder, userId: Snowflake, guildId: Snowflake): Promise<void> {
         const [infractions] = await prisma.$queryRaw<InfractionCount[]>`
-            SELECT SUM(action = ${Action.Ban})  as ban_count,
-                   SUM(action = ${Action.Kick}) as kick_count,
-                   SUM(action = ${Action.Mute}) as mute_count,
-                   SUM(action = ${Action.Warn}) as warn_count,
-                   SUM(action = ${Action.Note}) as note_count
+            SELECT SUM(action = ${InfractionAction.Ban})  as ban_count,
+                   SUM(action = ${InfractionAction.Kick}) as kick_count,
+                   SUM(action = ${InfractionAction.Mute}) as mute_count,
+                   SUM(action = ${InfractionAction.Warn}) as warn_count,
+                   SUM(action = ${InfractionAction.Note}) as note_count
             FROM Infraction
             WHERE target_id = ${userId}
               AND guild_id = ${guildId}

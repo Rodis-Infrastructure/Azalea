@@ -32,7 +32,7 @@ import { approveModerationRequest, denyModerationRequest, RequestStatus } from "
 import { prisma } from "./..";
 import { MessageReportFlag, MessageReportStatus } from "@utils/reports";
 import { LoggingEvent, Permission } from "@managers/config/schema";
-import { MuteDuration } from "@utils/infractions";
+import { QuickMuteDuration } from "@utils/infractions";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -77,7 +77,7 @@ export default class MessageReactionAdd extends EventListener {
         if (emojiId === config.data.emojis.quick_mute_30 && config.hasPermission(executor, Permission.QuickMute)) {
             try {
                 const res = await handleQuickMute({
-                    duration: MuteDuration.Short,
+                    duration: QuickMuteDuration.Short,
                     targetMessage: message,
                     executor
                 }, true);
@@ -99,7 +99,7 @@ export default class MessageReactionAdd extends EventListener {
             try {
                 const res = await handleQuickMute({
                     targetMessage: message,
-                    duration: MuteDuration.Long,
+                    duration: QuickMuteDuration.Long,
                     executor
                 }, true);
 

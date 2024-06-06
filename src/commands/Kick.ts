@@ -1,9 +1,7 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
-import { Action, handleInfractionCreate, validateInfractionReason } from "@utils/infractions";
+import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
-import { prisma } from "./..";
-import { formatInfractionReason } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -45,14 +43,12 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const member = interaction.options.getMember("member");
-        const validationResult = await validateInfractionReason(reason, config);
+        const validationResult = await InfractionUtil.validateReason(reason, config);
 
         if (!validationResult.success) {
             return validationResult.message;
         }
 
-        // Check if the member is in the server
-        // Users that are not in the server cannot be kicked
         if (!member) {
             return "You can't kick someone who isn't in the server";
         }
@@ -60,42 +56,43 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
         if (!member.kickable) {
             return "I do not have permission to kick this user";
         }
-        
+
         if (member.roles.highest.position >= interaction.member.roles.highest.position) {
             return "You cannot kick a user with a higher or equal role";
         }
 
         // Log the infraction and store it in the database
-        const infraction = await handleInfractionCreate({
+        const infraction = await InfractionManager.storeInfraction({
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,
-            action: Action.Kick,
+            action: InfractionAction.Kick,
             target_id: member.id,
             reason
-        }, config);
+        });
 
         if (!infraction) {
             return "An error occurred while storing the infraction";
         }
 
         try {
-            // Kick the user
             await member.kick(reason);
         } catch (error) {
             const sentryId = Sentry.captureException(error);
+            await InfractionManager.deleteInfraction(infraction.id);
 
-            // If the kick fails, rollback the infraction
-            await prisma.infraction.delete({ where: { id: infraction.id } });
             return `An error occurred while kicking the member (\`${sentryId}\`)`;
         }
 
-        const formattedReason = formatInfractionReason(reason);
+        InfractionManager.logInfraction(infraction, config);
+
+        const formattedReason = InfractionUtil.formatReason(reason);
+        const message = `kicked ${member} - \`#${infraction.id}\` ${formattedReason}`;
 
         // Ensure a public log of the action is made if executed ephemerally
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} kicked ${member} - \`#${infraction.id}\` ${formattedReason}`, false);
+            config.sendNotification(`${interaction.user} ${message}`, false);
         }
 
-        return `Successfully kicked ${member} - \`#${infraction.id}\` ${formattedReason}`;
+        return `Successfully ${message}`;
     }
 }

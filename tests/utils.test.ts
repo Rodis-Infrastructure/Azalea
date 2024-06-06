@@ -2,8 +2,6 @@ import {
     channelMentionWithName,
     cropLines,
     elipsify,
-    formatInfractionReason,
-    formatInfractionReasonPreview,
     getObjectDiff,
     humanizeTimestamp,
     pluralize,
@@ -110,30 +108,5 @@ describe("utils", () => {
         expect(elipsify(unchanged, MAX_LENGTH)).toBe(unchanged);
         expect(elipsify(boundaryUnchanged, MAX_LENGTH)).toBe(boundaryUnchanged);
         expect(elipsify(long, MAX_LENGTH)).toBe(expectedLongResult);
-    });
-
-    test(formatInfractionReason.name, () => {
-        // Test data
-        const cleanReason = "This is a test reason";
-        const formattedReason = "This `is` a test ```reason```";
-
-        // Expected test results
-        const expected = `(\`${cleanReason}\`)`;
-
-        // Tests
-        expect(formatInfractionReason(formattedReason)).toBe(expected);
-        expect(formatInfractionReason(cleanReason)).toBe(expected);
-    });
-
-    test(formatInfractionReasonPreview.name, () => {
-        const LINK = "https://example.com";
-        const PURGE_LOG = `(Purge log: ${LINK})`;
-
-        // Test data
-        const cleanReason = "This is a test reason";
-        const reason = `${cleanReason} ${LINK} ${PURGE_LOG}`;
-
-        // Tests
-        expect(formatInfractionReasonPreview(reason)).toBe(cleanReason);
     });
 });

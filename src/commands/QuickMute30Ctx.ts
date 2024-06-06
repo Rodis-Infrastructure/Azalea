@@ -6,14 +6,21 @@ import {
     MessageContextMenuCommandInteraction,
     Snowflake,
     time,
-    TimestampStyles
+    TimestampStyles,
+    userMention
 } from "discord.js";
 
+import {
+    InfractionAction,
+    InfractionFlag,
+    InfractionManager,
+    InfractionUtil,
+    QuickMuteDuration
+} from "@utils/infractions";
+
 import { InteractionReplyData } from "@utils/types";
-import { Action, Flag, getActiveMute, handleInfractionCreate, MuteDuration } from "@utils/infractions";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { cropLines, elipsify, formatInfractionReason } from "@/utils";
-import { prisma } from "./..";
+import { cropLines, elipsify } from "@/utils";
 import { Message } from "@prisma/client";
 
 import ConfigManager from "@managers/config/ConfigManager";
@@ -30,11 +37,10 @@ export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInt
     }
 
     async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
-        // Perform a 30-minute quick mute
         const { message } = await handleQuickMute({
             executor: interaction.member,
             targetMessage: interaction.targetMessage,
-            duration: MuteDuration.Short
+            duration: QuickMuteDuration.Short
         });
 
         return message;
@@ -54,7 +60,7 @@ export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInt
 export async function handleQuickMute(data: {
     executor: GuildMember,
     targetMessage: DiscordMessage<true> | Message,
-    duration: MuteDuration
+    duration: QuickMuteDuration
 }, mention = false): Promise<QuickMuteResult> {
     const { executor, targetMessage, duration } = data;
 
@@ -65,18 +71,18 @@ export async function handleQuickMute(data: {
         };
     }
 
-    let member: GuildMember | null;
     let channel: GuildTextBasedChannel | null;
-    let authorId: Snowflake;
+    let targetMember: GuildMember | null;
+    let targetUserId: Snowflake;
 
     if (targetMessage instanceof DiscordMessage) {
-        member = targetMessage.member;
+        targetMember = targetMessage.member;
         channel = targetMessage.channel as GuildTextBasedChannel;
-        authorId = targetMessage.author.id;
+        targetUserId = targetMessage.author.id;
     } else {
-        member = await executor.guild.members.fetch(targetMessage.author_id).catch(() => null);
+        targetMember = await executor.guild.members.fetch(targetMessage.author_id).catch(() => null);
         channel = await executor.guild.channels.fetch(targetMessage.channel_id).catch(() => null) as GuildTextBasedChannel | null;
-        authorId = targetMessage.author_id;
+        targetUserId = targetMessage.author_id;
     }
 
     if (!channel) {
@@ -88,34 +94,31 @@ export async function handleQuickMute(data: {
 
     const config = ConfigManager.getGuildConfig(executor.guild.id, true);
 
-    if (member) {
-        // Compare roles to ensure the executor has permission to mute the target
-        if (member.roles.highest.position >= executor.roles.highest.position) {
+    if (targetMember) {
+        if (targetMember.roles.highest.position >= executor.roles.highest.position) {
             return {
                 message: "You can't mute someone with the same or higher role than you",
                 success: false
             };
         }
 
-        // Check if the bot has permission to mute the member
-        if (!member.manageable) {
+        if (!targetMember.manageable) {
             return {
                 message: "I do not have permission to mute this user",
                 success: false
             };
         }
 
-        // Check if the member is muted
-        if (member.isCommunicationDisabled()) {
+        if (targetMember.isCommunicationDisabled()) {
             return {
                 message: "You can't mute someone who is already muted",
                 success: false
             };
         }
     } else {
-        const mute = await getActiveMute(authorId, executor.guild.id);
+        const isMuted = await InfractionManager.getActiveMute(targetUserId, executor.guild.id);
 
-        if (mute) {
+        if (isMuted) {
             return {
                 message: "You can't mute someone who is already muted",
                 success: false
@@ -123,31 +126,28 @@ export async function handleQuickMute(data: {
         }
     }
 
-    // Calculate the expiration date
-    const expiresTimestamp = Date.now() + duration;
-    const expiresAt = new Date(expiresTimestamp);
-
+    const msExpiresAt = Date.now() + duration;
+    const expiresAt = new Date(msExpiresAt);
+    const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);
+    const purgedMessages = await Purge.purgeUser(targetUserId, channel, config.data.default_purge_amount);
     let reason = cropLines(targetMessage.content, 5);
-    const messages = await Purge.purgeUser(authorId, channel, config.data.default_purge_amount);
 
-    // Only append the purge logs if messages were purged
-    if (messages.length) {
-        const [logUrl] = await Purge.log(messages, channel, config);
+    if (purgedMessages.length) {
+        const [logUrl] = await Purge.log(purgedMessages, channel, config);
         reason += ` (Purge log: ${logUrl})`;
     }
 
-    const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);
     reason = elipsify(reason, EMBED_FIELD_CHAR_LIMIT);
 
-    const infraction = await handleInfractionCreate({
+    const infraction = await InfractionManager.storeInfraction({
         executor_id: executor.id,
         guild_id: executor.guild.id,
-        action: Action.Mute,
-        flag: Flag.Quick,
-        target_id: authorId,
+        action: InfractionAction.Mute,
+        flag: InfractionFlag.Quick,
+        target_id: targetUserId,
         expires_at: expiresAt,
         reason
-    }, config);
+    });
 
     if (!infraction) {
         return {
@@ -156,14 +156,12 @@ export async function handleQuickMute(data: {
         };
     }
 
-    if (member) {
+    if (targetMember) {
         try {
-            // Quick mute the user
-            await member.timeout(duration, reason);
+            await targetMember.timeout(duration, reason);
         } catch (error) {
             const sentryId = Sentry.captureException(error);
-            // If the quick mute fails, rollback the infraction
-            await prisma.infraction.delete({ where: { id: infraction.id } });
+            InfractionManager.deleteInfraction(infraction.id);
 
             return {
                 message: `An error occurred while quick muting the member (\`${sentryId}\`)`,
@@ -172,24 +170,23 @@ export async function handleQuickMute(data: {
         }
     }
 
-    const formattedReason = formatInfractionReason(reason);
+    InfractionManager.logInfraction(infraction, config);
 
-    // Ensure a public log of the action is made if executed ephemerally
+    const formattedReason = InfractionUtil.formatReason(reason);
+    const message = `set ${userMention(targetUserId)} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`;
+
     if (config.inScope(channel, config.data.ephemeral_scoping)) {
-        config.sendNotification(
-            `${executor} set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`,
-            mention
-        );
+        config.sendNotification(`${executor} ${message}`, mention);
     }
 
-    if (member) {
+    if (targetMember) {
         return {
-            message: `Successfully set ${member} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`,
+            message: `Successfully ${message}`,
             success: true
         };
     } else {
         return {
-            message: `User not in server, I will set ${member} on a timeout that will end ${relativeTimestamp} if they rejoin - \`#${infraction.id}\` ${formattedReason}`,
+            message: `User not in server, I will try to ${message.replace("-", "if they join -")}`,
             success: true
         };
     }

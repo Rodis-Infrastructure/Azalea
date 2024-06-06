@@ -17,7 +17,7 @@ export default class Config extends Command<ChatInputCommandInteraction<"cached"
     constructor() {
         super({
             name: "config",
-            description: "View the guild's configuration",
+            description: "View the configuration",
             options: [
                 {
                     name: ConfigSubcommand.Guild,
@@ -49,9 +49,6 @@ export default class Config extends Command<ChatInputCommandInteraction<"cached"
                 const guildId = interaction.options.getString("guild_id") ?? interaction.guildId;
                 return Config._getGuildConfigAttachment(guildId);
             }
-
-            default:
-                return "Unknown subcommand";
         }
     }
 
@@ -62,11 +59,11 @@ export default class Config extends Command<ChatInputCommandInteraction<"cached"
      * @private
      */
     private static _getGlobalConfigAttachment(): InteractionReplyData {
-        const configFile = fs.readFileSync("azalea.cfg.yml", "utf-8");
-        const buffer = Buffer.from(configFile);
-        const file = new AttachmentBuilder(buffer, { name: "azalea.cfg.yml" });
+        const fileContent = fs.readFileSync("azalea.cfg.yml", "utf-8");
+        const buffer = Buffer.from(fileContent);
+        const attachment = new AttachmentBuilder(buffer, { name: "azalea.cfg.yml" });
 
-        return { files: [file] };
+        return { files: [attachment] };
     }
 
     /**
@@ -86,16 +83,12 @@ export default class Config extends Command<ChatInputCommandInteraction<"cached"
         const filepath = path.resolve(`configs/${config.guild.id}.yml`);
         const fileContent = fs.readFileSync(filepath, "utf-8");
         const buffer = Buffer.from(fileContent);
+        const attachment = new AttachmentBuilder(buffer, { name: filepath });
 
-        const file = new AttachmentBuilder(buffer, {
-            name: filepath
-        });
-
-        return { files: [file] };
+        return { files: [attachment] };
     }
 }
 
-// The subcommands available for the {@link Config} command
 enum ConfigSubcommand {
     Global = "global",
     Guild = "guild"

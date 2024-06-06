@@ -17,7 +17,7 @@ import Sentry from "@sentry/node";
 /**
  * Pluralizes a word based on the given count
  *
- * @param count - The count to determine the plural form
+ * @param count - The count used to determine the plural form
  * @param singular - The singular form of the word
  * @param plural - The plural form of the word, defaults to `{singular}s`
  * @returns The pluralized word
@@ -30,10 +30,10 @@ export function pluralize(count: number, singular: string, plural = `${singular}
  * Reads a YAML file from the given path and returns the parsed content
  *
  * @param path - The path to the YAML file
- * @template Value - The type of the parsed content
- * @returns {Value} The parsed content of the YAML file
+ * @template T - The type of the parsed content
+ * @returns {T} The parsed content of the YAML file
  */
-export function readYamlFile<Value>(path: string): Value {
+export function readYamlFile<T>(path: string): T {
     const raw = fs.readFileSync(path, "utf-8");
     return YAML.parse(raw);
 }
@@ -49,15 +49,16 @@ export function readYamlFile<Value>(path: string): Value {
  */
 export function cropLines(str: string, maxLines: number): string {
     const lines = str.split("\n");
-    const lineCount = lines.length;
-    const croppedLines = lines.slice(0, maxLines);
-    const diff = lineCount - maxLines;
+    const diff = lines.length - maxLines;
 
     if (diff > 0) {
-        croppedLines.splice(-1, 1, `(${diff} more ${pluralize(diff, "line")})`);
+        const croppedLines = lines.slice(0, maxLines - 1);
+        croppedLines.push(`(${diff} more ${pluralize(diff, "line")})`);
+
+        return croppedLines.join("\n");
     }
 
-    return croppedLines.join("\n");
+    return str;
 }
 
 /**
@@ -93,7 +94,6 @@ export async function startCleanupOperations(event: string): Promise<void> {
     process.exit(0);
 }
 
-// Disconnect from the database and log the process
 async function terminateDbConnection(): Promise<void> {
     Logger.info("Terminating database connection...");
 
@@ -116,7 +116,6 @@ export function getObjectDiff(oldObject: any, newObject: any): ObjectDiff {
     const paramsAreObjects = typeof oldObject === "object" && typeof newObject === "object";
     const paramsAreNotNull = oldObject !== null && newObject !== null;
 
-    // Make sure both parameters are valid
     if (!paramsAreObjects || !paramsAreNotNull) {
         throw new Error("Both parameters must be non-null objects");
     }
@@ -125,9 +124,7 @@ export function getObjectDiff(oldObject: any, newObject: any): ObjectDiff {
     const keys = Object.keys(oldObject);
 
     for (const key of keys) {
-        // Compare the values of the keys in the old and new objects
         if (!_.isEqual(oldObject[key], newObject[key])) {
-            // Store the differences
             differences[key] = {
                 old: oldObject[key],
                 new: newObject[key]
@@ -138,17 +135,14 @@ export function getObjectDiff(oldObject: any, newObject: any): ObjectDiff {
     return differences;
 }
 
-// Mentions a user with its ID, making the ID easier to copy on desktop
 export function userMentionWithId(id: Snowflake): `<@${Snowflake}> (\`${Snowflake}\`)` {
     return `<@${id}> (\`${id}\`)`;
 }
 
-// Mentions a channel with its ID and name, may be used in scenarios where the channel may be deleted
 export function channelMentionWithName(channel: GuildBasedChannel | ThreadChannel): `<#${Snowflake}> (\`#${string}\`)` {
     return `<#${channel.id}> (\`#${channel.name}\`)`;
 }
 
-// Mentions a role with its ID and name, may be used in scenarios where the role may be deleted
 export function roleMentionWithName(role: Role): `<@&${Snowflake}> (\`@${string}\`)` {
     return `<@&${role.id}> (\`@${role.name}\`)`;
 }
@@ -189,46 +183,12 @@ export function humanizeTimestamp(ms: number): string {
  * @returns The cropped string (if it exceeds the maximum length)
  */
 export function elipsify(str: string, maxLength: number): string {
-    // Accounts for the length of the ellipsis
-    const croppedStr = str.slice(0, maxLength - 23);
+    if (str.length > maxLength) {
+        const croppedStr = str.slice(0, maxLength - 23);
+        return `${croppedStr}…(${str.length - croppedStr.length} more characters)`;
+    }
 
-    return str.length > maxLength
-        ? `${croppedStr}…(${str.length - croppedStr.length} more characters)`
-        : str;
-}
-
-/**
- * Formats the infraction reason to appended to a confirmation response
- *
- * - Removes backticks since they cannot be escaped and clash with the applied format
- * - Wraps the reason in inline code and parentheses: (\`{reason}\`)
- *
- * @param reason - The reason to format
- */
-export function formatInfractionReason(reason: string): string {
-    const cleanReason = reason.replaceAll("`", "");
-    return `(\`${cleanReason}\`)`;
-}
-
-/**
- * Cleans the reason by removing...
- *
- * - Links
- * - Purge logs (format: `(Purge log: ...)`)
- * - Unnecessary whitespace
- *
- * @param reason - The reason to clean
- * @returns The clean reason
- */
-export function formatInfractionReasonPreview(reason: string): string {
-    return reason
-        // Remove links
-        .replaceAll(/https?:\/\/[^\s\n\r]+/gi, "")
-        // Remove purge log
-        .replace(/ \(Purge log:.*/gi, "")
-        // Remove unnecessary whitespace
-        .replaceAll(/\s{2,}/g, " ")
-        .trim();
+    return str;
 }
 
 /**
@@ -281,9 +241,9 @@ export function getFilePreviewUrl(url: string): string {
  * Generates a random number in the given range (inclusive)
  *
  * @param max - The maximum value of the random integer
- * @param min - The minimum value of the random integer, defaults to 0
+ * @param min - The minimum value of the random integer
  * @returns A random integer between the given range
  */
-export function randInt(max: number, min = 0): number {
+export function randInt(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }

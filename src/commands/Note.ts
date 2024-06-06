@@ -1,8 +1,7 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
-import { Action, handleInfractionCreate, validateInfractionReason } from "@utils/infractions";
+import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { formatInfractionReason } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -39,7 +38,7 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const note = interaction.options.getString("note", true);
         const member = interaction.options.getMember("user");
-        const validationResult = await validateInfractionReason(note, config);
+        const validationResult = await InfractionUtil.validateReason(note, config);
 
         if (!validationResult.success) {
             return validationResult.message;
@@ -50,25 +49,27 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
         }
 
         const user = member?.user ?? interaction.options.getUser("user", true);
-        const infraction = await handleInfractionCreate({
+        const infraction = await InfractionManager.storeInfraction({
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,
-            action: Action.Note,
+            action: InfractionAction.Note,
             target_id: user.id,
             reason: note
-        }, config);
+        });
 
         if (!infraction) {
             return "An error occurred while storing the note";
         }
 
-        const formattedReason = formatInfractionReason(note);
+        InfractionManager.logInfraction(infraction, config);
 
-        // Ensure a public log of the action is made if executed ephemerally
+        const formattedReason = InfractionUtil.formatReason(note);
+        const message = `added a note to ${user} - \`#${infraction.id}\` ${formattedReason}`;
+
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} added a note to ${user} - \`#${infraction.id}\` ${formattedReason}`, false);
+            config.sendNotification(`${interaction.user} ${message}`, false);
         }
 
-        return `Successfully added a note to ${user} - \`#${infraction.id}\` ${formattedReason}`;
+        return `Successfully ${message}`;
     }
 }

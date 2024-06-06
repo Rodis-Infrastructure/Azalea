@@ -13,7 +13,7 @@ import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
 import { RequestStatus } from "@utils/requests";
 import { ModerationRequestType } from "@managers/config/schema";
-import { Action, Flag } from "@utils/infractions";
+import { InfractionAction, InfractionFlag } from "@utils/infractions";
 import { Infraction, ModerationRequest } from "@prisma/client";
 import { capitalize } from "lodash";
 import { DEFAULT_EMBED_COLOR } from "@utils/constants";
@@ -196,7 +196,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
               AND status NOT IN (${RequestStatus.Pending}, ${RequestStatus.Unknown})
         `;
 
-        const moderationActivity = {
+        const moderationActivity: ModerationActivity = {
             executed: {
                 bans: 0,
                 manualMutes: 0,
@@ -220,18 +220,18 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
             // The infraction was executed by the user
             if (!infraction.request_author_id) {
                 switch (infraction.action) {
-                    case Action.Ban: {
+                    case InfractionAction.Ban: {
                         moderationActivity.executed.bans++;
                         break;
                     }
 
-                    case Action.Kick: {
+                    case InfractionAction.Kick: {
                         moderationActivity.executed.kicks++;
                         break;
                     }
 
-                    case Action.Mute: {
-                        if (infraction.flag === Flag.Quick) {
+                    case InfractionAction.Mute: {
+                        if (infraction.flag === InfractionFlag.Quick) {
                             moderationActivity.executed.quickMutes++;
                         } else {
                             moderationActivity.executed.manualMutes++;
@@ -239,17 +239,17 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
                         break;
                     }
 
-                    case Action.Unban: {
+                    case InfractionAction.Unban: {
                         moderationActivity.executed.unbans++;
                         break;
                     }
 
-                    case Action.Unmute: {
+                    case InfractionAction.Unmute: {
                         moderationActivity.executed.unmutes++;
                         break;
                     }
 
-                    case Action.Warn: {
+                    case InfractionAction.Warn: {
                         moderationActivity.executed.warns++;
                         break;
                     }
@@ -259,12 +259,12 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
             // The infraction was reviewed by the user
             if (infraction.executor_id === userId && infraction.request_author_id) {
                 switch (infraction.action) {
-                    case Action.Ban: {
+                    case InfractionAction.Ban: {
                         moderationActivity.reviewed.approved.bans++;
                         break;
                     }
 
-                    case Action.Mute: {
+                    case InfractionAction.Mute: {
                         moderationActivity.reviewed.approved.mutes++;
                         break;
                     }

@@ -61,7 +61,8 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
      * @param executorId - ID of the user who stored the media
      * @param targetId - ID of the user whose media is being stored
      * @param config - The guild configuration
-     * @returns - The media log URLs
+     * @throws MediaStoreError - If the media size exceeds 10MB
+     * @returns The media log URLs
      */
     static async storeMedia(executorId: Snowflake, targetId: Snowflake, media: Attachment[], config: GuildConfig): Promise<string[]> {
         const size = media.reduce((acc, file) => acc + file.size, 0);

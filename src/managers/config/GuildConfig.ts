@@ -90,7 +90,7 @@ export default class GuildConfig {
 
             // Start the cron job for the scheduled message
             startCronJob(`SCHEDULED_MESSAGE_${schedule.monitor_slug}`, schedule.cron, () => {
-                const randomMessageIdx = randInt(schedule.messages.length - 1);
+                const randomMessageIdx = randInt(0, schedule.messages.length - 1);
                 const randomMessage = schedule.messages[randomMessageIdx];
                 const stringifiedMessage = JSON.stringify(randomMessage);
 
@@ -103,10 +103,6 @@ export default class GuildConfig {
                 }
             });
         }
-    }
-
-    getQuickResponse(value: string): InteractionReplyData {
-        return this.data.quick_responses.find(response => response.value === value)?.response ?? null;
     }
 
     async startRequestReviewReminderCronJobs(): Promise<void> {

@@ -1,9 +1,7 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
-import { Action, handleInfractionCreate, validateInfractionReason } from "@utils/infractions";
+import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
-import { prisma } from "./..";
-import { formatInfractionReason } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -35,51 +33,50 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const user = interaction.options.getUser("user", true);
-        const validationResult = await validateInfractionReason(reason, config);
+        const validationResult = await InfractionUtil.validateReason(reason, config);
 
         if (!validationResult.success) {
             return validationResult.message;
         }
 
-        // Check if the user is banned by fetching their ban
-        // If they are banned, the method will return their ban data
-        // Otherwise, it will return null
-        const ban = await interaction.guild.bans.fetch(user.id).catch(() => null);
+        const isBanned = await interaction.guild.bans.fetch(user.id)
+            .then(() => true)
+            .catch(() => false);
 
-        if (!ban) {
+        if (!isBanned) {
             return "This user is not banned";
         }
 
-        const infraction = await handleInfractionCreate({
+        const infraction = await InfractionManager.storeInfraction({
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,
-            action: Action.Unban,
+            action: InfractionAction.Unban,
             target_id: user.id,
             reason
-        }, config);
+        });
 
         if (!infraction) {
             return "An error occurred while storing the infraction";
         }
 
         try {
-            // Unban the user
             await interaction.guild.members.unban(user, reason);
         } catch (error) {
             const sentryId = Sentry.captureException(error);
+            InfractionManager.deleteInfraction(infraction.id);
 
-            // If the unban fails, rollback the infraction
-            await prisma.infraction.delete({ where: { id: infraction.id } });
             return `An error occurred while unbanning the member (\`${sentryId}\`)`;
         }
 
-        const formattedReason = formatInfractionReason(reason);
+        InfractionManager.logInfraction(infraction, config);
 
-        // Ensure a public log of the action is made if executed ephemerally
+        const formattedReason = InfractionUtil.formatReason(reason);
+        const message = `unbanned ${user} - \`#${infraction.id}\` ${formattedReason}`;
+
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} unbanned ${user} - \`#${infraction.id}\` ${formattedReason}`, false);
+            config.sendNotification(`${interaction.user} ${message}`, false);
         }
 
-        return `Successfully unbanned ${user} - \`#${infraction.id}\` ${formattedReason}`;
+        return `Successfully ${message}`;
     }
 }

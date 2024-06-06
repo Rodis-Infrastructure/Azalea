@@ -2,7 +2,7 @@ import { InteractionReplyData } from "@utils/types";
 import { ButtonInteraction, GuildTextBasedChannel } from "discord.js";
 import { handleQuickMute } from "@/commands/QuickMute30Ctx";
 import { MessageReportStatus } from "@utils/reports";
-import { MuteDuration } from "@utils/infractions";
+import { QuickMuteDuration } from "@utils/infractions";
 import { fetchMessage } from "@utils/messages";
 import { prisma } from "./..";
 
@@ -16,7 +16,7 @@ export default class MessageReportQuickMute30 extends Component {
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
         MessageReportResolve.log(interaction, "quick mute (30m)");
-        return handleMessageReportQuickMute(interaction, MuteDuration.Short);
+        return handleMessageReportQuickMute(interaction, QuickMuteDuration.Short);
     }
 }
 
@@ -27,7 +27,7 @@ export default class MessageReportQuickMute30 extends Component {
  * @param interaction - The quick mute button
  * @param duration - The duration of the quick mute
  */
-export async function handleMessageReportQuickMute(interaction: ButtonInteraction<"cached">, duration: MuteDuration): Promise<InteractionReplyData> {
+export async function handleMessageReportQuickMute(interaction: ButtonInteraction<"cached">, duration: QuickMuteDuration): Promise<InteractionReplyData> {
     // Returns null if the report is not found
     const report = await prisma.messageReport.findUnique({
         where: {
@@ -73,7 +73,7 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
         });
     }
 
-    const status = duration === MuteDuration.Short
+    const status = duration === QuickMuteDuration.Short
         ? MessageReportStatus.QuickMute30
         : MessageReportStatus.QuickMute60;
 

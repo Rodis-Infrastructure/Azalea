@@ -1,9 +1,9 @@
 import { Colors, EmbedBuilder, Events, GuildBan, Snowflake } from "discord.js";
-import { endActiveInfractions } from "@utils/infractions";
 import { MessageReportStatus, UserReportStatus } from "@utils/reports";
 import { log } from "@utils/logging";
 import { LoggingEvent } from "@managers/config/schema";
 import { pluralize } from "@/utils";
+import { InfractionManager } from "@utils/infractions";
 import { prisma } from "./..";
 
 import EventListener from "@managers/events/EventListener";
@@ -23,7 +23,7 @@ export default class GuildBanAdd extends EventListener {
 
         try {
             await Promise.all([
-                endActiveInfractions(ban.guild.id, ban.user.id),
+                InfractionManager.endActiveMutes(ban.guild.id, ban.user.id),
                 GuildBanAdd._clearMessageReports(ban.user.id, config),
                 GuildBanAdd._clearUserReports(ban.user.id, config)
             ]);

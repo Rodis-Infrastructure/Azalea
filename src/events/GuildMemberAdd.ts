@@ -1,5 +1,5 @@
 import { Events, GuildMember } from "discord.js";
-import { getActiveMute } from "@utils/infractions";
+import { InfractionManager } from "@utils/infractions";
 import { prisma } from "./..";
 
 import EventListener from "@managers/events/EventListener";
@@ -37,7 +37,7 @@ export default class GuildMemberAdd extends EventListener {
             member.roles.remove(data.role_id).catch(() => null);
         }
 
-        const activeMute = await getActiveMute(member.id, member.guild.id);
+        const activeMute = await InfractionManager.getActiveMute(member.id, member.guild.id);
 
         // If the member has a recent mute, we'll reapply it
         if (activeMute) {

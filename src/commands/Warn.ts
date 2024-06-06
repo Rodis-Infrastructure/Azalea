@@ -1,8 +1,7 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
-import { Action, handleInfractionCreate, validateInfractionReason } from "@utils/infractions";
+import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { formatInfractionReason } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -38,7 +37,7 @@ export default class Warn extends Command<ChatInputCommandInteraction<"cached">>
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const reason = interaction.options.getString("reason", true);
         const member = interaction.options.getMember("user");
-        const validationResult = await validateInfractionReason(reason, config);
+        const validationResult = await InfractionUtil.validateReason(reason, config);
 
         if (!validationResult.success) {
             return validationResult.message;
@@ -49,25 +48,27 @@ export default class Warn extends Command<ChatInputCommandInteraction<"cached">>
         }
 
         const user = member?.user ?? interaction.options.getUser("user", true);
-        const infraction = await handleInfractionCreate({
+        const infraction = await InfractionManager.storeInfraction({
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,
-            action: Action.Warn,
+            action: InfractionAction.Warn,
             target_id: user.id,
             reason: reason
-        }, config);
+        });
 
         if (!infraction) {
             return "An error occurred while storing the infraction";
         }
 
-        const formattedReason = formatInfractionReason(reason);
+        InfractionManager.logInfraction(infraction, config);
 
-        // Ensure a public log of the action is made if executed ephemerally
+        const formattedReason = InfractionUtil.formatReason(reason);
+        const message = `warned ${user} - \`#${infraction.id}\` ${formattedReason}`;
+
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} warned ${user} - \`#${infraction.id}\` ${formattedReason}`, false);
+            config.sendNotification(`${interaction.user} ${message}`, false);
         }
 
-        return `Successfully warned ${user} - \`#${infraction.id}\` ${formattedReason}`;
+        return `Successfully ${message}`;
     }
 }

@@ -20,10 +20,10 @@ export default class ReportMessageCtx extends Command<MessageContextMenuCommandI
     }
 
     async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
-        const user = interaction.targetMessage.author;
+        const targetUser = interaction.targetMessage.author;
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
-        if (user.bot) {
+        if (targetUser.bot) {
             return Promise.resolve("You cannot report bots");
         }
 
@@ -33,6 +33,6 @@ export default class ReportMessageCtx extends Command<MessageContextMenuCommandI
             config
         );
 
-        return Promise.resolve(`Successfully reported ${user}, thank you for your report!`);
+        return Promise.resolve(`Successfully reported ${targetUser}, thank you for your report!`);
     }
 }

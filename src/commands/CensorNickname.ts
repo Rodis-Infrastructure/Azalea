@@ -8,7 +8,7 @@ import {
 
 import { InteractionReplyData } from "@utils/types";
 import { Snowflake } from "discord-api-types/v10";
-import { userMentionWithId } from "@/utils";
+import { randInt, userMentionWithId } from "@/utils";
 import { log } from "@utils/logging";
 import { LoggingEvent } from "@managers/config/schema";
 
@@ -16,17 +16,6 @@ import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 
-/**
- * Censors a member's nickname by changing it to "Unverified User XXXXX".
- * The following requirements must be met for the command to be successful:
- *
- * 1. The target member must be in the server.
- * 2. The target member must not have any roles.
- * 3. The target member must be manageable by the bot.
- *
- * Upon changing the nickname, the command will log the action in the channel configured for
- * {@link LoggingEvent.InfractionCreate} logs
- */
 export default class CensorNickname extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
         super({
@@ -69,16 +58,38 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
             return "I do not have permission to censor this user's nickname";
         }
 
-        // Random 5-digit number
-        const rand = Math.floor(Math.random() * 90000) + 10000;
-        // The user's nickname before it was censored
         const initialNickname = target.displayName;
-        const censoredNickname = nickname
-            .replace("$RAND", rand.toString())
-            .replace("$USER_ID", target.id);
+        const censoredNickname = CensorNickname._formatCensoredNickname(nickname, target.id);
 
-        // Update the user's nickname
         await target.setNickname(censoredNickname, `Nickname censored by ${executorId}`);
+
+        CensorNickname._log({
+            executorId,
+            targetId: target.id,
+            initialNickname,
+            censoredNickname,
+            config
+        });
+
+        return `Successfully changed ${target}'s nickname from \`${initialNickname}\` to \`${censoredNickname}\``;
+    }
+
+    private static _formatCensoredNickname(nickname: string, targetId: Snowflake): string {
+        const rand = randInt(10000, 99999);
+
+        return nickname
+            .replace("$RAND", rand.toString())
+            .replace("$USER_ID", targetId);
+    }
+
+    private static _log(data: {
+        executorId: Snowflake;
+        targetId: Snowflake;
+        initialNickname: string;
+        censoredNickname: string;
+        config: GuildConfig;
+    }): void {
+        const { executorId, targetId, initialNickname, censoredNickname, config } = data;
 
         const embed = new EmbedBuilder()
             .setColor(Colors.Red)
@@ -90,7 +101,7 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
                 },
                 {
                     name: "Target",
-                    value: userMentionWithId(target.id)
+                    value: userMentionWithId(targetId)
                 },
                 {
                     name: "Old Nickname",
@@ -110,7 +121,5 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
             channel: null,
             config
         });
-
-        return `Successfully changed ${target}'s nickname from \`${initialNickname}\` to \`${censoredNickname}\``;
     }
 }

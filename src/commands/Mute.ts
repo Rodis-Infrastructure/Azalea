@@ -13,10 +13,8 @@ import {
     DURATION_FORMAT
 } from "@utils/constants";
 
-import { Action, getActiveMute, handleInfractionCreate, validateInfractionReason } from "@utils/infractions";
+import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
-import { formatInfractionReason } from "@/utils";
-import { prisma } from "./..";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -71,15 +69,13 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
         const member = interaction.options.getMember("member");
         const user = member?.user ?? interaction.options.getUser("member", true);
-        const validationResult = await validateInfractionReason(reason, config);
+        const validationResult = await InfractionUtil.validateReason(reason, config);
 
         if (!validationResult.success) {
             return validationResult.message;
         }
 
-        // Check if the member is in the server
         if (member) {
-            // Check if the bot has permission to mute the member
             if (!member.manageable || !interaction.appPermissions.has(PermissionFlagsBits.ModerateMembers)) {
                 return "I do not have permission to mute this user";
             }
@@ -88,20 +84,17 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
                 return "You cannot mute a user with a higher or equal role";
             }
 
-            // Check if the member is already muted
             if (member.isCommunicationDisabled()) {
                 return "You can't mute someone who is already muted";
             }
         } else {
-            const mute = await getActiveMute(user.id, interaction.guildId);
+            const isMuted = await InfractionManager.getActiveMute(user.id, interaction.guildId);
 
-            // Check if the user is already muted through their infraction history
-            if (mute) {
+            if (isMuted) {
                 return "You can't mute someone who is already muted";
             }
         }
 
-        // Validate the duration format using regex
         if (!DURATION_FORMAT.test(duration)) {
             return `Invalid duration format. Please use the following format: \`<number><unit>\` (e.g. \`1d\`, \`2h\`, \`15m\`)`;
         }
@@ -109,29 +102,23 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         // Reset the regex index
         DURATION_FORMAT.lastIndex = 0;
 
-        // Convert the string duration to milliseconds
         let msDuration = ms(duration);
 
-        // Set the duration to 1 week if it exceeds that
         if (msDuration > MAX_MUTE_DURATION) msDuration = MAX_MUTE_DURATION;
         if (msDuration <= 0) return "Invalid duration. Please use a duration greater than `0`";
 
-        // Calculate the expiration date
         const msExpiresAt = Date.now() + msDuration;
         const expiresAt = new Date(msExpiresAt);
 
-        // Create a relative expiration timestamp
-        // This will be used to display the time left until the mute expires
         const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);
-
-        const infraction = await handleInfractionCreate({
+        const infraction = await InfractionManager.storeInfraction({
             executor_id: interaction.user.id,
             guild_id: interaction.guildId,
-            action: Action.Mute,
+            action: InfractionAction.Mute,
             target_id: user.id,
             expires_at: expiresAt,
             reason
-        }, config);
+        });
 
         if (!infraction) {
             return "An error occurred while storing the infraction";
@@ -139,28 +126,28 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
 
         if (member) {
             try {
-                // Mute the user
-                await member.timeout(msDuration, reason).catch(() => null);
+                await member.timeout(msDuration, reason);
             } catch (error) {
                 const sentryId = Sentry.captureException(error);
+                InfractionManager.deleteInfraction(infraction.id);
 
-                // If the mute fails, rollback the infraction
-                await prisma.infraction.delete({ where: { id: infraction.id } });
                 return `An error occurred while muting the member (\`${sentryId}\`)`;
             }
         }
 
-        const formattedReason = formatInfractionReason(reason);
+        InfractionManager.logInfraction(infraction, config);
 
-        // Ensure a public log of the action is made if executed ephemerally
+        const formattedReason = InfractionUtil.formatReason(reason);
+        const message = `set ${user} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`;
+
         if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
-            config.sendNotification(`${interaction.user} set ${user} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`, false);
+            config.sendNotification(`${interaction.user} ${message}`, false);
         }
 
         if (member) {
-            return `Successfully set ${user} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`;
+            return `Successfully ${message}`;
         } else {
-            return `User not in server, I will try to set ${user} on a timeout that will end ${relativeTimestamp} if they rejoin - \`#${infraction.id}\` ${formattedReason}`;
+            return `User not in server, I will try to ${message.replace("-", "if they rejoin -")}`;
         }
     }
 }
