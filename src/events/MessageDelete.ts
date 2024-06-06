@@ -29,7 +29,7 @@ import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import MessageBulkDelete from "./MessageBulkDelete";
-import { MessageReportStatus } from "@utils/reports";
+import { MessageReportFlag, MessageReportStatus, MessageReportUtil } from "@utils/reports";
 import { RequestStatus } from "@utils/requests";
 
 export default class MessageDelete extends EventListener {
@@ -183,7 +183,7 @@ export async function handleShortMessageDeleteLog(
 async function updateMessageReportState(messageId: Snowflake, config: GuildConfig, executorId?: Snowflake): Promise<void> {
     if (!config.data.message_reports) return;
 
-    const messageReport = await prisma.messageReport.update({
+    const messageReportData = await prisma.messageReport.update({
         where: {
             message_id: messageId,
             status: MessageReportStatus.Unresolved
@@ -193,26 +193,29 @@ async function updateMessageReportState(messageId: Snowflake, config: GuildConfi
         }
     }).catch(() => null);
 
-    if (!messageReport || !executorId) return;
+    if (!messageReportData) return;
 
-    const alertChannel = await config.guild.channels
+    const messageReportChannel = await config.guild.channels
         .fetch(config.data.message_reports.report_channel)
         .catch(() => null);
 
-    if (!alertChannel || !alertChannel.isTextBased()) return;
+    if (!messageReportChannel || !messageReportChannel.isTextBased()) return;
 
-    const alert = await alertChannel.messages
-        .fetch(messageReport.id)
+    const messageReport = await messageReportChannel.messages
+        .fetch(messageReportData.id)
         .catch(() => null);
 
-    if (!alert) return;
+    if (!messageReport) return;
 
-    const newContent = `${alert.content}\n\nThis report is being handled by ${userMentionWithId(executorId)}`;
-    const [rawEmbed] = alert.embeds;
-    const embed = new EmbedBuilder(rawEmbed.toJSON()).setColor(Colors.Orange);
+    const embed = await MessageReportUtil.updateFlags(messageReport, messageReportData.flags | MessageReportFlag.Deleted);
 
-    alert.edit({
-        content: newContent,
-        embeds: [embed]
-    });
+    if (executorId) {
+        embed.setColor(Colors.Orange);
+        messageReport.edit({
+            content: `${messageReport.content}\n\nThis report is being handled by ${userMentionWithId(executorId)}`,
+            embeds: [embed]
+        });
+    } else {
+        messageReport.edit({ embeds: [embed] });
+    }
 }

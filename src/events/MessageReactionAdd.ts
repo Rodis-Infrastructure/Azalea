@@ -30,7 +30,7 @@ import { cropLines, pluralize, userMentionWithId } from "@/utils";
 import { ButtonStyle, Snowflake } from "discord-api-types/v10";
 import { approveModerationRequest, denyModerationRequest, RequestStatus } from "@utils/requests";
 import { prisma } from "./..";
-import { MessageReportFlag, MessageReportStatus } from "@utils/reports";
+import { MessageReportFlag, MessageReportStatus, MessageReportUtil } from "@utils/reports";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { QuickMuteDuration } from "@utils/infractions";
 
@@ -200,20 +200,8 @@ export default class MessageReactionAdd extends EventListener {
                 return;
             }
 
-            const mappedFlags = MessageReactionAdd._mapMessageReportFlags(originalReport.flags | MessageReportFlag.Spam);
-            const embed = new EmbedBuilder(report.embeds[0].toJSON()).setColor(Colors.Red);
-
-            if (embed.data.fields!.find(field => field.name === "Flags")) {
-                embed.spliceFields(-1, 1, {
-                    name: "Flags",
-                    value: mappedFlags
-                });
-            } else {
-                embed.addFields({
-                    name: "Flags",
-                    value: mappedFlags
-                });
-            }
+            const embed = await MessageReportUtil.updateFlags(report, originalReport.flags | MessageReportFlag.Spam);
+            embed.setColor(Colors.Red);
 
             await report.edit({ embeds: [embed] });
             return;
@@ -232,7 +220,7 @@ export default class MessageReactionAdd extends EventListener {
         // Add a flag if the message has attachments
         if (message.attachments.size) flags |= MessageReportFlag.HasAttachment;
 
-        const mappedFlags = MessageReactionAdd._mapMessageReportFlags(flags);
+        const mappedFlags = MessageReportUtil.formatFlags(flags);
         const stickerId = message.stickers.first()?.id ?? null;
 
         const alert = new EmbedBuilder()
@@ -356,15 +344,6 @@ export default class MessageReactionAdd extends EventListener {
             message: { embeds: [alert] },
             config
         });
-    }
-
-    private static _mapMessageReportFlags(flags: number): string {
-        const entries = Object.entries(MessageReportFlag)
-            .filter((entry): entry is [string, MessageReportFlag] => {
-                return typeof entry[1] !== "string" && Boolean(flags & entry[1]);
-            });
-
-        return entries.map(entry => `\`${entry[0]}\``).join(", ");
     }
 
     private static async _purgeUser(message: Message<true>, executorId: Snowflake, config: GuildConfig): Promise<void> {
