@@ -14,7 +14,6 @@ import { log } from "@utils/logging";
 import { LoggingEvent } from "@managers/config/schema";
 import { channelMentionWithName, pluralize, roleMentionWithName, userMentionWithId } from "@/utils";
 import { formatMessageContentForShortLog } from "@utils/messages";
-import { DEFAULT_EMBED_COLOR } from "@utils/constants";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ComponentManager from "@managers/components/ComponentManager";
@@ -157,7 +156,7 @@ export default class InteractionCreate extends EventListener {
         let interactionType = "Interaction";
 
         const embed = new EmbedBuilder()
-            .setColor(DEFAULT_EMBED_COLOR)
+            .setColor(Colors.NotQuiteBlack)
             .setAuthor({ name: "Options" })
             .setTimestamp();
 

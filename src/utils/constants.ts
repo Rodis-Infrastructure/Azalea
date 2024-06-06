@@ -1,4 +1,4 @@
-import { EmbedField, GatewayIntentBits, Partials, PermissionFlagsBits } from "discord.js";
+import { Colors, EmbedField, GatewayIntentBits, Partials, PermissionFlagsBits } from "discord.js";
 
 export const DEFAULT_TIMEZONE = "UTC";
 
@@ -15,8 +15,7 @@ export const LOG_ENTRY_DATE_FORMAT: Intl.DateTimeFormatOptions = {
 
 export const EMPTY_MESSAGE_CONTENT = "No message content";
 
-// The background color of an embed (to hide the stripe)
-export const DEFAULT_EMBED_COLOR = 0x2B2D31;
+export const DEFAULT_EMBED_COLOR = Colors.NotQuiteBlack;
 
 export const DEFAULT_INFRACTION_REASON = "No infraction reason";
 
