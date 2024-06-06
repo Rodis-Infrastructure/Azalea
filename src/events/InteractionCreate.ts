@@ -131,7 +131,7 @@ export default class InteractionCreate extends EventListener {
                     value: `${interaction.user} (\`${interaction.user.id}\`)`
                 },
                 {
-                    name: "Interaction",
+                    name: "Interaction Name",
                     value: `\`${interactionName}\``
                 }
             ]);
@@ -162,7 +162,7 @@ export default class InteractionCreate extends EventListener {
         // Map slash command options
         if (interaction.isChatInputCommand()) {
             interactionType = "Slash Command";
-            const mappedOptions = InteractionCreate._parseChatInputCommandOptions(interaction.options.data);
+            const mappedOptions = await InteractionCreate._parseChatInputCommandOptions(interaction.options.data);
             embed.setFields(mappedOptions);
         }
 
@@ -187,6 +187,13 @@ export default class InteractionCreate extends EventListener {
                 name: "Target User",
                 value: userMentionWithId(interaction.targetId)
             });
+
+            if (interaction.channel) {
+                embed.addFields({
+                    name: "Source Channel",
+                    value: channelMentionWithName(interaction.channel)
+                });
+            }
         }
 
         // Message context menu
@@ -263,12 +270,13 @@ export default class InteractionCreate extends EventListener {
         }
     }
 
-    private static _parseChatInputCommandOptions(options: readonly CommandInteractionOption<"cached">[]): APIEmbedField[] {
+    private static async _parseChatInputCommandOptions(options: readonly CommandInteractionOption<"cached">[]): Promise<APIEmbedField[]> {
         let fields: APIEmbedField[] = [];
 
         for (const option of options) {
             if ("options" in option && option.options) {
-                fields = fields.concat(InteractionCreate._parseChatInputCommandOptions(option.options));
+                const nestedOptions = await InteractionCreate._parseChatInputCommandOptions(option.options);
+                fields = fields.concat(nestedOptions);
             } else if (option.channel) {
                 fields.push({
                     name: option.name,
@@ -285,9 +293,10 @@ export default class InteractionCreate extends EventListener {
                     value: roleMentionWithName(option.role)
                 });
             } else if (!option.attachment && option.value) {
+                const formattedValue = await formatMessageContentForShortLog(option.value.toString(), null, null);
                 fields.push({
                     name: option.name,
-                    value: `\`${option.value}\``
+                    value: formattedValue
                 });
             }
         }
@@ -301,11 +310,13 @@ export default class InteractionCreate extends EventListener {
             const subcommand = interaction.options.getSubcommand(false);
 
             if (subcommand) {
-                return `${interaction.commandName} ${subcommand}`;
+                return `/${interaction.commandName} ${subcommand}`;
+            } else {
+                return `/${interaction.commandName}`;
             }
         }
 
-        if (interaction.isCommand()) {
+        if (interaction.isContextMenuCommand()) {
             return interaction.commandName;
         }
 
