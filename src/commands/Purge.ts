@@ -7,7 +7,7 @@ import {
     SnowflakeUtil,
     time,
     TimestampStyles,
-    ChannelType
+    ChannelType, PermissionFlagsBits
 } from "discord.js";
 
 import { Messages } from "@utils/messages";
@@ -115,6 +115,11 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
         // This is necessary for purging messages
         if (!channel) {
             return Promise.resolve("Failed to get the channel.");
+        }
+
+        // Ensure the executor has permission to manage messages in the channel
+        if (!channel.permissionsFor(interaction.member).has(PermissionFlagsBits.ManageMessages)) {
+            return Promise.resolve(`You do not have permission to manage messages in ${channel}.`);
         }
 
         // The purged messages
