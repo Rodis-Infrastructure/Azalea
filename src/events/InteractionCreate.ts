@@ -1,7 +1,19 @@
-import { AutocompleteInteraction, Colors, EmbedBuilder, Events, Interaction } from "discord.js";
+import {
+    APIEmbedField,
+    AutocompleteInteraction,
+    Colors,
+    CommandInteractionOption,
+    EmbedBuilder,
+    Events,
+    hyperlink,
+    Interaction
+} from "discord.js";
+
 import { InteractionReplyData } from "@utils/types";
 import { log } from "@utils/logging";
 import { LoggingEvent } from "@managers/config/schema";
+import { channelMentionWithName, pluralize, roleMentionWithName, userMentionWithId } from "@/utils";
+import { formatMessageContentForShortLog } from "@utils/messages";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ComponentManager from "@managers/components/ComponentManager";
@@ -103,13 +115,16 @@ export default class InteractionCreate extends EventListener {
         }
     }
 
-    private static _log(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): void {
+    private static async _log(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
         if (!interaction.channel) return;
 
         const interactionName = InteractionCreate._parseInteractionName(interaction);
+        const [interactionType, interactionOptionsEmbed] = await InteractionCreate._parseInteractionOptions(interaction);
+        const embeds = [];
+
         const embed = new EmbedBuilder()
             .setColor(Colors.Grey)
-            .setAuthor({ name: "Interaction Used" })
+            .setAuthor({ name: `${interactionType} Used` })
             .setFields([
                 {
                     name: "Executor",
@@ -119,18 +134,168 @@ export default class InteractionCreate extends EventListener {
                     name: "Interaction",
                     value: `\`${interactionName}\``
                 }
-            ])
-            .setTimestamp();
+            ]);
+
+        embeds.push(embed);
+
+        if (!interactionOptionsEmbed) {
+            embed.setTimestamp();
+        } else {
+            embeds.push(interactionOptionsEmbed);
+        }
 
         log({
             event: LoggingEvent.InteractionCreate,
             channel: interaction.channel,
-            message: { embeds: [embed] },
+            message: { embeds },
             config
         });
     }
 
-    // @returns The interaction's name or custom ID
+    private static async _parseInteractionOptions(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>): Promise<[string, EmbedBuilder | null]> {
+        let interactionType = "Interaction";
+
+        const embed = new EmbedBuilder()
+            .setAuthor({ name: "Options" })
+            .setTimestamp();
+
+        // Map slash command options
+        if (interaction.isChatInputCommand()) {
+            interactionType = "Slash Command";
+            const mappedOptions = InteractionCreate._parseChatInputCommandOptions(interaction.options.data);
+            embed.setFields(mappedOptions);
+        }
+
+        if (interaction.isModalSubmit()) {
+            interactionType = "Modal";
+
+            const mappedOptions: Promise<APIEmbedField>[] = interaction.fields.fields.map(async field => {
+                const content = await formatMessageContentForShortLog(field.value, null, null);
+                return {
+                    name: field.customId,
+                    value: content
+                };
+            });
+
+            embed.setFields(await Promise.all(mappedOptions));
+        }
+
+        // User context menu
+        if (interaction.isUserContextMenuCommand()) {
+            interactionType = "User Context Menu";
+            embed.setFields({
+                name: "Target User",
+                value: userMentionWithId(interaction.targetId)
+            });
+        }
+
+        // Message context menu
+        if (interaction.isMessageContextMenuCommand()) {
+            interactionType = "Message Context Menu";
+
+            const { url, content } = interaction.targetMessage;
+            const stickerId = interaction.targetMessage.stickers.first()?.id ?? null;
+            const formattedContent = await formatMessageContentForShortLog(content, stickerId, url);
+
+            embed.setFields([
+                {
+                    name: "Target User",
+                    value: userMentionWithId(interaction.targetMessage.author.id)
+                },
+                {
+                    name: "Source Channel",
+                    value: channelMentionWithName(interaction.targetMessage.channel)
+                },
+                {
+                    name: "Target Message",
+                    value: formattedContent
+                }
+            ]);
+        }
+
+        // Button interactions
+        if (interaction.isButton()) {
+            interactionType = "Button";
+            embed.setFields({
+                name: "Message",
+                value: hyperlink("Jump to message", interaction.message.url)
+            });
+        }
+
+        // Return the selected value(s) for select menus
+        if (interaction.isAnySelectMenu()) {
+            interactionType = "Select Menu";
+
+            let values: string[] = [];
+
+            // User / Mentionable select menu
+            if ("users" in interaction) {
+                const users = interaction.users.mapValues(user => `- ${user}`);
+                values = values.concat(Array.from(users.values()));
+            }
+
+            // Role / Mentionable select menu
+            if ("roles" in interaction) {
+                const roles = interaction.roles.mapValues(role => `- ${role}`);
+                values = values.concat(Array.from(roles.values()));
+            }
+
+            // Channel select menu
+            if ("channels" in interaction) {
+                const channels = interaction.channels.mapValues(channel => `- ${channel}`);
+                values = values.concat(Array.from(channels.values()));
+            }
+
+            if (interaction.isStringSelectMenu()) {
+                values = interaction.values.map(value => `- ${value}`);
+            }
+
+            embed.setFields({
+                name: `Selected ${pluralize(interaction.values.length, "Value")}`,
+                value: values.join("\n") || "None"
+            });
+        }
+
+        if (embed.data.fields?.length) {
+            return [interactionType, embed];
+        } else {
+            return [interactionType, null];
+        }
+    }
+
+    private static _parseChatInputCommandOptions(options: readonly CommandInteractionOption<"cached">[]): APIEmbedField[] {
+        let fields: APIEmbedField[] = [];
+
+        for (const option of options) {
+            if ("options" in option && option.options) {
+                fields = fields.concat(InteractionCreate._parseChatInputCommandOptions(option.options));
+            } else if (option.channel) {
+                fields.push({
+                    name: option.name,
+                    value: channelMentionWithName(option.channel)
+                });
+            } else if (option.user) {
+                fields.push({
+                    name: option.name,
+                    value: userMentionWithId(option.user.id)
+                });
+            } else if (option.role) {
+                fields.push({
+                    name: option.name,
+                    value: roleMentionWithName(option.role)
+                });
+            } else if (!option.attachment && option.value) {
+                fields.push({
+                    name: option.name,
+                    value: `\`${option.value}\``
+                });
+            }
+        }
+
+        return fields;
+    }
+
+    /** @returns The interaction's name or custom ID */
     private static _parseInteractionName(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>): string {
         if (interaction.isChatInputCommand()) {
             const subcommand = interaction.options.getSubcommand(false);

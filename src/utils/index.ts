@@ -1,5 +1,5 @@
 import { Snowflake } from "discord-api-types/v10";
-import { GuildBasedChannel, ThreadChannel } from "discord.js";
+import { GuildBasedChannel, Role, ThreadChannel } from "discord.js";
 import { CronJobParams } from "@sentry/node/types/cron/cron";
 import { Messages } from "./messages";
 import { ObjectDiff } from "./types";
@@ -146,6 +146,11 @@ export function userMentionWithId(id: Snowflake): `<@${Snowflake}> (\`${Snowflak
 // Mentions a channel with its ID and name, may be used in scenarios where the channel may be deleted
 export function channelMentionWithName(channel: GuildBasedChannel | ThreadChannel): `<#${Snowflake}> (\`#${string}\`)` {
     return `<#${channel.id}> (\`#${channel.name}\`)`;
+}
+
+// Mentions a role with its ID and name, may be used in scenarios where the role may be deleted
+export function roleMentionWithName(role: Role): `<@&${Snowflake}> (\`@${string}\`)` {
+    return `<@&${role.id}> (\`@${role.name}\`)`;
 }
 
 /**

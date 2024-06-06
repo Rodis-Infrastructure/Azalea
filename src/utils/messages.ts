@@ -339,8 +339,8 @@ export async function prependReferenceLog(reference: string | Message, embeds: E
 }
 
 // Escape code blocks, truncate the content if it's too long, and wrap it in a code block
-export async function formatMessageContentForShortLog(content: string | null, stickerId: string | null, url: string): Promise<string> {
-    let rawContent = hyperlink("Jump to message", url);
+export async function formatMessageContentForShortLog(content: string | null, stickerId: string | null, url: string | null): Promise<string> {
+    let rawContent = url ? hyperlink("Jump to message", url) : "";
 
     if (stickerId) {
         const sticker = await client.fetchSticker(stickerId);
