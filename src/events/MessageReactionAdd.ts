@@ -25,7 +25,7 @@ import {
 
 import { handleQuickMute } from "@/commands/QuickMute30Ctx";
 import { log, mapLogEntriesToFile } from "@utils/logging";
-import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
+import { DEFAULT_EMBED_COLOR, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { cropLines, pluralize, userMentionWithId } from "@/utils";
 import { ButtonStyle, Snowflake } from "discord-api-types/v10";
 import { approveModerationRequest, denyModerationRequest, RequestStatus } from "@utils/requests";
@@ -236,6 +236,7 @@ export default class MessageReactionAdd extends EventListener {
         const stickerId = message.stickers.first()?.id ?? null;
 
         const alert = new EmbedBuilder()
+            .setColor(DEFAULT_EMBED_COLOR)
             .setTitle("Message Report")
             .setThumbnail(message.author.displayAvatarURL())
             .setFields([

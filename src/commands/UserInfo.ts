@@ -16,7 +16,7 @@ import {
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
-import { BLANK_EMBED_FIELD, DEFAULT_INFRACTION_REASON } from "@utils/constants";
+import { BLANK_EMBED_FIELD, DEFAULT_EMBED_COLOR, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { prisma } from "./..";
 import { Permission, UserFlag } from "@managers/config/schema";
 import { Action } from "@utils/infractions";
@@ -77,6 +77,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
         const surfaceName = member?.nickname ?? user.displayName;
 
         const embed = new EmbedBuilder()
+            .setColor(DEFAULT_EMBED_COLOR)
             .setAuthor({
                 name: `@${user.username} | ${surfaceName}`,
                 iconURL: user.displayAvatarURL(),

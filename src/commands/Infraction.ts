@@ -17,6 +17,7 @@ import {
 } from "discord.js";
 
 import {
+    DEFAULT_EMBED_COLOR,
     DEFAULT_INFRACTION_REASON,
     DEFAULT_MUTE_DURATION,
     EMBED_FIELD_CHAR_LIMIT,
@@ -300,6 +301,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
         const fields = Infraction._formatInfractionSearchFields(infractions, true);
         const embed = new EmbedBuilder()
+            .setColor(DEFAULT_EMBED_COLOR)
             .setTitle(`${activeInfractionCount} Active ${pluralize(activeInfractionCount, "Infraction")}`)
             .setFields(fields)
             .setTimestamp();
@@ -757,6 +759,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         });
 
         const embed = new EmbedBuilder()
+            .setColor(DEFAULT_EMBED_COLOR)
             .setTitle(`Filter: ${filter}`)
             .setAuthor({
                 name: `Infractions of @${user.username}`,

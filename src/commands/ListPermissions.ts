@@ -1,5 +1,6 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, codeBlock, EmbedBuilder } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
+import { DEFAULT_EMBED_COLOR } from "@utils/constants";
 
 import Command from "@managers/commands/Command";
 
@@ -35,6 +36,7 @@ export default class ListPermissions extends Command<ChatInputCommandInteraction
         }).join("\n");
 
         const embed = new EmbedBuilder()
+            .setColor(DEFAULT_EMBED_COLOR)
             .setTitle(`Permissions in ${channel}`)
             .setDescription(codeBlock("diff", permissionList));
 

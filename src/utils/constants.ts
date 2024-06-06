@@ -15,6 +15,9 @@ export const LOG_ENTRY_DATE_FORMAT: Intl.DateTimeFormatOptions = {
 
 export const EMPTY_MESSAGE_CONTENT = "No message content";
 
+// The background color of an embed (to hide the stripe)
+export const DEFAULT_EMBED_COLOR = 0x2B2D31;
+
 export const DEFAULT_INFRACTION_REASON = "No infraction reason";
 
 export const EMBED_FIELD_CHAR_LIMIT = 1000;

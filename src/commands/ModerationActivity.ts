@@ -16,6 +16,7 @@ import { ModerationRequestType } from "@managers/config/schema";
 import { Action, Flag } from "@utils/infractions";
 import { Infraction, ModerationRequest } from "@prisma/client";
 import { capitalize } from "lodash";
+import { DEFAULT_EMBED_COLOR } from "@utils/constants";
 
 import Command from "@managers/commands/Command";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -73,6 +74,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
         const moderationActivity = await Moderation._getActivity(user.id, interaction.guildId, { month, year });
 
         const embed = new EmbedBuilder()
+            .setColor(DEFAULT_EMBED_COLOR)
             .setAuthor({
                 name: `Moderation activity of @${user.username}`,
                 iconURL: user.displayAvatarURL()

@@ -1,10 +1,12 @@
 import {
     ActionRowBuilder,
-    ButtonBuilder, ButtonStyle,
+    ButtonBuilder,
+    ButtonStyle,
     EmbedBuilder,
     Events,
     Message,
-    PartialMessage, SelectMenuComponentOptionData,
+    PartialMessage,
+    SelectMenuComponentOptionData,
     StringSelectMenuBuilder
 } from "discord.js";
 
@@ -14,6 +16,7 @@ import { MediaStoreError } from "@utils/errors";
 import { pluralize, userMentionWithId } from "@/utils";
 import { RoleRequestNoteAction } from "@/components/RoleRequestNote";
 import { client } from "./..";
+import { DEFAULT_EMBED_COLOR } from "@utils/constants";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
@@ -105,6 +108,7 @@ export default class MessageCreate extends EventListener {
 
         const mentionedUsers = message.mentions.users.map(user => userMentionWithId(user.id));
         const embed = new EmbedBuilder()
+            .setColor(DEFAULT_EMBED_COLOR)
             .setAuthor({
                 name: `Role Request (by @${message.author.username} - ${message.author.id})`,
                 url: message.author.displayAvatarURL(),

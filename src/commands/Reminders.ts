@@ -11,7 +11,7 @@ import {
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
-import { DURATION_FORMAT, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
+import { DEFAULT_EMBED_COLOR, DURATION_FORMAT, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { client, prisma } from "./..";
 import { formatInfractionReason, pluralize } from "@/utils";
 
@@ -170,6 +170,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
         }));
 
         const embed = new EmbedBuilder()
+            .setColor(DEFAULT_EMBED_COLOR)
             .setAuthor({ name: `@${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
             .setTitle("Reminders")
             .setFields(fields);
