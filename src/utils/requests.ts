@@ -48,12 +48,12 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
 
         if (requestConfig.type === ModerationRequestType.Ban) {
             const res = await validateBanRequest(message, config);
-            const target = res[0];
+            const [targetMember, targetId] = res;
 
-            request = res[1];
+            request = res[2];
 
             // Don't attempt to auto-mute if the target user is already muted
-            if (!target?.isCommunicationDisabled() && !request.mute_id) {
+            if (!targetMember?.isCommunicationDisabled() && !request.mute_id) {
                 if (!message.member) {
                     await temporaryReply(message, "Failed to fetch author, unable to perform auto-mute.", config.data.response_ttl);
                     return;
@@ -62,7 +62,8 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
                 request.mute_id = await handleAutomaticMute({
                     executor: message.member,
                     reason: request.reason,
-                    target,
+                    target: targetMember,
+                    targetId,
                     config
                 });
             } else if (request.mute_id) {
@@ -133,38 +134,33 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
 async function handleAutomaticMute(data: {
     executor: GuildMember,
     target: GuildMember | null,
+    targetId: Snowflake,
     reason: string,
     config: GuildConfig
 }): Promise<number | null> {
-    const { executor, target, reason, config } = data;
+    const { executor, target, reason, config, targetId } = data;
 
     // Check if the request author has permission to manage mute requests
     if (!config.hasPermission(executor, Permission.ManageMuteRequests)) {
         return null;
     }
 
-    // Only guild members can be muted
-    if (!target) {
-        config.sendNotification("Failed to fetch target, unable to perform auto-mute.");
-        return null;
-    }
-
-    await target.timeout(DEFAULT_MUTE_DURATION, reason).catch(() => {
-        config.sendNotification(`${executor} Failed to mute ${target} automatically.`);
-    });
+    await target?.timeout(DEFAULT_MUTE_DURATION, reason).catch(() => null);
 
     // Store the infraction
     const infraction = await InfractionManager.storeInfraction({
         expires_at: new Date(Date.now() + DEFAULT_MUTE_DURATION),
         guild_id: config.guild.id,
         executor_id: executor.id,
-        target_id: target.id,
+        target_id: targetId,
         action: InfractionAction.Mute,
         reason
     });
 
     if (infraction) {
         InfractionManager.logInfraction(infraction, config);
+    } else {
+        config.sendNotification(`${userMention(executor.id)} Failed to mute ${userMention(targetId)}, unable to schedule mute.`);
     }
 
     return infraction?.id ?? null;
@@ -258,9 +254,9 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
  *
  * @param request - The request.
  * @param config - The guild configuration.
- * @returns The target member and the request data: [targetMember, requestData]
+ * @returns The target member and the request data: [targetMember, targetId, requestData]
  */
-async function validateBanRequest(request: Message<true>, config: GuildConfig): Promise<[GuildMember | null, Prisma.ModerationRequestCreateInput]> {
+async function validateBanRequest(request: Message<true>, config: GuildConfig): Promise<[GuildMember | null, Snowflake, Prisma.ModerationRequestCreateInput]> {
     /**
      * Regex pattern for extracting the target ID and reason from the message content.
      * ## Examples
@@ -294,15 +290,15 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
         await temporaryReply(request, `A ban request for this user is already pending: ${requestUrl}`, config.data.response_ttl);
     }
 
-    const target = await config.guild.members
+    const targetMember = await config.guild.members
         .fetch(matches.targetId)
         .catch(() => null);
 
     // Verify permissions
     if (
-        target &&
+        targetMember &&
         request.member &&
-        target.roles.highest.position >= request.member.roles.highest.position
+        targetMember.roles.highest.position >= request.member.roles.highest.position
     ) {
         throw new RequestValidationError("You cannot mute a member with a higher or equal role.");
     }
@@ -315,7 +311,7 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
         throw new RequestValidationError("The target user is already banned.");
     }
 
-    return [target, {
+    return [targetMember, matches.targetId, {
         id: request.id,
         author_id: request.author.id,
         target_id: matches.targetId,
@@ -394,7 +390,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
                 return;
             }
 
-            await target.timeout(request.duration, request.reason);
+            await target.timeout(request.duration, request.reason).catch(() => null);
             handleModerationRequestApproveLog(LoggingEvent.MuteRequestApprove, "Muted");
             break;
         }
@@ -445,6 +441,8 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
 
     if (infraction) {
         InfractionManager.logInfraction(infraction, config);
+    } else if (request.type === ModerationRequestType.Mute) {
+        config.sendNotification(`${userMention(reviewerId)} Failed to mute the user, unable to schedule mute.`);
     }
 }
 
@@ -528,12 +526,12 @@ export async function denyModerationRequest(messageId: Snowflake, reviewerId: Sn
             }
 
             try {
-                const target = await config.guild.members.fetch(request.target_id);
+                const target = await config.guild.members.fetch(request.target_id).catch(() => null);
+                await target?.timeout(null).catch(() => null);
 
-                await target.timeout(null);
                 await InfractionManager.endActiveMutes(config.guild.id, request.target_id);
             } catch {
-                config.sendNotification(`${reviewerMention} Failed to unmute ${targetMention} on ban request denial.`);
+                config.sendNotification(`${reviewerMention} Failed to unmute ${targetMention} on ban request denial, unable to schedule unmute.`);
             }
 
             handleModerationRequestDenyLog(LoggingEvent.BanRequestDeny, "Ban");
