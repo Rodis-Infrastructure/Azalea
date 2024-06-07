@@ -28,6 +28,7 @@ rules:
   '@typescript-eslint/explicit-module-boundary-types': off
   '@typescript-eslint/explicit-function-return-type': error
   '@typescript-eslint/no-unnecessary-condition': error
+  '@typescript-eslint/prefer-readonly': error
 
   '@typescript-eslint/no-unused-vars':
     - error
@@ -37,6 +38,34 @@ rules:
   '@typescript-eslint/indent':
     - error
     - 4
+
+  '@typescript-eslint/naming-convention':
+    - error
+    - selector: default
+      trailingUnderscore: forbid
+      leadingUnderscore: forbid
+      format: ["camelCase"]
+
+    - selector: ["variable", "property"]
+      format: ["camelCase", "snake_case", "UPPER_CASE"]
+
+    - selector: ["typeLike", "enumMember"]
+      format: ["PascalCase"]
+
+    - selector: ["variableLike", "method", "property"]
+      modifiers: ["private"]
+      format: ["camelCase"]
+      leadingUnderscore: require
+
+    - selector: parameter
+      modifiers: ["unused"]
+      format: ["camelCase"]
+      leadingUnderscore: require
+
+    - selector: import
+      format: ["camelCase", "PascalCase"]
+      leadingUnderscore: allow
+      trailingUnderscore: allow
 
   '@dword-design/import-alias/prefer-alias':
     - error

@@ -488,10 +488,10 @@ export default class GuildConfig {
         }
 
         if (!scoping.exclude_channels.length) {
-            return this.channelIsIncludedInScope(channelData, scoping);
+            return this._channelIsIncludedInScope(channelData, scoping);
         }
 
-        return this.channelIsIncludedInScope(channelData, scoping) && !this.channelIsExcludedFromScope(channelData, scoping);
+        return this._channelIsIncludedInScope(channelData, scoping) && !this._channelIsExcludedFromScope(channelData, scoping);
     }
 
     /**
@@ -520,7 +520,7 @@ export default class GuildConfig {
      * @param scoping - The scoping to check against
      * @private
      */
-    private channelIsIncludedInScope(channelData: ChannelScopingParams, scoping: ChannelScoping): boolean {
+    private _channelIsIncludedInScope(channelData: ChannelScopingParams, scoping: ChannelScoping): boolean {
         const { channelId, threadId, categoryId } = channelData;
 
         return !scoping.include_channels.length
@@ -540,7 +540,7 @@ export default class GuildConfig {
      * @param scoping - The scoping to check against
      * @private
      */
-    private channelIsExcludedFromScope(channelData: ChannelScopingParams, scoping: ChannelScoping): boolean {
+    private _channelIsExcludedFromScope(channelData: ChannelScopingParams, scoping: ChannelScoping): boolean {
         const { channelId, threadId, categoryId } = channelData;
 
         return scoping.exclude_channels.includes(channelId)

@@ -14,9 +14,9 @@ import ConfigManager from "@managers/config/ConfigManager";
 // Utility class for handling command interactions.
 export default class CommandManager {
     // Cached global commands mapped by their names.
-    private static _globalCommands = new Collection<string, Command<CommandInteraction>>();
+    private static readonly _globalCommands = new Collection<string, Command<CommandInteraction>>();
     // Cached guild commands mapped by their guild's ID.
-    private static _guildCommands = new Collection<Snowflake, Collection<string, GuildCommand<CommandInteraction>>>();
+    private static readonly _guildCommands = new Collection<Snowflake, Collection<string, GuildCommand<CommandInteraction>>>();
 
     // Caches all commands from the commands directory.
     static async cache(): Promise<void> {

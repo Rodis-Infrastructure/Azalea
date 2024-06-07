@@ -203,9 +203,9 @@ export function elipsify(str: string, maxLength: number): string {
  * @param onTick - The function to run on each tick
  */
 export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronTime"], onTick: () => Promise<void> | void): void {
-    const CronJobWithCheckIn = Sentry.cron.instrumentCron(CronJob, monitorSlug);
+    const cronJobWithCheckIn = Sentry.cron.instrumentCron(CronJob, monitorSlug);
 
-    CronJobWithCheckIn.from({
+    cronJobWithCheckIn.from({
         cronTime,
         timeZone: DEFAULT_TIMEZONE,
         onTick: async () => {

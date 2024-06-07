@@ -11,7 +11,7 @@ import fs from "fs";
 // Utility class for handling component interactions.
 export default class ComponentManager {
     // Cached components mapped by their custom IDs.
-    private static _cache = new Collection<CustomID, Component>;
+    private static readonly _cache = new Collection<CustomID, Component>;
 
     // Caches all components from the components directory.
     static async cache(): Promise<void> {
@@ -58,7 +58,7 @@ export default class ComponentManager {
         Logger.info(`Cached ${componentCount} ${pluralize(componentCount, "component")}`);
     }
 
-    private static getComponent(customId: string): Component | undefined {
+    private static _getComponent(customId: string): Component | undefined {
         return ComponentManager._cache.find(component => {
             if (typeof component.customId === "string") {
                 return component.customId === customId;
@@ -107,7 +107,7 @@ export default class ComponentManager {
 
     static handle(interaction: ComponentInteraction): Promise<InteractionReplyData> | InteractionReplyData {
         // Retrieve the component's instance from cache by its custom ID
-        const component = ComponentManager.getComponent(interaction.customId);
+        const component = ComponentManager._getComponent(interaction.customId);
 
         if (!component) {
             const parsedCustomId = ComponentManager.parseCustomId(interaction.customId);

@@ -28,15 +28,15 @@ import ConfigManager from "@managers/config/ConfigManager";
 
 export class Messages {
     // Cache for messages that haven't been stored in the database yet
-    private static dbQueue = new Collection<Snowflake, Message>();
+    private static readonly _dbQueue = new Collection<Snowflake, Message>();
     // The most recent message deletion audit log.
     // Used to improve the accuracy of blaming
-    private static messageDeleteAuditLog?: MessageDeleteAuditLog;
+    private static _messageDeleteAuditLog?: MessageDeleteAuditLog;
     // Queue for messages that need to be purged
     static purgeQueue: PurgeOptions[] = [];
 
     static async get(id: Snowflake): Promise<Message | null> {
-        let message = Messages.dbQueue.get(id) ?? null;
+        let message = Messages._dbQueue.get(id) ?? null;
 
         if (!message) {
             message = await prisma.message.findUnique({ where: { id } });
@@ -47,7 +47,7 @@ export class Messages {
 
     // @returns The ID of the user responsible for the deletion
     static getBlame(data: MessageDeleteAuditLog): Snowflake | null {
-        const log = Messages.messageDeleteAuditLog;
+        const log = Messages._messageDeleteAuditLog;
         const logHasChanged = !log
             || log.channelId !== data.channelId
             || log.targetId !== data.targetId
@@ -56,7 +56,7 @@ export class Messages {
         // A new audit log has been created
         // Meaning the count of the previous log was reset and is no longer needed
         if (logHasChanged) {
-            Messages.messageDeleteAuditLog = data;
+            Messages._messageDeleteAuditLog = data;
             const dateDiff = Date.now() - data.createdAt.getTime();
 
             // The log is new and the count is 1
@@ -92,7 +92,7 @@ export class Messages {
             period = MESSAGE_DELETE_THRESHOLD;
         }
 
-        for (const message of Messages.dbQueue.values()) {
+        for (const message of Messages._dbQueue.values()) {
             if (
                 message.author_id !== userId ||
                 message.channel_id !== channelId ||
@@ -139,7 +139,7 @@ export class Messages {
     // Add a message to the database queue
     static queue(message: DiscordMessage<true>): void {
         const serializedMessage = Messages.serialize(message);
-        Messages.dbQueue.set(message.id, serializedMessage);
+        Messages._dbQueue.set(message.id, serializedMessage);
     }
 
     /**
@@ -148,7 +148,7 @@ export class Messages {
      */
     static async delete(id: Snowflake): Promise<Message | null> {
         // Try to get the message form cache
-        let message = Messages.dbQueue.get(id) ?? null;
+        let message = Messages._dbQueue.get(id) ?? null;
 
         // Modify the cache if the message is cached
         // Otherwise, update the message in the database
@@ -173,7 +173,7 @@ export class Messages {
         const ids = Array.from(messageCollection.keys());
 
         // Try to get the messages from cache
-        const messages = Messages.dbQueue.filter(message =>
+        const messages = Messages._dbQueue.filter(message =>
             ids.includes(message.id) && !message.deleted
         );
 
@@ -206,7 +206,7 @@ export class Messages {
      */
     static async updateContent(id: Snowflake, newContent: string): Promise<string> {
         // Try to get the message from cache
-        const message = Messages.dbQueue.get(id);
+        const message = Messages._dbQueue.get(id);
 
         // Modify the cache if the message is cached
         if (message) {
@@ -238,11 +238,11 @@ export class Messages {
         Logger.info("Storing cached messages...");
 
         // Insert all cached messages into the database
-        const messages = Array.from(Messages.dbQueue.values());
+        const messages = Array.from(Messages._dbQueue.values());
         const { count } = await prisma.message.createMany({ data: messages });
 
         // Empty the cache
-        Messages.dbQueue.clear();
+        Messages._dbQueue.clear();
 
         if (!count) {
             Logger.info("No messages were stored");
