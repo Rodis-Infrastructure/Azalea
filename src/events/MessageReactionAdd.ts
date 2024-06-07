@@ -359,9 +359,9 @@ export default class MessageReactionAdd extends EventListener {
         }
 
         const response = `Purged \`${messages.length}\` ${pluralize(messages.length, "message")} by ${message.author}`;
-        const logUrls = await Purge.log(messages, message.channel, config);
+        const logURLs = await Purge.log(messages, message.channel, config);
 
-        config.sendNotification(`${userMention(executorId)} ${response}: ${logUrls.join(" ")}`);
+        config.sendNotification(`${userMention(executorId)} ${response}: ${logURLs.join(" ")}`);
     }
 
     private static async _log(

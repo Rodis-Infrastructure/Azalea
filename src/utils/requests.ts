@@ -81,9 +81,9 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
         // Append the media log URLs to the message content
         if (message.attachments.size) {
             const media = Array.from(message.attachments.values());
-            const logUrls = await StoreMediaCtx.storeMedia(message.author.id, message.author.id, media, config);
+            const logURLs = await StoreMediaCtx.storeMedia(message.author.id, message.author.id, media, config);
 
-            request.reason += ` ${logUrls.join(" ")}`;
+            request.reason += ` ${logURLs.join(" ")}`;
         }
 
         if (request.reason.length > EMBED_FIELD_CHAR_LIMIT) {
@@ -211,8 +211,8 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
     });
 
     if (originalRequest && !request.author.bot) {
-        const requestUrl = messageLink(request.channelId, originalRequest.id, request.guildId);
-        await temporaryReply(request, `A mute request for this user is already pending: ${requestUrl}`, config.data.response_ttl);
+        const requestURL = messageLink(request.channelId, originalRequest.id, request.guildId);
+        await temporaryReply(request, `A mute request for this user is already pending: ${requestURL}`, config.data.response_ttl);
     }
 
     const target = await config.guild.members
@@ -286,8 +286,8 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
     });
 
     if (originalRequest && !request.author.bot) {
-        const requestUrl = messageLink(request.channelId, originalRequest.id, request.guildId);
-        await temporaryReply(request, `A ban request for this user is already pending: ${requestUrl}`, config.data.response_ttl);
+        const requestURL = messageLink(request.channelId, originalRequest.id, request.guildId);
+        await temporaryReply(request, `A ban request for this user is already pending: ${requestURL}`, config.data.response_ttl);
     }
 
     const targetMember = await config.guild.members

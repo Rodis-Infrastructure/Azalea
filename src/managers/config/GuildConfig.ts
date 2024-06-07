@@ -14,7 +14,6 @@ import { Alert, ChannelScoping, Permission, RawGuildConfig, rawGuildConfigSchema
 import { client, prisma } from "@/index";
 import { MessageReportStatus, UserReportStatus } from "@utils/reports";
 import { fromZodError } from "zod-validation-error";
-import { InteractionReplyData } from "@utils/types";
 import { pluralize, randInt, startCronJob } from "@/utils";
 import { Snowflake } from "discord-api-types/v10";
 import { RequestStatus } from "@utils/requests";
@@ -144,13 +143,13 @@ export default class GuildConfig {
                 });
 
                 const oldestRequest = unresolvedRequests.at(0);
-                const oldestRequestUrl = oldestRequest && messageLink(request.channel_id, oldestRequest.id, this.guild.id);
+                const oldestRequestURL = oldestRequest && messageLink(request.channel_id, oldestRequest.id, this.guild.id);
 
                 const alert = GuildConfig._entityExceedsAlertThresholds({
                     name: `${request.type} request`,
                     count: unresolvedRequests.length,
                     createdAt: oldestRequest?.created_at,
-                    oldestEntityUrl: oldestRequestUrl,
+                    oldestEntityURL: oldestRequestURL,
                     config: alertConfig
                 });
 
@@ -174,7 +173,7 @@ export default class GuildConfig {
      *
      * @param data.name - The name of the entity
      * @param data.count - The count of the entity
-     * @param data.oldestEntityUrl - The URL of the oldest entity
+     * @param data.oldestEntityURL - The URL of the oldest entity
      * @param data.createdAt - The creation date of the oldest entity
      * @param data.config - The alert configuration for the entity
      * @returns The alert embed, if the entity exceeds the thresholds
@@ -183,7 +182,7 @@ export default class GuildConfig {
     private static _entityExceedsAlertThresholds(data: {
         name: string,
         count: number,
-        oldestEntityUrl?: string,
+        oldestEntityURL?: string,
         createdAt?: Date,
         config: Alert
     }): EmbedBuilder | null {
@@ -195,7 +194,7 @@ export default class GuildConfig {
             .map(capitalize)
             .join(" ");
 
-        const oldestEntityHyperlink = hyperlink("here", data.oldestEntityUrl ?? "");
+        const oldestEntityHyperlink = hyperlink("here", data.oldestEntityURL ?? "");
         const alert = new EmbedBuilder()
             .setColor(Colors.Red)
             .setTitle(`${fullyCapitalizedName} Review Reminder`)
@@ -272,13 +271,13 @@ export default class GuildConfig {
             });
 
             const oldestReport = unresolvedReports.at(0);
-            const oldestReportUrl = oldestReport && messageLink(reportChannelId, oldestReport.id, this.guild.id);
+            const oldestReportURL = oldestReport && messageLink(reportChannelId, oldestReport.id, this.guild.id);
 
             const alert = GuildConfig._entityExceedsAlertThresholds({
                 name: "message report",
                 count: unresolvedReports.length,
                 createdAt: oldestReport?.created_at,
-                oldestEntityUrl: oldestReportUrl,
+                oldestEntityURL: oldestReportURL,
                 config: alertConfig
             });
 
@@ -386,13 +385,13 @@ export default class GuildConfig {
             });
 
             const oldestReport = unresolvedReports.at(0);
-            const oldestReportUrl = oldestReport && messageLink(reportChannelId, oldestReport.id, this.guild.id);
+            const oldestReportURL = oldestReport && messageLink(reportChannelId, oldestReport.id, this.guild.id);
 
             const alert = GuildConfig._entityExceedsAlertThresholds({
                 name: "user report",
                 count: unresolvedReports.length,
                 createdAt: oldestReport?.created_at,
-                oldestEntityUrl: oldestReportUrl,
+                oldestEntityURL: oldestReportURL,
                 config: alertConfig
             });
 

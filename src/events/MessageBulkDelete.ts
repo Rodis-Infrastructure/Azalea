@@ -13,7 +13,7 @@ import { log, mapLogEntriesToFile } from "@utils/logging";
 import { formatBulkMessageLogEntry, Messages } from "@utils/messages";
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
-import { getFilePreviewUrl, pluralize } from "@/utils";
+import { getFilePreviewURL, pluralize } from "@/utils";
 import { LoggingEvent } from "@managers/config/schema";
 
 import GuildConfig from "@managers/config/GuildConfig";
@@ -94,21 +94,21 @@ export default class MessageBulkDelete extends EventListener {
 
         if (logs) {
             for (const message of logs) {
-                const fileUrl = message.attachments.first()!.url;
-                const previewUrl = getFilePreviewUrl(fileUrl);
+                const fileURL = message.attachments.first()!.url;
+                const previewURL = getFilePreviewURL(fileURL);
 
                 const refreshFileLink = new ButtonBuilder()
                     .setLabel("Refresh Link")
                     .setStyle(ButtonStyle.Secondary)
                     .setCustomId("message-delete-bulk-refresh-url");
 
-                const openInBrowserUrl = new ButtonBuilder()
+                const openInBrowserURL = new ButtonBuilder()
                     .setLabel("Open in Browser")
                     .setStyle(ButtonStyle.Link)
-                    .setURL(previewUrl);
+                    .setURL(previewURL);
 
                 const actionRow = new ActionRowBuilder<ButtonBuilder>()
-                    .setComponents(refreshFileLink, openInBrowserUrl);
+                    .setComponents(refreshFileLink, openInBrowserURL);
 
                 await message.edit({ components: [actionRow] });
             }

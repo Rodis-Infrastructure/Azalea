@@ -135,7 +135,7 @@ export async function handleShortMessageDeleteLog(
         ? await Messages.get(message.reference_id)
         : null;
 
-    const messageUrl = messageLink(message.channel_id, message.id, config.guild.id);
+    const messageURL = messageLink(message.channel_id, message.id, config.guild.id);
     const executor = await MessageDelete.getBlame(channel.guild);
 
     const embed = new EmbedBuilder()
@@ -152,7 +152,7 @@ export async function handleShortMessageDeleteLog(
             },
             {
                 name: "Message Content",
-                value: await formatMessageContentForShortLog(message.content, message.sticker_id, messageUrl)
+                value: await formatMessageContentForShortLog(message.content, message.sticker_id, messageURL)
             }
         ])
         .setTimestamp(message.created_at);

@@ -133,8 +133,8 @@ export async function handleQuickMute(data: {
     let reason = cropLines(targetMessage.content, 5);
 
     if (purgedMessages.length) {
-        const [logUrl] = await Purge.log(purgedMessages, channel, config);
-        reason += ` (Purge log: ${logUrl})`;
+        const [logURL] = await Purge.log(purgedMessages, channel, config);
+        reason += ` (Purge log: ${logURL})`;
     }
 
     reason = elipsify(reason, EMBED_FIELD_CHAR_LIMIT);

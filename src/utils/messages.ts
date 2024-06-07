@@ -316,8 +316,8 @@ export async function prependReferenceLog(reference: string | Message, embeds: E
         reference = cachedReference;
     }
 
-    const referenceUrl = messageLink(reference.channel_id, reference.id, reference.guild_id);
-    const messageContent = await formatMessageContentForShortLog(reference.content, reference.sticker_id, referenceUrl);
+    const referenceURL = messageLink(reference.channel_id, reference.id, reference.guild_id);
+    const messageContent = await formatMessageContentForShortLog(reference.content, reference.sticker_id, referenceURL);
 
     const embed = new EmbedBuilder()
         .setColor(Colors.NotQuiteBlack)

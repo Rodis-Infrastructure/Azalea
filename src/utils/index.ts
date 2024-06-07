@@ -228,12 +228,12 @@ export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronT
 
 /**
  * Returns the URL to preview a file's content in a browser.
- * Uses `https://discord-fv.vercel.app/?url={fileUrl}` to preview the file content.
+ * Uses `https://discord-fv.vercel.app/?url={fileURL}` to preview the file content.
  *
  * @param url - The URL of the file to preview
  * @returns The URL to preview the file content
  */
-export function getFilePreviewUrl(url: string): string {
+export function getFilePreviewURL(url: string): string {
     return `https://discord-fv.vercel.app/?url=${encodeURIComponent(url)}`;
 }
 
