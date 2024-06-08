@@ -562,11 +562,7 @@ export default class GuildConfig {
     hasPermission(member: GuildMember, permission: Permission): boolean {
         return member.roles.cache.some(role => {
             return this.data.permissions.some(permissions => {
-                const roleIsIncluded = permissions.include_roles.includes(role.id);
-                const roleIsExcluded = permissions.exclude_roles.includes(role.id);
-                const permissionIsIncluded = permissions.allow.includes(permission);
-
-                return roleIsIncluded && !roleIsExcluded && permissionIsIncluded;
+                return permissions.roles.includes(role.id) && permissions.allow.includes(permission);
             });
         });
     }
