@@ -3,11 +3,13 @@ import { ButtonInteraction, GuildTextBasedChannel } from "discord.js";
 import { handleQuickMute } from "@/commands/QuickMute30Ctx";
 import { MessageReportStatus } from "@utils/reports";
 import { QuickMuteDuration } from "@utils/infractions";
+import { Permission } from "@managers/config/schema";
 import { fetchMessage } from "@utils/messages";
 import { prisma } from "./..";
 
 import Component from "@managers/components/Component";
 import MessageReportResolve from "./MessageReportResolve";
+import ConfigManager from "@managers/config/ConfigManager";
 
 export default class MessageReportQuickMute30 extends Component {
     constructor() {
@@ -28,6 +30,15 @@ export default class MessageReportQuickMute30 extends Component {
  * @param duration - The duration of the quick mute
  */
 export async function handleMessageReportQuickMute(interaction: ButtonInteraction<"cached">, duration: QuickMuteDuration): Promise<InteractionReplyData> {
+    const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+
+    if (!config.hasPermission(interaction.member, Permission.QuickMute)) {
+        return Promise.resolve({
+            content: "You do not have permission to execute quick mutes",
+            ephemeral: true
+        });
+    }
+
     // Returns null if the report is not found
     const report = await prisma.messageReport.findUnique({
         where: {
