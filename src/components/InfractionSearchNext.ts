@@ -27,7 +27,11 @@ export async function handleInfractionSearchPagination(interaction: ButtonIntera
     const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
     if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
-        return "You do not have permission to view infractions.";
+        return {
+            content: "You do not have permission to view infractions.",
+            allowedMentions: { parse: [], repliedUser: true },
+            ephemeral: true
+        };
     }
 
     const [embed] = interaction.message.embeds;
@@ -39,6 +43,7 @@ export async function handleInfractionSearchPagination(interaction: ButtonIntera
     if (!target) {
         return {
             content: "Failed to fetch the target user.",
+            allowedMentions: { parse: [], repliedUser: true },
             ephemeral: true
         };
     }

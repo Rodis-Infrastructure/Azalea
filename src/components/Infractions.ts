@@ -17,14 +17,22 @@ export default class Infractions extends Component {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
         if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
-            return "You do not have permission to view infractions.";
+            return {
+                content: "You do not have permission to view infractions.",
+                allowedMentions: { parse: [], repliedUser: true },
+                ephemeral: true
+            };
         }
 
         const userId = interaction.customId.split("-")[2];
         const user = await client.users.fetch(userId).catch(() => null);
 
         if (!user) {
-            return "Failed to fetch the target user.";
+            return {
+                content: "Failed to fetch the target user.",
+                allowedMentions: { parse: [], repliedUser: true },
+                ephemeral: true
+            };
         }
 
         return Infraction.search({

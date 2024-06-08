@@ -17,7 +17,11 @@ export default class UserInfo extends Component {
         const targetId = interaction.customId.split("-")[2];
 
         if (!targetId) {
-            return "Failed to get the target user's ID.";
+            return {
+                content: "Failed to get the target user's ID.",
+                allowedMentions: { parse: [], repliedUser: true },
+                ephemeral: true
+            };
         }
 
         const member = await interaction.guild.members
@@ -29,7 +33,11 @@ export default class UserInfo extends Component {
             .catch(() => null);
 
         if (!user) {
-            return "Failed to fetch the target user.";
+            return {
+                content: "Failed to fetch the target user.",
+                allowedMentions: { parse: [], repliedUser: true },
+                ephemeral: true
+            };
         }
 
         return UserInfoCommand.get({

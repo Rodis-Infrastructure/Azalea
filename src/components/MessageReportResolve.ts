@@ -19,7 +19,11 @@ export default class MessageReportResolve extends Component {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
         if (!config.hasPermission(interaction.member, Permission.ManageMessageReports)) {
-            return "You do not have permission to manage message reports.";
+            return {
+                content: "You do not have permission to manage message reports.",
+                allowedMentions: { parse: [], repliedUser: true },
+                ephemeral: true
+            };
         }
 
         // Returns null if the report is not found
@@ -34,6 +38,7 @@ export default class MessageReportResolve extends Component {
         if (!report) {
             await interaction.reply({
                 content: "Failed to find the report. Deleting without modifying the database.",
+                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             });
         } else {

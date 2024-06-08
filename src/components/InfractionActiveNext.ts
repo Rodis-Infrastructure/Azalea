@@ -26,7 +26,11 @@ export async function handleInfractionActivePagination(interaction: ButtonIntera
     const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
     if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
-        return "You do not have permission to view infractions.";
+        return {
+            content: "You do not have permission to view infractions.",
+            allowedMentions: { parse: [], repliedUser: true },
+            ephemeral: true
+        };
     }
 
     const pageCountButton = interaction.message.components[0].components[1] as ButtonComponent;

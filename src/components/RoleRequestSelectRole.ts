@@ -31,6 +31,7 @@ export default class RoleRequestSelectRole extends Component {
         if (!roleRequestConfig) {
             return {
                 content: "Role requests are not enabled in this guild.",
+                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }
@@ -38,6 +39,7 @@ export default class RoleRequestSelectRole extends Component {
         if (!config.hasPermission(interaction.member, Permission.ManageRoleRequests)) {
             return {
                 content: "You do not have permission to manage role requests.",
+                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }
@@ -49,6 +51,7 @@ export default class RoleRequestSelectRole extends Component {
         if (!selectedRole) {
             return {
                 content: "This role is not available for request.",
+                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }
@@ -58,6 +61,7 @@ export default class RoleRequestSelectRole extends Component {
         if (!role) {
             return {
                 content: "Failed to fetch the role.",
+                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }
@@ -101,6 +105,7 @@ export default class RoleRequestSelectRole extends Component {
                 await interaction.editReply({});
                 await interaction.followUp({
                     content: "Failed to fetch channel",
+                    allowedMentions: { parse: [], repliedUser: true },
                     ephemeral: true
                 });
                 return null;
@@ -150,6 +155,7 @@ export default class RoleRequestSelectRole extends Component {
                 await interaction.editReply({});
                 await interaction.followUp({
                     content: `Failed to start expiration ${pluralize(members.length, "timer")}.`,
+                    allowedMentions: { parse: [], repliedUser: true },
                     ephemeral: true
                 });
                 return null;
@@ -182,6 +188,7 @@ export default class RoleRequestSelectRole extends Component {
 
             await interaction.followUp({
                 content: `Failed to assign the role to the following ${pluralize(failedMembers.length, "member")}: ${failedMembers}`,
+                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             });
 

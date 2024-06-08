@@ -34,6 +34,7 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
     if (!config.hasPermission(interaction.member, Permission.QuickMute)) {
         return Promise.resolve({
             content: "You do not have permission to execute quick mutes",
+            allowedMentions: { parse: [], repliedUser: true },
             ephemeral: true
         });
     }
@@ -58,6 +59,7 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
     if (!report) {
         return Promise.resolve({
             content: "Failed to find the report. Unable to perform quick mute",
+            allowedMentions: { parse: [], repliedUser: true },
             ephemeral: true
         });
     }
@@ -67,6 +69,7 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
     if (!sourceChannel) {
         return Promise.resolve({
             content: "Failed to fetch the source channel. Unable to perform quick mute",
+            allowedMentions: { parse: [], repliedUser: true },
             ephemeral: true
         });
     }
@@ -76,6 +79,7 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
     if (!reportedMessage) {
         return Promise.resolve({
             content: "Failed to fetch the message. Unable to perform quick mute",
+            allowedMentions: { parse: [], repliedUser: true },
             ephemeral: true
         });
     }
@@ -89,6 +93,7 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
     if (!result.success) {
         return Promise.resolve({
             content: result.message,
+            allowedMentions: { parse: [], repliedUser: true },
             ephemeral: true
         });
     }

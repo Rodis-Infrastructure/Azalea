@@ -16,7 +16,11 @@ export default class RoleRequestRemoveRole extends Component {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
         if (!config.hasPermission(interaction.member, Permission.ManageRoleRequests)) {
-            return "You do not have permission to manage role requests.";
+            return {
+                content: "You do not have permission to manage role requests.",
+                allowedMentions: { parse: [], repliedUser: true },
+                ephemeral: true
+            };
         }
 
         const [embed] = interaction.message.embeds;
@@ -55,8 +59,11 @@ export default class RoleRequestRemoveRole extends Component {
 
         await interaction.reply({
             content: response,
-            allowedMentions: { parse: [] },
-            ephemeral: true
+            ephemeral: true,
+            allowedMentions: {
+                parse: [],
+                repliedUser: failedMembers.length > 0
+            }
         });
 
         await interaction.message.delete().catch(() => null);

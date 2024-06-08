@@ -35,6 +35,7 @@ export default class ReportUser extends Component {
         if (!reason.match(/\w/g)) {
             return {
                 content: "Please provide a valid reason for reporting the user.",
+                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }
@@ -51,6 +52,7 @@ export default class ReportUser extends Component {
         if (!userReportChannel || !userReportChannel.isTextBased()) {
             return {
                 content: "An error occurred while trying to fetch the report channel, please contact staff if this keeps happening.",
+                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }
@@ -196,6 +198,7 @@ export default class ReportUser extends Component {
         if (!report) {
             return {
                 content: "An error occurred while trying to fetch your original report, please contact staff if this keeps happening.",
+                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }
