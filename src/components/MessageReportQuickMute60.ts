@@ -1,10 +1,9 @@
 import { handleMessageReportQuickMute } from "./MessageReportQuickMute30";
+import { QuickMuteDuration } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 import { ButtonInteraction } from "discord.js";
 
 import Component from "@managers/components/Component";
-import MessageReportResolve from "./MessageReportResolve";
-import { QuickMuteDuration } from "@utils/infractions";
 
 export default class MessageReportQuickMute60 extends Component {
     constructor() {
@@ -12,7 +11,6 @@ export default class MessageReportQuickMute60 extends Component {
     }
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
-        MessageReportResolve.log(interaction, "quick mute (60m)");
         return handleMessageReportQuickMute(interaction, QuickMuteDuration.Long);
     }
 }
