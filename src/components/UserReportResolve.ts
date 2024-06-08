@@ -21,7 +21,6 @@ export default class UserReportResolve extends Component {
         if (!config.hasPermission(interaction.member, Permission.ManageUserReports)) {
             return {
                 content: "You do not have permission to manage user reports.",
-                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }
@@ -38,7 +37,6 @@ export default class UserReportResolve extends Component {
         if (!report) {
             await interaction.reply({
                 content: "Failed to find the report. Deleting without modifying the database.",
-                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             });
         } else {

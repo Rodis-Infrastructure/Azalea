@@ -19,7 +19,6 @@ export default class UserInfo extends Component {
         if (!targetId) {
             return {
                 content: "Failed to get the target user's ID.",
-                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }
@@ -35,7 +34,6 @@ export default class UserInfo extends Component {
         if (!user) {
             return {
                 content: "Failed to fetch the target user.",
-                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }

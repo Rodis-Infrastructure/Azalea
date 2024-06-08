@@ -28,7 +28,6 @@ export async function handleInfractionActivePagination(interaction: ButtonIntera
     if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
         return {
             content: "You do not have permission to view infractions.",
-            allowedMentions: { parse: [], repliedUser: true },
             ephemeral: true
         };
     }

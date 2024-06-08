@@ -18,7 +18,6 @@ export default class RoleRequestRemoveRole extends Component {
         if (!config.hasPermission(interaction.member, Permission.ManageRoleRequests)) {
             return {
                 content: "You do not have permission to manage role requests.",
-                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }
@@ -59,11 +58,7 @@ export default class RoleRequestRemoveRole extends Component {
 
         await interaction.reply({
             content: response,
-            ephemeral: true,
-            allowedMentions: {
-                parse: [],
-                repliedUser: failedMembers.length > 0
-            }
+            ephemeral: true
         });
 
         await interaction.message.delete().catch(() => null);

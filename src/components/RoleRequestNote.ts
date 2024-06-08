@@ -32,7 +32,6 @@ export default class RoleRequestNote extends Component {
         if (!config.canManageRoleRequest(interaction.member, embed)) {
             return {
                 content: "You do not have permission to manage this role request's notes.",
-                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }

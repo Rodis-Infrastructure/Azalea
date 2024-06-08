@@ -19,7 +19,6 @@ export default class Infractions extends Component {
         if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
             return {
                 content: "You do not have permission to view infractions.",
-                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }
@@ -30,7 +29,6 @@ export default class Infractions extends Component {
         if (!user) {
             return {
                 content: "Failed to fetch the target user.",
-                allowedMentions: { parse: [], repliedUser: true },
                 ephemeral: true
             };
         }
