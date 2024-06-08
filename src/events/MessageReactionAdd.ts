@@ -175,7 +175,7 @@ export default class MessageReactionAdd extends EventListener {
                 author_id: message.author.id,
                 status: MessageReportStatus.Unresolved,
                 OR: [
-                    { content: message.content },
+                    { content: message.cleanContent },
                     { message_id: message.id }
                 ]
             }
@@ -212,9 +212,7 @@ export default class MessageReactionAdd extends EventListener {
             return;
         }
 
-        // Flags mapped by their names for the report
-        const croppedContent = cropLines(message.content, 5);
-        // Bitwise flags for storage
+        const croppedContent = cropLines(message.cleanContent, 5);
         let flags = 0;
 
         // Add a flag if the message has attachments
@@ -247,7 +245,7 @@ export default class MessageReactionAdd extends EventListener {
             .catch(() => null);
 
         if (reference) {
-            const croppedReference = cropLines(reference.content, 5);
+            const croppedReference = cropLines(reference.cleanContent, 5);
             const referenceStickerId = reference.stickers.first()?.id ?? null;
 
             // Insert the reference content before the actual message content
@@ -323,7 +321,7 @@ export default class MessageReactionAdd extends EventListener {
                 message_id: message.id,
                 author_id: message.author.id,
                 channel_id: message.channelId,
-                content: message.content,
+                content: message.cleanContent,
                 reported_by: reporterId,
                 status: MessageReportStatus.Unresolved,
                 flags
@@ -372,7 +370,7 @@ export default class MessageReactionAdd extends EventListener {
     ): Promise<void> {
         let logContent: MessageCreateOptions | null;
 
-        if (message.content.length > EMBED_FIELD_CHAR_LIMIT) {
+        if (message.cleanContent.length > EMBED_FIELD_CHAR_LIMIT) {
             logContent = await MessageReactionAdd._getLongLogContent(emoji, message, user);
         } else {
             logContent = await MessageReactionAdd._getShortLogContent(emoji, message, user);

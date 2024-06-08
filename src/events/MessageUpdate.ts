@@ -45,9 +45,9 @@ export default class MessageUpdate extends EventListener {
         const config = ConfigManager.getGuildConfig(message.guildId);
         if (!config) return;
 
-        const oldContent = await Messages.updateContent(message.id, message.content);
+        const oldContent = await Messages.updateContent(message.id, message.cleanContent);
         // Only proceed if the message content was changed
-        if (oldContent === message.content) return;
+        if (oldContent === message.cleanContent) return;
 
         MessageUpdate._log(message, oldContent, config).catch(() => null);
         handleModerationRequest(message, config);
@@ -62,7 +62,7 @@ export default class MessageUpdate extends EventListener {
 
         if (
             oldContent.length > EMBED_FIELD_CHAR_LIMIT ||
-            message.content.length > EMBED_FIELD_CHAR_LIMIT ||
+            message.cleanContent.length > EMBED_FIELD_CHAR_LIMIT ||
             (reference?.content && reference.content.length > EMBED_FIELD_CHAR_LIMIT)
         ) {
             logContent = await MessageUpdate._getLongLogContent(message, reference, oldContent);
@@ -86,14 +86,18 @@ export default class MessageUpdate extends EventListener {
         reference: Message | null,
         oldContent: string
     ): Promise<MessageCreateOptions | null> {
+        const serializedMessage = Messages.serialize(message);
+        const formattedOldContent = await formatMessageContentForShortLog(oldContent, null, message.url);
+        const formattedNewContent = await formatMessageContentForShortLog(serializedMessage.content, null, message.url);
+
         const embed = new EmbedBuilder()
             .setColor(Colors.Orange)
             .setAuthor({ name: "Message Updated" })
             .setFields([
                 { name: "Author", value: `${message.author} (\`${message.author.id}\`)` },
                 { name: "Channel", value: `${message.channel} (\`#${message.channel.name}\`)` },
-                { name: "Content (Before)", value: await formatMessageContentForShortLog(oldContent, null, message.url) },
-                { name: "Content (After)", value: await formatMessageContentForShortLog(message.content, null, message.url) }
+                { name: "Content (Before)", value: formattedOldContent },
+                { name: "Content (After)", value: formattedNewContent }
             ])
             .setTimestamp();
 

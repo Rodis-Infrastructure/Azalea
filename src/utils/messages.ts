@@ -292,7 +292,7 @@ export class Messages {
             author_id: message.author.id,
             guild_id: message.guildId,
             created_at: message.createdAt,
-            content: message.content,
+            content: message.cleanContent,
             sticker_id: stickerId,
             reference_id: referenceId,
             deleted: false
