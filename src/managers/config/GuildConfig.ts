@@ -208,7 +208,7 @@ export default class GuildConfig {
                 name: "Alert Conditions",
                 value: "This alert is sent whenever **at least one** of the following conditions is met:\n\n" +
                     `- There are ${config.count_threshold}+ unresolved ${name}\n` +
-                    `- The oldest ${name} was created before ${time(createdAtDateThreshold, TimestampStyles.LongDateTime)}`
+                    `- The oldest ${name} was created before ${time(createdAtDateThreshold, TimestampStyles.ShortDateTime)}`
             })
             .setTimestamp();
 

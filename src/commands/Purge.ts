@@ -148,7 +148,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
 
         if (msPeriod) {
             const cutOffDate = new Date(Date.now() - msPeriod);
-            response += ` created after ${time(cutOffDate, TimestampStyles.LongDateTime)}`;
+            response += ` created after ${time(cutOffDate, TimestampStyles.ShortDateTime)}`;
         }
 
         const logURLs = await Purge.log(purgedMessages, channel, config);

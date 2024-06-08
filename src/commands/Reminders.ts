@@ -149,11 +149,10 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
             return `An error occurred while creating the reminder (\`${sentryId}\`)`;
         }
 
-        const dateTimestamp = time(expiresAt, TimestampStyles.LongDateTime);
         const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);
         const formattedReminder = InfractionUtil.formatReason(reminder);
 
-        return `Successfully created a reminder for ${dateTimestamp} | ${relativeTimestamp} ${formattedReminder}`;
+        return `I will remind you ${relativeTimestamp} ${formattedReminder}`;
     }
 
     private static async _list(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
@@ -166,7 +165,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
         }
 
         const fields: APIEmbedField[] = reminders.map(reminder => ({
-            name: `${time(reminder.expires_at, TimestampStyles.LongDateTime)} | ${reminder.id}`,
+            name: `${time(reminder.expires_at, TimestampStyles.ShortDateTime)} | ID: ${reminder.id}`,
             value: reminder.reminder
         }));
 
