@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TypedRegEx } from "typed-regex";
 
 // ————————————————————————————————————————————————————————————————————————————————
 // Misc
@@ -11,7 +12,29 @@ const snowflakeSchema = z.string().regex(/^\d{17,19}$/gm);
 const emojiSchema = z.union([z.string().emoji(), snowflakeSchema]);
 const stringSchema = z.string().min(1);
 const domainSchema = z.string().regex(/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/gmi);
-const messageContentSchema = stringSchema.max(4000);
+const messageContentSchema = stringSchema.min(1).max(4000);
+
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+const placeholderString = (placeholders: string[], min = 0, max = Infinity) => {
+    return z.string()
+        .min(min)
+        .max(max)
+        .superRefine((value, ctx) => {
+            const re = TypedRegEx("\\$(?<placeholder>[A-Z_]+)(?:\\b|$)", "g");
+            const invalidPlaceholders = re.captureAll(value)
+                .filter((v): v is { placeholder: string } => Boolean(v))
+                .map(({ placeholder }) => placeholder)
+                .filter(placeholder => !placeholders.includes(placeholder));
+
+            for (const placeholder of invalidPlaceholders) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: `Invalid placeholder: $${placeholder}`,
+                    path: ctx.path
+                });
+            }
+        });
+};
 
 // ————————————————————————————————————————————————————————————————————————————————
 // Global Config
@@ -66,6 +89,24 @@ const embedSchema = z.object({
     fields: z.array(embedFieldSchema).max(25).optional(),
     image: embedMediaSchema.optional(),
     thumbnail: embedMediaSchema.optional()
+}).superRefine((embed, ctx) => {
+    const titleLength = embed.title?.length ?? 0;
+    const descriptionLength = embed.description?.length ?? 0;
+    const footerTextLength = embed.footer?.text.length ?? 0;
+    const authorNameLength = embed.author?.name.length ?? 0;
+    const fieldsLength = embed.fields?.reduce((acc, field) => {
+        return acc + field.name.length + field.value.length;
+    }, 0) ?? 0;
+
+    const totalLength = titleLength + descriptionLength + footerTextLength + authorNameLength + fieldsLength;
+
+    if (totalLength > 6000) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "The total character count of the embed exceeds 6000 characters",
+            path: ctx.path
+        });
+    }
 });
 
 const messageSchema = z.union([messageContentSchema, embedSchema]);
@@ -162,6 +203,18 @@ const moderationRequestTypeEnum = z.nativeEnum(ModerationRequestType);
 const channelScopingSchema = z.object({
     include_channels: z.array(snowflakeSchema).default([]),
     exclude_channels: z.array(snowflakeSchema).default([])
+}).superRefine((scoping, ctx) => {
+    const invalidChannelIds = scoping.include_channels.filter(channelId => {
+        return scoping.exclude_channels.includes(channelId);
+    });
+
+    for (const channelId of invalidChannelIds) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Channel ID ${channelId} is both included and excluded`,
+            path: ctx.path
+        });
+    }
 });
 
 const defaultChannelScoping = channelScopingSchema.parse({});
@@ -297,13 +350,25 @@ const mediaChannelSchema = z.object({
     allowed_roles: z.array(snowflakeSchema).min(1).optional(),
     exclude_roles: z.array(snowflakeSchema).default([]),
     fallback_response: messageContentSchema.optional()
+}).superRefine((mediaChannel, ctx) => {
+    const invalidRoleIds = mediaChannel.allowed_roles?.filter(roleId => {
+        return mediaChannel.exclude_roles.includes(roleId);
+    }) ?? [];
+
+    for (const roleId of invalidRoleIds) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Role ID ${roleId} is both allowed and excluded`,
+            path: ctx.path
+        });
+    }
 });
 
 const nicknameCensorshipSchema = z.object({
     exclude_roles: z.array(snowflakeSchema).max(25).default([]),
     exclusion_response: messageContentSchema.default("You do not have permission to censor this user's nickname."),
     // $RAND will be replaced with a random 5-digit number
-    nickname: stringSchema.max(32).default("Censored User $RAND")
+    nickname: placeholderString(["RAND", "USER_ID"], 1, 32).default("Censored User $RAND")
 });
 
 const infractionReasonsSchema = z.object({
@@ -314,8 +379,9 @@ const infractionReasonsSchema = z.object({
     }).default({}),
     // Channels to blacklist in infraction reasons
     message_links: z.object({
-        failure_message: messageContentSchema.default("The reason contains a link to a message in a blacklisted channel: <#$CHANNEL_ID> (`$CHANNEL_NAME`)"),
-        scoping: channelScopingSchema.default(defaultChannelScoping)
+        scoping: channelScopingSchema.default(defaultChannelScoping),
+        failure_message: placeholderString(["CHANNEL_ID", "CHANNEL_NAME"], 1, 4000)
+            .default("The reason contains a link to a message in a blacklisted channel: <#$CHANNEL_ID> (`$CHANNEL_NAME`)")
     }).default({})
 });
 
