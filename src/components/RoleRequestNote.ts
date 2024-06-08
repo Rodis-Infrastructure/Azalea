@@ -15,6 +15,7 @@ import { InteractionReplyData } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 
 import Component from "@managers/components/Component";
+import ConfigManager from "@managers/config/ConfigManager";
 
 export default class RoleRequestNote extends Component {
     constructor() {
@@ -25,9 +26,18 @@ export default class RoleRequestNote extends Component {
     }
 
     async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+        const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+        const [embed] = interaction.message.embeds;
+
+        if (!config.canManageRoleRequest(interaction.member, embed)) {
+            return {
+                content: "You do not have permission to manage this role request's notes.",
+                ephemeral: true
+            };
+        }
+
         const action = interaction.customId.split("-")[3] as RoleRequestNoteAction;
 
-        // Remove the note from the embed
         if (action === RoleRequestNoteAction.Remove) {
             await RoleRequestNote._removeNote(interaction);
             return null;
@@ -41,12 +51,8 @@ export default class RoleRequestNote extends Component {
             .setMaxLength(EMBED_FIELD_CHAR_LIMIT)
             .setRequired(true);
 
-        // Get the value of the last field in the embed
-        // and use it as the value
         if (action === RoleRequestNoteAction.Edit) {
-            const [embed] = interaction.message.embeds;
             const note = embed.fields.slice(-1)[0].value;
-
             noteInput.setValue(note);
         }
 

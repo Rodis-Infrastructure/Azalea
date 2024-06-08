@@ -17,7 +17,6 @@ export default class MessageReportQuickMute30 extends Component {
     }
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
-        MessageReportResolve.log(interaction, "quick mute (30m)");
         return handleMessageReportQuickMute(interaction, QuickMuteDuration.Short);
     }
 }
@@ -37,6 +36,16 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
             content: "You do not have permission to execute quick mutes",
             ephemeral: true
         });
+    }
+
+    switch (duration) {
+        case QuickMuteDuration.Short:
+            MessageReportResolve.log(interaction, config, "quick mute (30m)");
+            break;
+
+        case QuickMuteDuration.Long:
+            MessageReportResolve.log(interaction, config, "quick mute (60m)");
+            break;
     }
 
     // Returns null if the report is not found

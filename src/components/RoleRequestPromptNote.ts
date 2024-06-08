@@ -1,6 +1,7 @@
 import {
     ActionRowBuilder,
-    ButtonBuilder, ButtonComponentData,
+    ButtonBuilder,
+    ButtonComponentData,
     ButtonStyle,
     EmbedBuilder,
     ModalSubmitInteraction,

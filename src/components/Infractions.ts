@@ -4,6 +4,8 @@ import { client } from "./..";
 
 import Component from "@managers/components/Component";
 import Infraction, { InfractionSearchFilter } from "@/commands/Infraction";
+import ConfigManager from "@managers/config/ConfigManager";
+import { Permission } from "@managers/config/schema";
 
 export default class Infractions extends Component {
     constructor() {
@@ -12,6 +14,12 @@ export default class Infractions extends Component {
     }
 
     async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+        const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+
+        if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
+            return "You do not have permission to view infractions.";
+        }
+
         const userId = interaction.customId.split("-")[2];
         const user = await client.users.fetch(userId).catch(() => null);
 

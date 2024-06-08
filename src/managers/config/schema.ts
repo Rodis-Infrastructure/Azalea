@@ -125,6 +125,10 @@ export enum Permission {
      * - Approve / Deny ban requests
      */
     ManageBanRequests = "manage_ban_requests",
+    // Grants access to resolving message reports
+    ManageMessageReports = "manage_message_reports",
+    // Grants access to resolving user reports
+    ManageUserReports = "manage_user_reports",
     // Grants access to viewing a user's infractions
     ViewInfractions = "view_infractions",
     /**

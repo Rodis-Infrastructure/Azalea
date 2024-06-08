@@ -3,11 +3,12 @@ import { InteractionReplyData } from "@utils/types";
 import { MessageReportStatus } from "@utils/reports";
 import { prisma } from "./..";
 import { log } from "@utils/logging";
-import { LoggingEvent } from "@managers/config/schema";
+import { LoggingEvent, Permission } from "@managers/config/schema";
 import { userMentionWithId } from "@/utils";
 
 import Component from "@managers/components/Component";
 import ConfigManager from "@managers/config/ConfigManager";
+import GuildConfig from "@managers/config/GuildConfig";
 
 export default class MessageReportResolve extends Component {
     constructor() {
@@ -15,6 +16,12 @@ export default class MessageReportResolve extends Component {
     }
 
     async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+        const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+
+        if (!config.hasPermission(interaction.member, Permission.ManageMessageReports)) {
+            return "You do not have permission to manage message reports.";
+        }
+
         // Returns null if the report is not found
         const report = await prisma.messageReport.update({
             where: { id: interaction.message.id },
@@ -36,16 +43,14 @@ export default class MessageReportResolve extends Component {
             });
         }
 
-        MessageReportResolve.log(interaction);
+        MessageReportResolve.log(interaction, config);
         await interaction.message.delete();
         return null;
     }
 
     // Format: Resolved by {executor} (action: {action})
-    static log(interaction: ButtonInteraction<"cached">, action?: string): void {
-        const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+    static log(interaction: ButtonInteraction<"cached">, config: GuildConfig, action?: string): void {
         const [alert] = interaction.message.embeds;
-
         const embed = new EmbedBuilder(alert.toJSON())
             .setColor(Colors.Green)
             .setTitle("Message Report Resolved");

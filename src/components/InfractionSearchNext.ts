@@ -1,9 +1,11 @@
 import { InteractionReplyData } from "@utils/types";
 import { ButtonComponent, ButtonInteraction, InteractionUpdateOptions } from "discord.js";
 import { client } from "./..";
+import { Permission } from "@managers/config/schema";
 
 import Component from "@managers/components/Component";
 import Infraction, { InfractionSearchFilter } from "@/commands/Infraction";
+import ConfigManager from "@managers/config/ConfigManager";
 
 export default class InfractionSearchNext extends Component {
     constructor() {
@@ -22,6 +24,12 @@ export default class InfractionSearchNext extends Component {
  * @param pageOffset - The page offset (e.g. `-1` goes back and `1` goes forward)
  */
 export async function handleInfractionSearchPagination(interaction: ButtonInteraction<"cached">, pageOffset: number): Promise<InteractionReplyData> {
+    const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+
+    if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
+        return "You do not have permission to view infractions.";
+    }
+
     const [embed] = interaction.message.embeds;
 
     // Format: "User ID: {user_id}"

@@ -1,13 +1,17 @@
 import {
     Collection,
     Colors,
+    Embed,
     EmbedBuilder,
     Guild,
     GuildBasedChannel,
-    GuildMember, hyperlink,
+    GuildMember,
+    hyperlink,
     messageLink,
     Role,
-    roleMention, time, TimestampStyles
+    roleMention,
+    time,
+    TimestampStyles
 } from "discord.js";
 
 import { Alert, ChannelScoping, Permission, RawGuildConfig, rawGuildConfigSchema } from "./schema";
@@ -18,6 +22,7 @@ import { pluralize, randInt, startCronJob } from "@/utils";
 import { Snowflake } from "discord-api-types/v10";
 import { RequestStatus } from "@utils/requests";
 import { LOG_ENTRY_DATE_FORMAT } from "@utils/constants";
+import { TypedRegEx } from "typed-regex";
 import { capitalize } from "lodash";
 
 import Logger from "@utils/logger";
@@ -560,6 +565,13 @@ export default class GuildConfig {
                 return permissions.roles.includes(role.id) && permissions.allow.includes(permission);
             });
         });
+    }
+
+    canManageRoleRequest(member: GuildMember, request: Embed): boolean {
+        const re = TypedRegEx("(?<authorId>\\d{17,19})\\)$");
+        const authorId = re.captures(request.data.author!.name)?.authorId;
+
+        return member.id === authorId || this.hasPermission(member, Permission.ManageRoleRequests);
     }
 
     /**
