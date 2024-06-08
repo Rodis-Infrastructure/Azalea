@@ -259,7 +259,8 @@ const moderationRequestSchema = z.object({
 });
 
 const permissionsSchema = z.object({
-    roles: z.array(snowflakeSchema).nonempty(),
+    include_roles: z.array(snowflakeSchema).nonempty(),
+    exclude_roles: z.array(snowflakeSchema).default([]),
     allow: z.array(permissionEnum).nonempty()
 });
 
