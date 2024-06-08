@@ -74,15 +74,18 @@ export async function handleQuickMute(data: {
     let channel: GuildTextBasedChannel | null;
     let targetMember: GuildMember | null;
     let targetUserId: Snowflake;
+    let content: string;
 
     if (targetMessage instanceof DiscordMessage) {
         targetMember = targetMessage.member;
         channel = targetMessage.channel as GuildTextBasedChannel;
         targetUserId = targetMessage.author.id;
+        content = targetMessage.cleanContent;
     } else {
         targetMember = await executor.guild.members.fetch(targetMessage.author_id).catch(() => null);
         channel = await executor.guild.channels.fetch(targetMessage.channel_id).catch(() => null) as GuildTextBasedChannel | null;
         targetUserId = targetMessage.author_id;
+        content = targetMessage.content;
     }
 
     if (!channel) {
@@ -130,7 +133,7 @@ export async function handleQuickMute(data: {
     const expiresAt = new Date(msExpiresAt);
     const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);
     const purgedMessages = await Purge.purgeUser(targetUserId, channel, config.data.default_purge_amount);
-    let reason = cropLines(targetMessage.content, 5);
+    let reason = cropLines(content, 5);
 
     if (purgedMessages.length) {
         const [logURL] = await Purge.log(purgedMessages, channel, config);
