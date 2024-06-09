@@ -19,6 +19,7 @@ import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { log, mapLogEntriesToFile } from "@utils/logging";
 import { handleModerationRequest } from "@utils/requests";
 import { Message } from "@prisma/client";
+import { cleanContent } from "@/utils";
 import { LoggingEvent } from "@managers/config/schema";
 
 import GuildConfig from "@managers/config/GuildConfig";
@@ -45,9 +46,11 @@ export default class MessageUpdate extends EventListener {
         const config = ConfigManager.getGuildConfig(message.guildId);
         if (!config) return;
 
-        const oldContent = await Messages.updateContent(message.id, message.cleanContent);
+        const newContent = cleanContent(message.content, message.channel);
+        const oldContent = await Messages.updateContent(message.id, newContent);
+
         // Only proceed if the message content was changed
-        if (oldContent === message.cleanContent) return;
+        if (oldContent === newContent) return;
 
         MessageUpdate._log(message, oldContent, config).catch(() => null);
         handleModerationRequest(message, config);
@@ -58,11 +61,12 @@ export default class MessageUpdate extends EventListener {
             ? await Messages.get(message.reference.messageId)
             : null;
 
+        const newContent = cleanContent(message.content, message.channel);
         let logContent: MessageCreateOptions | null;
 
         if (
             oldContent.length > EMBED_FIELD_CHAR_LIMIT ||
-            message.cleanContent.length > EMBED_FIELD_CHAR_LIMIT ||
+            newContent.length > EMBED_FIELD_CHAR_LIMIT ||
             (reference?.content && reference.content.length > EMBED_FIELD_CHAR_LIMIT)
         ) {
             logContent = await MessageUpdate._getLongLogContent(message, reference, oldContent);

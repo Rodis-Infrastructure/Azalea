@@ -26,7 +26,7 @@ import {
 import { handleQuickMute } from "@/commands/QuickMute30Ctx";
 import { log, mapLogEntriesToFile } from "@utils/logging";
 import { DEFAULT_EMBED_COLOR, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { cropLines, pluralize, userMentionWithId } from "@/utils";
+import { cleanContent, cropLines, pluralize, userMentionWithId } from "@/utils";
 import { ButtonStyle, Snowflake } from "discord-api-types/v10";
 import { approveModerationRequest, denyModerationRequest, RequestStatus } from "@utils/requests";
 import { prisma } from "./..";
@@ -170,12 +170,13 @@ export default class MessageReactionAdd extends EventListener {
         }
 
         // Check if there is an existing report for a message with the same content
+        const content = cleanContent(message.content, message.channel);
         const originalReport = await prisma.messageReport.findFirst({
             where: {
                 author_id: message.author.id,
                 status: MessageReportStatus.Unresolved,
                 OR: [
-                    { content: message.cleanContent },
+                    { content: content },
                     { message_id: message.id }
                 ]
             }
@@ -212,7 +213,7 @@ export default class MessageReactionAdd extends EventListener {
             return;
         }
 
-        const croppedContent = cropLines(message.cleanContent, 5);
+        const croppedContent = cropLines(content, 5);
         let flags = 0;
 
         // Add a flag if the message has attachments
@@ -245,13 +246,15 @@ export default class MessageReactionAdd extends EventListener {
             .catch(() => null);
 
         if (reference) {
-            const croppedReference = cropLines(reference.cleanContent, 5);
+            const referenceContent = cleanContent(reference.content, reference.channel);
+            const croppedReferenceContent = cropLines(referenceContent, 5);
             const referenceStickerId = reference.stickers.first()?.id ?? null;
+            const formattedReferenceContent = await formatMessageContentForShortLog(croppedReferenceContent, referenceStickerId, reference.url);
 
             // Insert the reference content before the actual message content
             alert.spliceFields(2, 0, {
                 name: `Reference from @${reference.author.username} (${reference.author.id})`,
-                value: await formatMessageContentForShortLog(croppedReference, referenceStickerId, reference.url)
+                value: formattedReferenceContent
             });
         }
 
@@ -321,9 +324,9 @@ export default class MessageReactionAdd extends EventListener {
                 message_id: message.id,
                 author_id: message.author.id,
                 channel_id: message.channelId,
-                content: message.cleanContent,
                 reported_by: reporterId,
                 status: MessageReportStatus.Unresolved,
+                content,
                 flags
             },
             update: {
@@ -368,9 +371,10 @@ export default class MessageReactionAdd extends EventListener {
         user: User,
         config: GuildConfig
     ): Promise<void> {
+        const content = cleanContent(message.content, message.channel);
         let logContent: MessageCreateOptions | null;
 
-        if (message.cleanContent.length > EMBED_FIELD_CHAR_LIMIT) {
+        if (content.length > EMBED_FIELD_CHAR_LIMIT) {
             logContent = await MessageReactionAdd._getLongLogContent(emoji, message, user);
         } else {
             logContent = await MessageReactionAdd._getShortLogContent(emoji, message, user);

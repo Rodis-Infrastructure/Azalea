@@ -20,7 +20,7 @@ import {
 
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
-import { elipsify, pluralize, startCronJob, userMentionWithId } from "./index";
+import { cleanContent, elipsify, pluralize, startCronJob, userMentionWithId } from "./index";
 import { client, prisma } from "./..";
 
 import Logger from "./logger";
@@ -292,7 +292,7 @@ export class Messages {
             author_id: message.author.id,
             guild_id: message.guildId,
             created_at: message.createdAt,
-            content: message.cleanContent,
+            content: cleanContent(message.content, message.channel),
             sticker_id: stickerId,
             reference_id: referenceId,
             deleted: false
@@ -353,8 +353,6 @@ export async function formatMessageContentForShortLog(content: string | null, st
     }
 
     if (content) {
-        // Escape custom emojis
-        content = content.replace(/<(a?):([^:\n\r]+):(\d{17,19})>/g, "<$1\\:$2\\:$3>");
         // Escape code blocks
         content = escapeCodeBlock(content);
         // Truncate the content if it's too long (account for the formatting characters)

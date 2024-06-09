@@ -1,5 +1,12 @@
+import {
+    GuildBasedChannel,
+    Role,
+    ThreadChannel,
+    TextBasedChannel,
+    cleanContent as djsCleanContent
+} from "discord.js";
+
 import { Snowflake } from "discord-api-types/v10";
-import { GuildBasedChannel, Role, ThreadChannel } from "discord.js";
 import { CronJobParams } from "@sentry/node/types/cron/cron";
 import { Messages } from "./messages";
 import { ObjectDiff } from "./types";
@@ -246,4 +253,10 @@ export function getFilePreviewURL(url: string): string {
  */
 export function randInt(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export function cleanContent(str: string, channel: TextBasedChannel): string {
+    // Escape custom emojis
+    str = str.replace(/<(a?):([^:\n\r]+):(\d{17,19})>/g, "<$1\\:$2\\:$3>");
+    return djsCleanContent(str, channel);
 }

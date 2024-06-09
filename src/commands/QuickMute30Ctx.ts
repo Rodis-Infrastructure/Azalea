@@ -20,7 +20,7 @@ import {
 
 import { InteractionReplyData } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { cropLines, elipsify } from "@/utils";
+import { cleanContent, cropLines, elipsify } from "@/utils";
 import { Message } from "@prisma/client";
 
 import ConfigManager from "@managers/config/ConfigManager";
@@ -80,7 +80,7 @@ export async function handleQuickMute(data: {
         targetMember = targetMessage.member;
         channel = targetMessage.channel as GuildTextBasedChannel;
         targetUserId = targetMessage.author.id;
-        content = targetMessage.cleanContent;
+        content = cleanContent(targetMessage.content, targetMessage.channel);
     } else {
         targetMember = await executor.guild.members.fetch(targetMessage.author_id).catch(() => null);
         channel = await executor.guild.channels.fetch(targetMessage.channel_id).catch(() => null) as GuildTextBasedChannel | null;
