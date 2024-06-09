@@ -24,13 +24,13 @@ import { log } from "@utils/logging";
 import { Message } from "@prisma/client";
 import { client, prisma } from "./..";
 import { LoggingEvent } from "@managers/config/schema";
+import { MessageReportFlag, MessageReportStatus, MessageReportUtil } from "@utils/reports";
+import { RequestStatus } from "@utils/requests";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import MessageBulkDelete from "./MessageBulkDelete";
-import { MessageReportFlag, MessageReportStatus, MessageReportUtil } from "@utils/reports";
-import { RequestStatus } from "@utils/requests";
 
 export default class MessageDelete extends EventListener {
     constructor() {
@@ -167,6 +167,8 @@ export async function handleShortMessageDeleteLog(
     }
 
     const embeds = [embed];
+    const executorMember = executor && await channel.guild.members.fetch(executor)
+        .catch(() => null);
 
     if (reference) {
         await prependReferenceLog(reference, embeds);
@@ -175,6 +177,7 @@ export async function handleShortMessageDeleteLog(
     return log({
         event: LoggingEvent.MessageDelete,
         message: { embeds },
+        member: executorMember,
         channel,
         config
     });

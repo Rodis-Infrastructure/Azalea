@@ -80,6 +80,7 @@ export default class MessageUpdate extends EventListener {
             event: LoggingEvent.MessageUpdate,
             message: logContent,
             channel: message.channel,
+            member: message.member,
             config
         });
     }

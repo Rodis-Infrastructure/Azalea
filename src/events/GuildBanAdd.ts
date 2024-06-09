@@ -79,6 +79,7 @@ export default class GuildBanAdd extends EventListener {
                     embeds: [embed]
                 },
                 channel: null,
+                member: null,
                 config
             });
         }
@@ -130,6 +131,7 @@ export default class GuildBanAdd extends EventListener {
                     embeds: [embed]
                 },
                 channel: null,
+                member: null,
                 config
             });
         }

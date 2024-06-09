@@ -77,7 +77,7 @@ export default class InteractionCreate extends EventListener {
 
     private static async _handle(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
         const ephemeralReply = interaction.channel
-            ? config.inScope(interaction.channel, config.data.ephemeral_scoping)
+            ? config.channelInScope(interaction.channel)
             : true;
 
         let response: InteractionReplyData | null;
@@ -149,6 +149,7 @@ export default class InteractionCreate extends EventListener {
             event: LoggingEvent.InteractionCreate,
             channel: interaction.channel,
             message: { embeds },
+            member: interaction.member,
             config
         });
     }

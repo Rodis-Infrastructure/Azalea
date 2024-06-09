@@ -19,7 +19,7 @@ export default class ThreadUpdate extends EventListener {
         ThreadUpdate._log(oldThread, newThread, config);
     }
 
-    private static _log(oldThread: ThreadChannel, newThread: ThreadChannel, config: GuildConfig): void {
+    private static async _log(oldThread: ThreadChannel, newThread: ThreadChannel, config: GuildConfig): Promise<void> {
         if (!newThread.ownerId || !newThread.parent) return;
 
         const difference = getObjectDiff(oldThread, newThread);
@@ -54,10 +54,13 @@ export default class ThreadUpdate extends EventListener {
             ])
             .setTimestamp();
 
+        const owner = await newThread.fetchOwner();
+
         log({
             event: LoggingEvent.ThreadUpdate,
             message: { embeds: [embed] },
             channel: newThread.parent,
+            member: owner?.guildMember ?? null,
             config
         });
     }

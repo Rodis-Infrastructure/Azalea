@@ -231,9 +231,8 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                     return "Failed to fetch the current channel.";
                 }
 
-                const ephemeral = config.inScope(interaction.channel, config.data.ephemeral_scoping);
+                const ephemeral = config.channelInScope(interaction.channel);
                 await interaction.deferReply({ ephemeral });
-
                 return Infraction.listActive();
             }
 
@@ -249,7 +248,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                     return "You do not have permission to restore infractions.";
                 }
 
-                return Infraction._restore(infractionId, interaction.user.id, config);
+                return Infraction._restore(infractionId, interaction.member, config);
             }
 
             case InfractionSubcommand.Info: {
@@ -455,6 +454,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             event: LoggingEvent.InfractionArchive,
             message: { embeds: [embed] },
             channel: null,
+            member: executor,
             config
         });
 
@@ -468,12 +468,12 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
      * - Logging the restoration in the appropriate channel.
      *
      * @param infractionId - ID of the infraction to restore
-     * @param executorId - ID of the user responsible for restoring the infraction
+     * @param executor - The user responsible for restoring the infraction
      * @param config - The guild configuration
      * @returns An interaction reply with the result of the operation
      * @private
      */
-    private static async _restore(infractionId: number, executorId: Snowflake, config: GuildConfig): Promise<InteractionReplyData> {
+    private static async _restore(infractionId: number, executor: GuildMember, config: GuildConfig): Promise<InteractionReplyData> {
         const infraction = await prisma.infraction.update({
             where: { id: infractionId, archived_at: { not: null } },
             select: { action: true, flag: true },
@@ -494,7 +494,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             .setTitle(formattedAction)
             .setFields([{
                 name: "Restored By",
-                value: userMentionWithId(executorId)
+                value: userMentionWithId(executor.id)
             }])
             .setFooter({ text: `#${infractionId}` })
             .setTimestamp();
@@ -503,6 +503,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             event: LoggingEvent.InfractionRestore,
             message: { embeds: [embed] },
             channel: null,
+            member: executor,
             config
         });
 
@@ -611,6 +612,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             event: LoggingEvent.InfractionUpdate,
             message: { embeds: [embed] },
             channel: null,
+            member: executor,
             config
         });
 
@@ -705,6 +707,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             event: LoggingEvent.InfractionUpdate,
             message: { embeds: [embed] },
             channel: null,
+            member: executor,
             config
         });
 

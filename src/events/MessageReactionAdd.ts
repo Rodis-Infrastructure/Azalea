@@ -343,6 +343,7 @@ export default class MessageReactionAdd extends EventListener {
             event: LoggingEvent.MessageReportCreate,
             channel: message.channel,
             message: { embeds: [alert] },
+            member: null,
             config
         });
     }
@@ -382,10 +383,14 @@ export default class MessageReactionAdd extends EventListener {
 
         if (!logContent) return;
 
+        const member = await message.guild.members.fetch(user.id)
+            .catch(() => null);
+
         log({
             event: LoggingEvent.MessageReactionAdd,
             channel: message.channel,
             message: logContent,
+            member,
             config
         });
     }

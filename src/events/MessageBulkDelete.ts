@@ -88,6 +88,7 @@ export default class MessageBulkDelete extends EventListener {
                 content: logContent,
                 files: [file]
             },
+            member: null,
             channel,
             config
         });

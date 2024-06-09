@@ -1,6 +1,6 @@
 import { humanizeTimestamp, userMentionWithId } from "./index";
 import { Infraction, Prisma } from "@prisma/client";
-import { ColorResolvable, Colors, EmbedBuilder } from "discord.js";
+import { ColorResolvable, Colors, EmbedBuilder, GuildMember } from "discord.js";
 import { Snowflake } from "discord-api-types/v10";
 import { client, prisma } from "./..";
 import { log } from "./logging";
@@ -26,7 +26,7 @@ export class InfractionManager {
         await prisma.infraction.delete({ where: { id: infractionId } });
     }
 
-    static logInfraction(infraction: Infraction, config: GuildConfig): void {
+    static logInfraction(infraction: Infraction, executor: GuildMember | null, config: GuildConfig): void {
         const embedColor = InfractionUtil.mapActionToEmbedColor(infraction.action);
         const formattedAction = InfractionUtil.formatAction(infraction.action, infraction.flag);
 
@@ -57,6 +57,7 @@ export class InfractionManager {
             event: LoggingEvent.InfractionCreate,
             message: { embeds: [embed] },
             channel: null,
+            member: executor,
             config
         });
     }
@@ -159,7 +160,7 @@ export class InfractionUtil {
         for (const channel of channels) {
             if (!channel) continue;
 
-            const inScope = config.inScope(channel, message_links.scoping);
+            const inScope = config.channelInScope(channel, message_links.scoping);
 
             if (!inScope) {
                 const parsedFailureMessage = message_links.failure_message

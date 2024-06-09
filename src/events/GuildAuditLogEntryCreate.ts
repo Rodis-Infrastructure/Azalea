@@ -33,6 +33,8 @@ export default class GuildAuditLogEntryCreate extends EventListener {
 
         const parsedReason = reason ?? DEFAULT_INFRACTION_REASON;
         const formattedReason = InfractionUtil.formatReason(parsedReason);
+        const executorMember = await guild.members.fetch(executor)
+            .catch(() => null);
 
         let notification = `${target} has been $ACTION by ${executor} - \`#$INFRACTION_ID\` ${formattedReason}`;
         let action: InfractionAction | undefined;
@@ -82,7 +84,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
 
                         if (infraction) {
                             notification = notification.replace("$INFRACTION_ID", infraction.id.toString());
-                            InfractionManager.logInfraction(infraction, config);
+                            InfractionManager.logInfraction(infraction, executorMember, config);
                         } else {
                             notification = notification.replace("$INFRACTION_ID", "unknown");
                         }
@@ -115,7 +117,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
 
         if (infraction) {
             notification = notification.replace("$INFRACTION_ID", infraction.id.toString());
-            InfractionManager.logInfraction(infraction, config);
+            InfractionManager.logInfraction(infraction, executorMember, config);
         } else {
             notification = notification.replace("$INFRACTION_ID", "unknown");
         }

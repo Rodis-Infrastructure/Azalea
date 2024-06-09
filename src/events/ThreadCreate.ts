@@ -19,7 +19,7 @@ export default class ThreadCreate extends EventListener {
         ThreadCreate._log(thread, config);
     }
 
-    private static _log(thread: ThreadChannel, config: GuildConfig): void {
+    private static async _log(thread: ThreadChannel, config: GuildConfig): Promise<void> {
         if (!thread.ownerId || !thread.parent) return;
 
         const embed = new EmbedBuilder()
@@ -41,10 +41,13 @@ export default class ThreadCreate extends EventListener {
             ])
             .setTimestamp();
 
+        const owner = await thread.fetchOwner();
+
         log({
             event: LoggingEvent.ThreadCreate,
             message: { embeds: [embed] },
             channel: thread.parent,
+            member: owner?.guildMember ?? null,
             config
         });
     }

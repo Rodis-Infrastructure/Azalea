@@ -15,6 +15,6 @@ export default class CensorNicknameCtx extends Command<UserContextMenuCommandInt
 
     execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-        return CensorNickname.handle(interaction.user.id, interaction.targetMember, config);
+        return CensorNickname.handle(interaction.member, interaction.targetMember, config);
     }
 }

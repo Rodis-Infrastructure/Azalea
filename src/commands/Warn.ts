@@ -60,12 +60,12 @@ export default class Warn extends Command<ChatInputCommandInteraction<"cached">>
             return "An error occurred while storing the infraction";
         }
 
-        InfractionManager.logInfraction(infraction, config);
+        InfractionManager.logInfraction(infraction, interaction.member, config);
 
         const formattedReason = InfractionUtil.formatReason(reason);
         const message = `warned ${user} - \`#${infraction.id}\` ${formattedReason}`;
 
-        if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
+        if (interaction.channel && config.channelInScope(interaction.channel)) {
             config.sendNotification(`${interaction.user} ${message}`, false);
         }
 

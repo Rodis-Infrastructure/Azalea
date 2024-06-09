@@ -135,12 +135,12 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             }
         }
 
-        InfractionManager.logInfraction(infraction, config);
+        InfractionManager.logInfraction(infraction, interaction.member, config);
 
         const formattedReason = InfractionUtil.formatReason(reason);
         const message = `set ${user} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`;
 
-        if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
+        if (interaction.channel && config.channelInScope(interaction.channel)) {
             config.sendNotification(`${interaction.user} ${message}`, false);
         }
 

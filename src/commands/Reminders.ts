@@ -109,7 +109,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
-        if (config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
+        if (config.channelInScope(interaction.channel)) {
             return "Reminders can only be created in non-ephemeral channels";
         }
 

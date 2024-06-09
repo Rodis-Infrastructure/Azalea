@@ -61,6 +61,7 @@ export default class MessageReportResolve extends Component {
         log({
             event: LoggingEvent.MessageReportResolve,
             channel: null,
+            member: interaction.member,
             config,
             message: {
                 content: `Resolved by ${userMentionWithId(interaction.user.id)}${action ? ` (action: ${action})` : ""}`,

@@ -61,12 +61,12 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
             return "An error occurred while storing the note";
         }
 
-        InfractionManager.logInfraction(infraction, config);
+        InfractionManager.logInfraction(infraction, interaction.member, config);
 
         const formattedReason = InfractionUtil.formatReason(note);
         const message = `added a note to ${user} - \`#${infraction.id}\` ${formattedReason}`;
 
-        if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
+        if (interaction.channel && config.channelInScope(interaction.channel)) {
             config.sendNotification(`${interaction.user} ${message}`, false);
         }
 

@@ -83,13 +83,13 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
             return `An error occurred while kicking the member (\`${sentryId}\`)`;
         }
 
-        InfractionManager.logInfraction(infraction, config);
+        InfractionManager.logInfraction(infraction, interaction.member, config);
 
         const formattedReason = InfractionUtil.formatReason(reason);
         const message = `kicked ${member} - \`#${infraction.id}\` ${formattedReason}`;
 
         // Ensure a public log of the action is made if executed ephemerally
-        if (interaction.channel && config.inScope(interaction.channel, config.data.ephemeral_scoping)) {
+        if (interaction.channel && config.channelInScope(interaction.channel)) {
             config.sendNotification(`${interaction.user} ${message}`, false);
         }
 

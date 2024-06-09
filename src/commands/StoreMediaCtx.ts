@@ -1,6 +1,6 @@
 import {
     ApplicationCommandType,
-    Attachment,
+    Attachment, GuildMember,
     MessageContextMenuCommandInteraction,
     Snowflake,
     userMention
@@ -34,7 +34,7 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
         }
 
         try {
-            const logURLs = await StoreMediaCtx.storeMedia(interaction.user.id, interaction.targetMessage.author.id, files, config);
+            const logURLs = await StoreMediaCtx.storeMedia(interaction.member, interaction.targetMessage.author.id, files, config);
             return `Stored \`${files.length}\` ${pluralize(files.length, "attachment")} from ${interaction.targetMessage.author} - ${logURLs.join(" ")}`;
         } catch (error) {
             if (error instanceof MediaStoreError) {
@@ -58,13 +58,13 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
      * Handles storing media in the logging channel
      *
      * @param media - The media to store
-     * @param executorId - ID of the user who stored the media
+     * @param executor - The user who stored the media
      * @param targetId - ID of the user whose media is being stored
      * @param config - The guild configuration
      * @throws MediaStoreError - If the media size exceeds 10MB
      * @returns The media log URLs
      */
-    static async storeMedia(executorId: Snowflake, targetId: Snowflake, media: Attachment[], config: GuildConfig): Promise<string[]> {
+    static async storeMedia(executor: GuildMember | null, targetId: Snowflake, media: Attachment[], config: GuildConfig): Promise<string[]> {
         const size = media.reduce((acc, file) => acc + file.size, 0);
 
         if (size > 10_000_000) {
@@ -74,11 +74,12 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
         const loggedMessages = await log({
             event: LoggingEvent.MediaStore,
             message: {
-                content: `Media from ${userMention(targetId)}, stored by ${userMention(executorId)}`,
+                content: `Media from ${userMention(targetId)}, stored by ${executor ?? "unknown user"}`,
                 allowedMentions: { parse: [] },
                 files: media
             },
             channel: null,
+            member: executor,
             config
         });
 

@@ -14,7 +14,16 @@ import {
     TimestampStyles
 } from "discord.js";
 
-import { Alert, ChannelScoping, Permission, RawGuildConfig, rawGuildConfigSchema } from "./schema";
+import {
+    Alert,
+    Scoping,
+    Permission,
+    RawGuildConfig,
+    rawGuildConfigSchema,
+    ChannelScoping,
+    RoleScoping
+} from "./schema";
+
 import { client, prisma } from "@/index";
 import { MessageReportStatus, UserReportStatus } from "@utils/reports";
 import { fromZodError } from "zod-validation-error";
@@ -477,9 +486,48 @@ export default class GuildConfig {
      * - The channel/thread/category ID **is not** included in the `exclude_channels` array
      *
      * @param channel - The channel to check
-     * @param scoping - The scoping to check against
+     * @param member - The member to check
+     * @param scoping - The scoping to check against, defaults to ephemeral scoping
      */
-    inScope(channel: GuildBasedChannel, scoping: ChannelScoping): boolean {
+    inScope(channel: GuildBasedChannel, member: GuildMember | null, scoping: Scoping): boolean {
+        const channelInScope = this.channelInScope(channel, {
+            include_channels: scoping.include_channels,
+            exclude_channels: scoping.exclude_channels
+        });
+
+        if (scoping.include_roles.length || scoping.exclude_roles.length) {
+            if (!member) return false;
+
+            return channelInScope && this.roleInScope(member, {
+                include_roles: scoping.include_roles,
+                exclude_roles: scoping.exclude_roles
+            });
+        }
+
+        return channelInScope;
+    }
+
+    /**
+     * Get an array of emojis to add to a message in an auto-reaction channel.
+     * The array will be empty if the channel is not an auto-reaction channel.
+     *
+     * @param channelId - The channel ID to check
+     * @param roles - The roles of the user to check
+     * @returns An array of emojis to add to a message
+     */
+    getAutoReactionEmojis(channelId: Snowflake, roles: Collection<Snowflake, Role>): string[] {
+        return this.data.auto_reactions.find(reaction => {
+            return reaction.channel_id === channelId && !roles.some(role => reaction.exclude_roles.includes(role.id));
+        })?.reactions ?? [];
+    }
+
+    /**
+     * Check if a channel is in scope
+     *
+     * @param channel - The channel to check
+     * @param scoping - The scoping to check against, defaults to ephemeral scoping
+     */
+    channelInScope(channel: GuildBasedChannel, scoping: ChannelScoping = this.data.ephemeral_scoping): boolean {
         const channelData: ChannelScopingParams = {
             categoryId: channel.parentId,
             channelId: channel.id,
@@ -500,17 +548,13 @@ export default class GuildConfig {
     }
 
     /**
-     * Get an array of emojis to add to a message in an auto-reaction channel.
-     * The array will be empty if the channel is not an auto-reaction channel.
+     * Check if a member is in scope
      *
-     * @param channelId - The channel ID to check
-     * @param roles - The roles of the user to check
-     * @returns An array of emojis to add to a message
+     * @param member - The guild member to check
+     * @param scoping - The scoping to check against
      */
-    getAutoReactionEmojis(channelId: Snowflake, roles: Collection<Snowflake, Role>): string[] {
-        return this.data.auto_reactions.find(reaction => {
-            return reaction.channel_id === channelId && !roles.some(role => reaction.exclude_roles.includes(role.id));
-        })?.reactions ?? [];
+    roleInScope(member: GuildMember, scoping: RoleScoping): boolean {
+        return this._memberIsIncludedInScope(member, scoping) && !this._memberIsExcludedFromScope(member, scoping);
     }
 
     /**
@@ -532,6 +576,34 @@ export default class GuildConfig {
             || scoping.include_channels.includes(channelId)
             || (threadId !== null && scoping.include_channels.includes(threadId))
             || (categoryId !== null && scoping.include_channels.includes(categoryId));
+    }
+
+    /**
+     * **At least one** of the following conditions must be met:
+     *
+     * - The member has a role that is included in the `include_roles` array
+     * - The `include_roles` array is empty
+     *
+     * @param member - The guild member to check
+     * @param scoping - The scoping to check against
+     * @private
+     */
+    private _memberIsIncludedInScope(member: GuildMember, scoping: RoleScoping): boolean {
+        return !scoping.include_roles.length
+            || member.roles.cache.some(role => scoping.include_roles.includes(role.id));
+    }
+
+    /**
+     * **At least one** of the following conditions must be met:
+     *
+     * - The member has a role that is excluded in the `exclude_roles` array
+     *
+     * @param member - The guild member to check
+     * @param scoping - The scoping to check against
+     * @private
+     */
+    private _memberIsExcludedFromScope(member: GuildMember, scoping: RoleScoping): boolean {
+        return member.roles.cache.some(role => scoping.exclude_roles.includes(role.id));
     }
 
     /**

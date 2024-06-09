@@ -153,6 +153,7 @@ export default class ReportUser extends Component {
             event: LoggingEvent.UserReportCreate,
             message: { embeds: [embed] },
             channel: null,
+            member: interaction.member,
             config
         });
 
@@ -223,6 +224,7 @@ export default class ReportUser extends Component {
                 event: LoggingEvent.UserReportUpdate,
                 message: { embeds: [logEmbed] },
                 channel: null,
+                member: interaction.member,
                 config
             })
         ]);

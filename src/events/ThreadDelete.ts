@@ -19,7 +19,7 @@ export default class ThreadDelete extends EventListener {
         ThreadDelete._log(thread, config);
     }
 
-    private static _log(thread: ThreadChannel, config: GuildConfig): void {
+    private static async _log(thread: ThreadChannel, config: GuildConfig): Promise<void> {
         if (!thread.ownerId || !thread.parent) return;
 
         const embed = new EmbedBuilder()
@@ -43,10 +43,13 @@ export default class ThreadDelete extends EventListener {
             .setFooter({ text: `Thread ID: ${thread.id}` })
             .setTimestamp();
 
+        const owner = await thread.fetchOwner();
+
         log({
             event: LoggingEvent.ThreadDelete,
             message: { embeds: [embed] },
             channel: thread.parent,
+            member: owner?.guildMember ?? null,
             config
         });
     }

@@ -141,7 +141,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
             .setComponents(infractionsReceivedButton, infractionsDealtButton);
 
         const ephemeral = interaction.channel
-            ? config.inScope(interaction.channel, config.data.moderation_activity_ephemeral_scoping)
+            ? config.channelInScope(interaction.channel, config.data.moderation_activity_ephemeral_scoping)
             : true;
 
         return {

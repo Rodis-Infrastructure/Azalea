@@ -56,6 +56,7 @@ export default class VoiceStateUpdate extends EventListener {
             message: {
                 embeds: [embed]
             },
+            member: newState.member,
             channel,
             config,
             event

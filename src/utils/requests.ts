@@ -81,7 +81,7 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
         // Append the media log URLs to the message content
         if (message.attachments.size) {
             const media = Array.from(message.attachments.values());
-            const logURLs = await StoreMediaCtx.storeMedia(message.author.id, message.author.id, media, config);
+            const logURLs = await StoreMediaCtx.storeMedia(message.member, message.author.id, media, config);
 
             request.reason += ` ${logURLs.join(" ")}`;
         }
@@ -158,7 +158,7 @@ async function handleAutomaticMute(data: {
     });
 
     if (infraction) {
-        InfractionManager.logInfraction(infraction, config);
+        InfractionManager.logInfraction(infraction, executor, config);
     } else {
         config.sendNotification(`${userMention(executor.id)} Failed to mute ${userMention(targetId)}, unable to schedule mute.`);
     }
@@ -349,6 +349,9 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
         return;
     }
 
+    const reviewer = await config.guild.members.fetch(reviewerId)
+        .catch(() => null);
+
     const handleModerationRequestApproveLog = (event: LoggingEvent, action: string): void => {
         const embed = new EmbedBuilder()
             .setColor(Colors.Green)
@@ -366,15 +369,12 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
             event,
             config,
             channel: null,
+            member: reviewer,
             message: {
                 embeds: [embed]
             }
         });
     };
-
-    const reviewer = await config.guild.members
-        .fetch(reviewerId)
-        .catch(() => null);
 
     switch (request.type) {
         case ModerationRequestType.Mute: {
@@ -440,7 +440,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
     });
 
     if (infraction) {
-        InfractionManager.logInfraction(infraction, config);
+        InfractionManager.logInfraction(infraction, reviewer, config);
     } else if (request.type === ModerationRequestType.Mute) {
         config.sendNotification(`${userMention(reviewerId)} Failed to mute the user, unable to schedule mute.`);
     }
@@ -481,7 +481,7 @@ export async function denyModerationRequest(messageId: Snowflake, reviewerId: Sn
     const url = messageLink(channelId, messageId, config.guild.id);
     const requestLink = hyperlink("Your request", url);
 
-    const handleModerationRequestDenyLog = (event: LoggingEvent, action: string): void => {
+    const handleModerationRequestDenyLog = async (event: LoggingEvent, action: string): Promise<void> => {
         const embed = new EmbedBuilder()
             .setColor(Colors.Red)
             .setAuthor({ name: "Moderation Request Denied" })
@@ -494,10 +494,14 @@ export async function denyModerationRequest(messageId: Snowflake, reviewerId: Sn
             ])
             .setTimestamp();
 
+        const reviewer = await config.guild.members.fetch(reviewerId)
+            .catch(() => null);
+
         log({
             event,
             config,
             channel: null,
+            member: reviewer,
             message: {
                 embeds: [embed]
             }

@@ -39,10 +39,10 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
         const member = interaction.options.getMember("member");
 
-        return CensorNickname.handle(interaction.user.id, member, config);
+        return CensorNickname.handle(interaction.member, member, config);
     }
 
-    static async handle(executorId: Snowflake, target: GuildMember | null, config: GuildConfig): Promise<InteractionReplyData> {
+    static async handle(executor: GuildMember, target: GuildMember | null, config: GuildConfig): Promise<InteractionReplyData> {
         if (!target) {
             return "You can't censor the nickname of someone who isn't in the server";
         }
@@ -61,10 +61,10 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
         const initialNickname = target.displayName;
         const censoredNickname = CensorNickname._formatCensoredNickname(nickname, target.id);
 
-        await target.setNickname(censoredNickname, `Nickname censored by ${executorId}`);
+        await target.setNickname(censoredNickname, `Nickname censored by @${executor.user.username} (${executor.id})`);
 
         CensorNickname._log({
-            executorId,
+            executor,
             targetId: target.id,
             initialNickname,
             censoredNickname,
@@ -83,13 +83,13 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
     }
 
     private static _log(data: {
-        executorId: Snowflake;
+        executor: GuildMember;
         targetId: Snowflake;
         initialNickname: string;
         censoredNickname: string;
         config: GuildConfig;
     }): void {
-        const { executorId, targetId, initialNickname, censoredNickname, config } = data;
+        const { executor, targetId, initialNickname, censoredNickname, config } = data;
 
         const embed = new EmbedBuilder()
             .setColor(Colors.Red)
@@ -97,7 +97,7 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
             .setFields([
                 {
                     name: "Executor",
-                    value: userMentionWithId(executorId)
+                    value: userMentionWithId(executor.id)
                 },
                 {
                     name: "Target",
@@ -119,6 +119,7 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
             event: LoggingEvent.InfractionCreate,
             message: { embeds: [embed] },
             channel: null,
+            member: executor,
             config
         });
     }

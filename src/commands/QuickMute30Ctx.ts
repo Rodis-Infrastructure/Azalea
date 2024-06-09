@@ -173,12 +173,12 @@ export async function handleQuickMute(data: {
         }
     }
 
-    InfractionManager.logInfraction(infraction, config);
+    InfractionManager.logInfraction(infraction, executor, config);
 
     const formattedReason = InfractionUtil.formatReason(reason);
     const message = `set ${userMention(targetUserId)} on a timeout that will end ${relativeTimestamp} - \`#${infraction.id}\` ${formattedReason}`;
 
-    if (config.inScope(channel, config.data.ephemeral_scoping)) {
+    if (config.channelInScope(channel)) {
         config.sendNotification(`${executor} ${message}`, mention);
     }
 

@@ -217,9 +217,28 @@ const channelScopingSchema = z.object({
     }
 });
 
-const defaultChannelScoping = channelScopingSchema.parse({});
+const roleScopingSchema = z.object({
+    include_roles: z.array(snowflakeSchema).default([]),
+    exclude_roles: z.array(snowflakeSchema).default([])
+}).superRefine((scoping, ctx) => {
+    const invalidRoleIds = scoping.include_roles.filter(roleId => {
+        return scoping.exclude_roles.includes(roleId);
+    });
+
+    for (const roleId of invalidRoleIds) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Role ID ${roleId} is both included and excluded`,
+            path: ctx.path
+        });
+    }
+});
+
+const scopingSchema = z.intersection(channelScopingSchema, roleScopingSchema);
 
 export type ChannelScoping = z.infer<typeof channelScopingSchema>;
+export type RoleScoping = z.infer<typeof roleScopingSchema>;
+export type Scoping = z.infer<typeof scopingSchema>;
 
 const alertSchema = z.object({
     channel_id: snowflakeSchema,
@@ -295,11 +314,11 @@ const emojisSchema = z.object({
 const logSchema = z.object({
     events: z.array(loggingEventEnum).nonempty(),
     channel_id: snowflakeSchema,
-    scoping: channelScopingSchema.default(defaultChannelScoping)
+    scoping: scopingSchema.default({})
 });
 
 const loggingSchema = z.object({
-    default_scoping: channelScopingSchema.default(defaultChannelScoping),
+    default_scoping: scopingSchema.default({}),
     logs: z.array(logSchema).default([])
 });
 
@@ -379,7 +398,7 @@ const infractionReasonsSchema = z.object({
     }).default({}),
     // Channels to blacklist in infraction reasons
     message_links: z.object({
-        scoping: channelScopingSchema.default(defaultChannelScoping),
+        scoping: channelScopingSchema.default({}),
         failure_message: placeholderString(["CHANNEL_ID", "CHANNEL_NAME"], 1, 4000)
             .default("The reason contains a link to a message in a blacklisted channel: <#$CHANNEL_ID> (`$CHANNEL_NAME`)")
     }).default({})
@@ -408,8 +427,8 @@ export const rawGuildConfigSchema = z.object({
     permissions: z.array(permissionsSchema).default([]),
     message_reports: reportSchema.optional(),
     user_reports: reportSchema.optional(),
-    ephemeral_scoping: channelScopingSchema.default(defaultChannelScoping),
-    moderation_activity_ephemeral_scoping: channelScopingSchema.default(defaultChannelScoping),
+    ephemeral_scoping: channelScopingSchema.default({}),
+    moderation_activity_ephemeral_scoping: channelScopingSchema.default({}),
     // Lifetime of non-ephemeral responses (milliseconds)
     // default: 3 seconds (3000ms)
     response_ttl: z.number().min(1000).default(3000),
