@@ -185,6 +185,7 @@ export enum Permission {
     ReportMessages = "report_messages",
     // Grants access to managing role requests
     ManageRoleRequests = "manage_role_requests",
+    ManageRoles = "manage_roles",
 }
 
 const permissionEnum = z.nativeEnum(Permission);
