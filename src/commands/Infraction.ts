@@ -254,7 +254,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
             case InfractionSubcommand.Info: {
                 const infractionId = interaction.options.getInteger("infraction_id", true);
-                return Infraction._info(infractionId, interaction.guildId);
+                return Infraction.info(infractionId, interaction.guildId);
             }
 
             default:
@@ -319,7 +319,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
      * @returns An interaction reply with the result of the operation
      * @private
      */
-    private static async _info(infractionId: number, guildId: Snowflake): Promise<InteractionReplyData> {
+    static async info(infractionId: number, guildId: Snowflake): Promise<InteractionReplyData> {
         const infraction = await prisma.infraction.findUnique({
             where: {
                 id: infractionId,

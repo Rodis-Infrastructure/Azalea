@@ -152,15 +152,34 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
         // Executor has permission to view infractions and the target does not have permission to view infractions
         if (config.hasPermission(executor, Permission.ViewInfractions) && (!member || !config.hasPermission(member, Permission.ViewInfractions))) {
             await UserInfo._getReceivedInfractions(embed, user.id, config.guild.id);
+            const buttonRow = new ActionRowBuilder<ButtonBuilder>();
+
+            if (isBanned) {
+                const ban = await prisma.infraction.findFirst({
+                    select: { id: true },
+                    where: {
+                        action: InfractionAction.Ban,
+                        target_id: user.id,
+                        guild_id: config.guild.id
+                    }
+                });
+
+                if (ban) {
+                    const banInfoButton = new ButtonBuilder()
+                        .setLabel("Ban Info")
+                        .setStyle(ButtonStyle.Danger)
+                        .setCustomId(`infraction-info-${ban.id}`);
+
+                    buttonRow.addComponents(banInfoButton);
+                }
+            }
 
             const infractionSearchButton = new ButtonBuilder()
                 .setLabel("Infractions")
                 .setCustomId(`infraction-search-${user.id}`)
                 .setStyle(ButtonStyle.Secondary);
 
-            const buttonRow = new ActionRowBuilder<ButtonBuilder>()
-                .setComponents(infractionSearchButton);
-
+            buttonRow.addComponents(infractionSearchButton);
             components.push(buttonRow);
         }
 
