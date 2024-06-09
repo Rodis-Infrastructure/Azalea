@@ -11,13 +11,12 @@ import {
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
-import { userMentionWithId } from "@/utils";
 import { Permission } from "@managers/config/schema";
 
 import Component from "@managers/components/Component";
 import ConfigManager from "@managers/config/ConfigManager";
 
-export const MAX_MEMBERS = 80;
+export const MAX_MEMBERS = 100;
 
 export default class RoleMembers extends Component {
     constructor() {
@@ -43,10 +42,7 @@ export default class RoleMembers extends Component {
             return `I cannot display more than \`${MAX_MEMBERS}\` members at once.`;
         }
 
-        const mentions = uniqueMembers
-            .map(({ id }) => userMentionWithId(id))
-            .join("\n");
-
+        const mentions = uniqueMembers.map(member => member).join("\n");
         const embed = new EmbedBuilder(interaction.message.embeds[0].toJSON())
             .setDescription(mentions);
 

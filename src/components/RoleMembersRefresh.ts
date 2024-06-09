@@ -1,7 +1,6 @@
 import { InteractionReplyData } from "@utils/types";
 import { ButtonInteraction, EmbedBuilder } from "discord.js";
 import { Permission } from "@managers/config/schema";
-import { userMentionWithId } from "@/utils";
 
 import Component from "@managers/components/Component";
 import RoleMembers, { MAX_MEMBERS } from "./RoleMembers";
@@ -36,10 +35,7 @@ export default class RoleMembersRefresh extends Component {
             return `I cannot display more than \`${MAX_MEMBERS}\` members at once.`;
         }
 
-        const mentions = uniqueMembers
-            .map(({ id }) => userMentionWithId(id))
-            .join("\n");
-
+        const mentions = uniqueMembers.map(member => member).join("\n");
         embed.setDescription(mentions || "No members found");
 
         await interaction.update({ embeds: [embed] });
