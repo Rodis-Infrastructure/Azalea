@@ -3,7 +3,7 @@ import { ButtonInteraction, EmbedBuilder } from "discord.js";
 import { userMentionWithId } from "@/utils";
 
 import Component from "@managers/components/Component";
-import RoleMembers from "@/components/RoleMembers";
+import RoleMembers, { MAX_MEMBERS } from "./RoleMembers";
 
 export default class RoleMembersRefresh extends Component {
     constructor() {
@@ -24,8 +24,8 @@ export default class RoleMembersRefresh extends Component {
         const optionalRoles = roles.filter(({ id }) => optionalRoleIds.includes(id));
         const uniqueMembers = await RoleMembers.uniqueMembers(requiredRole, optionalRoles);
 
-        if (uniqueMembers.size > 50) {
-            return "The list of members is too long to display";
+        if (uniqueMembers.size > MAX_MEMBERS) {
+            return `I cannot display more than \`${MAX_MEMBERS}\` members at once.`;
         }
 
         const mentions = uniqueMembers

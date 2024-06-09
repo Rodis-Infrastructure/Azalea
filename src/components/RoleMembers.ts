@@ -16,6 +16,8 @@ import { userMentionWithId } from "@/utils";
 
 import Component from "@managers/components/Component";
 
+export const MAX_MEMBERS = 80;
+
 export default class RoleMembers extends Component {
     constructor() {
         // Format: role-members-{requiredRoleId}
@@ -30,8 +32,8 @@ export default class RoleMembers extends Component {
 
         const uniqueMembers = await RoleMembers.uniqueMembers(requiredRole, interaction.roles);
 
-        if (uniqueMembers.size > 50) {
-            return "The list of members is too long to display";
+        if (uniqueMembers.size > MAX_MEMBERS) {
+            return `I cannot display more than \`${MAX_MEMBERS}\` members at once.`;
         }
 
         const mentions = uniqueMembers
