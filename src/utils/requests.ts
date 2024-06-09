@@ -352,6 +352,9 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
     const reviewer = await config.guild.members.fetch(reviewerId)
         .catch(() => null);
 
+    const requestAuthor = await config.guild.members.fetch(request.author_id)
+        .catch(() => null);
+
     const handleModerationRequestApproveLog = (event: LoggingEvent, action: string): void => {
         const embed = new EmbedBuilder()
             .setColor(Colors.Green)
@@ -369,7 +372,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
             event,
             config,
             channel: null,
-            member: reviewer,
+            member: requestAuthor,
             message: {
                 embeds: [embed]
             }
@@ -494,14 +497,14 @@ export async function denyModerationRequest(messageId: Snowflake, reviewerId: Sn
             ])
             .setTimestamp();
 
-        const reviewer = await config.guild.members.fetch(reviewerId)
+        const requestAuthor = await config.guild.members.fetch(request.author_id)
             .catch(() => null);
 
         log({
             event,
             config,
             channel: null,
-            member: reviewer,
+            member: requestAuthor,
             message: {
                 embeds: [embed]
             }
