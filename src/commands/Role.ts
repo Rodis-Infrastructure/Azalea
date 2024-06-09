@@ -3,7 +3,6 @@ import {
     ApplicationCommandOptionType,
     ChatInputCommandInteraction,
     RoleSelectMenuBuilder,
-    roleMention,
     EmbedBuilder,
     Role as DiscordRole
 } from "discord.js";
