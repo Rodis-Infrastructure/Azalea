@@ -19,7 +19,7 @@ import { InteractionReplyData } from "@utils/types";
 import { BLANK_EMBED_FIELD, DEFAULT_EMBED_COLOR, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { prisma } from "./..";
 import { Permission, UserFlag } from "@managers/config/schema";
-import { InfractionAction } from "@utils/infractions";
+import { InfractionAction, InfractionUtil } from "@utils/infractions";
 
 import Command from "@managers/commands/Command";
 import GuildConfig from "@managers/config/GuildConfig";
@@ -119,9 +119,11 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
                 reason: DEFAULT_INFRACTION_REASON
             };
 
+            const reasonPreview = InfractionUtil.formatReasonPreview(reason ?? DEFAULT_INFRACTION_REASON);
+
             embed.setColor(Colors.Red);
             embed.setTitle("Banned");
-            embed.setDescription(reason);
+            embed.setDescription(reasonPreview);
         } else if (!member) {
             embed.setColor(Colors.Red);
             embed.setTitle("Not in server");

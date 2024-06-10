@@ -258,5 +258,7 @@ export function randInt(min: number, max: number): number {
 export function cleanContent(str: string, channel: TextBasedChannel): string {
     // Escape custom emojis
     str = str.replace(/<(a?):([^:\n\r]+):(\d{17,19})>/g, "<$1\\:$2\\:$3>");
+    // Add IDs to mentions
+    str = str.replace(/<@!?(\d{17,19})>/g, `<@$1> ($1)`);
     return djsCleanContent(str, channel);
 }
