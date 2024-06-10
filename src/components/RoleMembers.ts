@@ -1,5 +1,5 @@
 import {
-    ActionRowBuilder,
+    ActionRowBuilder, APIEmbedField,
     ButtonBuilder,
     ButtonStyle,
     Collection,
@@ -42,9 +42,14 @@ export default class RoleMembers extends Component {
             return `I cannot display more than \`${MAX_MEMBERS}\` members at once.`;
         }
 
-        const mentions = uniqueMembers.map(member => member).join("\n");
-        const embed = new EmbedBuilder(interaction.message.embeds[0].toJSON())
-            .setDescription(mentions);
+        const mentions = RoleMembers.divideMembers(uniqueMembers);
+        const embed = new EmbedBuilder(interaction.message.embeds[0].toJSON());
+
+        if (!mentions.length) {
+            embed.setDescription("No members found.");
+        } else {
+            embed.setFields(mentions);
+        }
 
         const optionalRoleIds = interaction.roles
             .map((_, id) => id)
@@ -70,5 +75,23 @@ export default class RoleMembers extends Component {
         return requiredRole
             ? optionalRoles.flatMap(role => role.members.intersect(requiredRole.members))
             : optionalRoles.flatMap(role => role.members);
+    }
+
+    static divideMembers(memberCollection: Collection<Snowflake, GuildMember>): APIEmbedField[] {
+        const members = memberCollection.map(member => member);
+        const maxColumns = 3;
+        const chunkSize = Math.ceil(members.length / maxColumns);
+        const fields: APIEmbedField[] = [];
+
+        for (let i = 0; i < members.length; i += chunkSize) {
+            const column = members.slice(i, i + chunkSize);
+            fields.push({
+                name: "\u200b",
+                value: column.join("\n"),
+                inline: true
+            });
+        }
+
+        return fields;
     }
 }

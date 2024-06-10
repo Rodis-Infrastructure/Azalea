@@ -35,8 +35,13 @@ export default class RoleMembersRefresh extends Component {
             return `I cannot display more than \`${MAX_MEMBERS}\` members at once.`;
         }
 
-        const mentions = uniqueMembers.map(member => member).join("\n");
-        embed.setDescription(mentions || "No members found");
+        const mentions = RoleMembers.divideMembers(uniqueMembers);
+
+        if (!mentions.length) {
+            embed.setDescription("No members found.");
+        } else {
+            embed.setFields(mentions);
+        }
 
         await interaction.update({ embeds: [embed] });
         return null;
