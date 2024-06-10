@@ -21,7 +21,8 @@ export default class MessageReportResolve extends Component {
         if (!config.hasPermission(interaction.member, Permission.ManageMessageReports)) {
             return {
                 content: "You do not have permission to manage message reports.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 
@@ -45,6 +46,10 @@ export default class MessageReportResolve extends Component {
                 ephemeral: true
             });
         }
+
+        setTimeout(() => {
+            interaction.deleteReply().catch(() => null);
+        }, config.data.response_ttl);
 
         MessageReportResolve.log(interaction, config);
         await interaction.message.delete();

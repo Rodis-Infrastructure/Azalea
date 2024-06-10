@@ -7,5 +7,5 @@ interface ObjectPropDiff {
     new: unknown;
 }
 
-export type InteractionReplyData = InteractionReplyOptions | string | null;
+export type InteractionReplyData = InteractionReplyOptions & Partial<Record<"temporary", boolean>> | string | null;
 export type Result = { success: true } | { success: false; message: string };

@@ -102,6 +102,9 @@ export default class InteractionCreate extends EventListener {
             ? { content: response }
             : response;
 
+        const isTemporary = options.temporary;
+        delete options.temporary;
+
         if (interaction.deferred) {
             await interaction.editReply({
                 ...defaultReplyOptions,
@@ -112,6 +115,12 @@ export default class InteractionCreate extends EventListener {
                 ...defaultReplyOptions,
                 ...options
             });
+        }
+
+        if (isTemporary) {
+            setTimeout(() => {
+                interaction.deleteReply().catch(() => null);
+            }, config.data.response_ttl);
         }
     }
 

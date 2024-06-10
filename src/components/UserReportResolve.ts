@@ -21,7 +21,8 @@ export default class UserReportResolve extends Component {
         if (!config.hasPermission(interaction.member, Permission.ManageUserReports)) {
             return {
                 content: "You do not have permission to manage user reports.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 
@@ -45,6 +46,10 @@ export default class UserReportResolve extends Component {
                 ephemeral: true
             });
         }
+
+        setTimeout(() => {
+            interaction.deleteReply().catch(() => null);
+        }, config.data.response_ttl);
 
         UserReportResolve._log(interaction, config);
         await interaction.message.delete();
