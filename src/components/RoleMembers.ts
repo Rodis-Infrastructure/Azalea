@@ -1,5 +1,6 @@
 import {
-    ActionRowBuilder, APIEmbedField,
+    ActionRowBuilder,
+    APIEmbedField,
     ButtonBuilder,
     ButtonStyle,
     Collection,
@@ -43,7 +44,8 @@ export default class RoleMembers extends Component {
         }
 
         const mentions = RoleMembers.divideMembers(uniqueMembers);
-        const embed = new EmbedBuilder(interaction.message.embeds[0].toJSON());
+        const embed = new EmbedBuilder(interaction.message.embeds[0].toJSON())
+            .setDescription(null);
 
         if (!mentions.length) {
             embed.setDescription("No members found.");
@@ -80,7 +82,7 @@ export default class RoleMembers extends Component {
     static divideMembers(memberCollection: Collection<Snowflake, GuildMember>): APIEmbedField[] {
         const members = memberCollection.map(member => member);
         const maxColumns = 3;
-        const chunkSize = Math.ceil(members.length / maxColumns);
+        const chunkSize = Math.ceil(MAX_MEMBERS / maxColumns);
         const fields: APIEmbedField[] = [];
 
         for (let i = 0; i < members.length; i += chunkSize) {
@@ -88,6 +90,14 @@ export default class RoleMembers extends Component {
             fields.push({
                 name: "\u200b",
                 value: column.join("\n"),
+                inline: true
+            });
+        }
+
+        if (fields.length === 2) {
+            fields.push({
+                name: "\u200b",
+                value: "\u200b",
                 inline: true
             });
         }
