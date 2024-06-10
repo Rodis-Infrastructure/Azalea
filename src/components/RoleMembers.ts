@@ -16,7 +16,7 @@ import { Permission } from "@managers/config/schema";
 import Component from "@managers/components/Component";
 import ConfigManager from "@managers/config/ConfigManager";
 
-export const MAX_MEMBERS = 100;
+export const MAX_MEMBERS = 120;
 
 export default class RoleMembers extends Component {
     constructor() {
