@@ -26,7 +26,7 @@ export default class ListPermissions extends Command<ChatInputCommandInteraction
                     name: "permission",
                     description: "The permission to check",
                     type: ApplicationCommandOptionType.String,
-                    choices: Object.keys(PermissionFlagsBits).map(permission => ({
+                    choices: Object.keys(PermissionFlagsBits).slice(0, 24).map(permission => ({
                         name: permission,
                         value: permission
                     }))
