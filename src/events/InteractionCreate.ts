@@ -142,6 +142,10 @@ export default class InteractionCreate extends EventListener {
                 {
                     name: "Interaction Name",
                     value: `\`${interactionName}\``
+                },
+                {
+                    name: "Channel",
+                    value: channelMentionWithName(interaction.channel)
                 }
             ]);
 
@@ -197,13 +201,6 @@ export default class InteractionCreate extends EventListener {
                 name: "Target User",
                 value: userMentionWithId(interaction.targetId)
             });
-
-            if (interaction.channel) {
-                embed.addFields({
-                    name: "Source Channel",
-                    value: channelMentionWithName(interaction.channel)
-                });
-            }
         }
 
         if (interaction.isMessageContextMenuCommand()) {
