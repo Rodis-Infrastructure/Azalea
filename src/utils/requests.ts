@@ -410,7 +410,11 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
                 return;
             }
 
-            await config.guild.members.ban(target, { reason: request.reason });
+            await config.guild.members.ban(target, {
+                reason: request.reason,
+                deleteMessageSeconds: config.data.delete_message_seconds_on_ban
+            });
+
             handleModerationRequestApproveLog(LoggingEvent.BanRequestApprove, "Banned");
             break;
         }
