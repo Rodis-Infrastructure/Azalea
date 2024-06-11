@@ -4,9 +4,9 @@ import { handleInfractionActivePagination } from "./InfractionActiveNext";
 
 import Component from "@managers/components/Component";
 
-export default class InfractionActiveFirst extends Component {
+export default class InfractionActiveLast extends Component {
     constructor() {
-        super("infraction-active-first");
+        super("infraction-active-last");
     }
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
