@@ -229,8 +229,13 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
         throw new RequestValidationError("You cannot mute a member with a higher or equal role.");
     }
 
-    let msDuration = matches.duration ? ms(matches.duration) : MAX_MUTE_DURATION;
-    if (msDuration > MAX_MUTE_DURATION) msDuration = MAX_MUTE_DURATION;
+    const maxMuteDurationSeconds = MAX_MUTE_DURATION / 1000;
+
+    let duration = matches.duration
+        ? ms(matches.duration) / 1000
+        : maxMuteDurationSeconds;
+
+    if (duration > maxMuteDurationSeconds) duration = maxMuteDurationSeconds;
 
     return {
         id: request.id,
@@ -240,7 +245,7 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
         type: ModerationRequestType.Mute,
         reason: matches.reason,
         status: RequestStatus.Pending,
-        duration: msDuration
+        duration: duration
     };
 }
 
@@ -348,6 +353,7 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
         return;
     }
 
+    request.duration &&= request.duration * 1000;
     const reviewer = await config.guild.members.fetch(reviewerId)
         .catch(() => null);
 
