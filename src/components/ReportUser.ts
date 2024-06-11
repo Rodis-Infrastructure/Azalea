@@ -104,7 +104,7 @@ export default class ReportUser extends Component {
 
         const resolveButton = new ButtonBuilder()
             .setCustomId("user-report-resolve")
-            .setLabel("OK")
+            .setLabel("Resolve")
             .setStyle(ButtonStyle.Success);
 
         const infractionsButton = new ButtonBuilder()

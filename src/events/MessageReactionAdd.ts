@@ -269,7 +269,7 @@ export default class MessageReactionAdd extends EventListener {
         // Mark the report as resolved
         const resolveMessageReportButton = new ButtonBuilder()
             .setCustomId(`message-report-resolve`)
-            .setLabel("OK")
+            .setLabel("Resolve")
             .setStyle(ButtonStyle.Success);
 
         // Mute the target user for 30 minutes
