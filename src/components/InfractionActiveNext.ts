@@ -12,7 +12,7 @@ export default class InfractionActiveNext extends Component {
     }
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
-        return handleInfractionActivePagination(interaction, 1);
+        return handleInfractionActivePagination(interaction, { pageOffset: 1 });
     }
 }
 
@@ -20,9 +20,11 @@ export default class InfractionActiveNext extends Component {
  * Handles the infraction active pagination
  *
  * @param interaction - The infraction active response
- * @param pageOffset - The page offset (e.g. `-1` goes back and `1` goes forward)
+ * @param options - The pagination options
+ * @param options.page - The page, values less than 1 will be treated as relative to the last page
+ * @param options.pageOffset - The page offset (e.g. `-1` goes back and `1` goes forward)
  */
-export async function handleInfractionActivePagination(interaction: ButtonInteraction<"cached">, pageOffset: number): Promise<InteractionReplyData> {
+export async function handleInfractionActivePagination(interaction: ButtonInteraction<"cached">, options: PageOptions): Promise<InteractionReplyData> {
     const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
     if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
@@ -32,15 +34,27 @@ export async function handleInfractionActivePagination(interaction: ButtonIntera
         };
     }
 
-    const pageCountButton = interaction.message.components[0].components[1] as ButtonComponent;
-
+    const buttons = interaction.message.components[0].components as ButtonComponent[];
+    // Get the middle component
+    const pageCountButton = buttons[Math.floor(buttons.length / 2)];
     // Format: "{current_page} / {total_pages}"
-    const currentPage = parseInt(pageCountButton.label!.split(" / ")[0]);
+    const [strCurrentPage, strTotalPages] = pageCountButton.label!.split(" / ");
+    const page = parsePageOptions(options, parseInt(strCurrentPage), parseInt(strTotalPages));
 
     // We can cast InteractionReplyOptions to InteractionUpdateOptions
     // because they share the same properties
-    const updatedResult = await Infraction.listActive(currentPage + pageOffset) as InteractionUpdateOptions;
+    const updatedResult = await Infraction.listActive(page) as InteractionUpdateOptions;
     await interaction.update(updatedResult);
 
     return null;
 }
+
+export function parsePageOptions(options: PageOptions, currentPage: number, totalPages: number): number {
+    if ("pageOffset" in options) {
+        return currentPage + options.pageOffset;
+    } else {
+        return options.page < 1 ? totalPages + options.page : options.page;
+    }
+}
+
+export type PageOptions = Record<"pageOffset", number> | Record<"page", number>;

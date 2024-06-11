@@ -4,12 +4,12 @@ import { handleInfractionActivePagination } from "./InfractionActiveNext";
 
 import Component from "@managers/components/Component";
 
-export default class InfractionActiveBack extends Component {
+export default class InfractionActiveFirst extends Component {
     constructor() {
-        super("infraction-active-back");
+        super("infraction-active-first");
     }
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
-        return handleInfractionActivePagination(interaction, { pageOffset: -1 });
+        return handleInfractionActivePagination(interaction, { page: 0 });
     }
 }

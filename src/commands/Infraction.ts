@@ -290,8 +290,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             const paginationActionRow = Infraction._getPaginationActionRow({
                 page,
                 totalPageCount,
-                nextButtonCustomId: "infraction-active-next",
-                backButtonCustomId: "infraction-active-back"
+                paginationButtonCustomIdPrefix: "infraction-active"
             });
 
             paginationComponents.push(paginationActionRow);
@@ -743,8 +742,6 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 where: {
                     target_id: user.id,
                     guild_id: guildId,
-                    archived_by: null,
-                    archived_at: null,
                     ...queryConditions
                 },
                 orderBy: {
@@ -786,8 +783,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             const paginationActionRow = Infraction._getPaginationActionRow({
                 page,
                 totalPageCount,
-                nextButtonCustomId: "infraction-search-next",
-                backButtonCustomId: "infraction-search-back"
+                paginationButtonCustomIdPrefix: "infraction-search"
             });
 
             paginationComponents.push(paginationActionRow);
@@ -834,18 +830,26 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
     private static _parseSearchFilter(filter?: InfractionSearchFilter): Prisma.InfractionWhereInput {
         switch (filter) {
             case InfractionSearchFilter.Infractions:
-                return { action: { not: InfractionAction.Note } };
+                return {
+                    action: { not: InfractionAction.Note },
+                    archived_at: null,
+                    archived_by: null
+                };
 
             case InfractionSearchFilter.Manual:
                 return {
                     flag: { not: InfractionFlag.Automatic },
-                    action: { not: InfractionAction.Note }
+                    action: { not: InfractionAction.Note },
+                    archived_at: null,
+                    archived_by: null
                 };
 
             case InfractionSearchFilter.Automatic:
                 return {
                     flag: InfractionFlag.Automatic,
-                    action: { not: InfractionAction.Note }
+                    action: { not: InfractionAction.Note },
+                    archived_at: null,
+                    archived_by: null
                 };
 
             case InfractionSearchFilter.Archived:
@@ -855,10 +859,17 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 };
 
             case InfractionSearchFilter.Notes:
-                return { action: InfractionAction.Note };
+                return {
+                    action: InfractionAction.Note,
+                    archived_at: null,
+                    archived_by: null
+                };
 
             default:
-                return {};
+                return {
+                    archived_at: null,
+                    archived_by: null
+                };
         }
     }
 
@@ -886,10 +897,12 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
     private static _getPaginationActionRow(data: {
         page: number,
         totalPageCount: number,
-        nextButtonCustomId: string,
-        backButtonCustomId: string
+        paginationButtonCustomIdPrefix: string,
     }): ActionRowBuilder<ButtonBuilder> {
-        const { page, totalPageCount, nextButtonCustomId, backButtonCustomId } = data;
+        const { page, totalPageCount, paginationButtonCustomIdPrefix } = data;
+
+        const isFirstPage = page === 1;
+        const isLastPage = page === totalPageCount;
 
         const pageCountButton = new ButtonBuilder()
             .setLabel(`${page} / ${totalPageCount}`)
@@ -898,21 +911,36 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             .setStyle(ButtonStyle.Secondary);
 
         const nextPageButton = new ButtonBuilder()
-            .setLabel("Next")
-            .setCustomId(nextButtonCustomId)
-            // Disable if the current page is the last page
-            .setDisabled(page === totalPageCount)
+            .setLabel("→")
+            .setCustomId(`${paginationButtonCustomIdPrefix}-next`)
+            .setDisabled(isLastPage)
             .setStyle(ButtonStyle.Primary);
 
         const previousPageButton = new ButtonBuilder()
-            .setLabel("Back")
-            .setCustomId(backButtonCustomId)
-            // Disable if the current page is the first page
-            .setDisabled(page === 1)
+            .setLabel("←")
+            .setCustomId(`${paginationButtonCustomIdPrefix}-back`)
+            .setDisabled(isFirstPage)
             .setStyle(ButtonStyle.Primary);
 
-        return new ActionRowBuilder<ButtonBuilder>()
-            .setComponents(previousPageButton, pageCountButton, nextPageButton);
+        if (totalPageCount > 2) {
+            const firstPageButton = new ButtonBuilder()
+                .setLabel("«")
+                .setCustomId(`${paginationButtonCustomIdPrefix}-first`)
+                .setDisabled(isFirstPage)
+                .setStyle(ButtonStyle.Primary);
+
+            const lastPageButton = new ButtonBuilder()
+                .setLabel("»")
+                .setCustomId(`${paginationButtonCustomIdPrefix}-last`)
+                .setDisabled(isLastPage)
+                .setStyle(ButtonStyle.Primary);
+
+            return new ActionRowBuilder<ButtonBuilder>()
+                .setComponents(firstPageButton, previousPageButton, pageCountButton, nextPageButton, lastPageButton);
+        } else {
+            return new ActionRowBuilder<ButtonBuilder>()
+                .setComponents(previousPageButton, pageCountButton, nextPageButton);
+        }
     }
 }
 

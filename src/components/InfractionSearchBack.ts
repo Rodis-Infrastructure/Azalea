@@ -10,6 +10,6 @@ export default class InfractionSearchBack extends Component {
     }
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
-        return handleInfractionSearchPagination(interaction, -1);
+        return handleInfractionSearchPagination(interaction, { pageOffset: -1 });
     }
 }
