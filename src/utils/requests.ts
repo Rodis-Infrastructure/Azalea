@@ -9,7 +9,7 @@ import {
 } from "discord.js";
 
 import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
-import { DEFAULT_MUTE_DURATION, EMBED_FIELD_CHAR_LIMIT } from "./constants";
+import { DEFAULT_MUTE_DURATION, EMBED_FIELD_CHAR_LIMIT, MAX_MUTE_DURATION } from "./constants";
 import { RequestValidationError } from "./errors";
 import { Snowflake } from "discord-api-types/v10";
 import { temporaryReply } from "./messages";
@@ -190,7 +190,7 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
      * - `<@123456789012345678> Spamming`
      * - `123456789012345678 Spamming`
      */
-    const regex = TypedRegEx("^(?:<@!?)?(?<targetId>\\d{17,19})>? +(?<duration>\\d+[mhd])? +(?<reason>([\\n\\r]|.)+)", "gmi");
+    const regex = TypedRegEx("^(?:<@!?)?(?<targetId>\\d{17,19})>?(?: +(?<duration>\\d+[mhd]))? +(?<reason>([\\n\\r]|.)+)", "gmi");
     const matches = regex.captures(request.content);
 
     // Validate the request format
@@ -229,9 +229,8 @@ async function validateMuteRequest(request: Message<true>, config: GuildConfig):
         throw new RequestValidationError("You cannot mute a member with a higher or equal role.");
     }
 
-    const msDuration = matches.duration
-        ? ms(matches.duration)
-        : null;
+    let msDuration = matches.duration ? ms(matches.duration) : MAX_MUTE_DURATION;
+    if (msDuration > MAX_MUTE_DURATION) msDuration = MAX_MUTE_DURATION;
 
     return {
         id: request.id,
