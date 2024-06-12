@@ -32,7 +32,6 @@ export const client: Client<true> = new Client({
     makeCache: Options.cacheWithLimits({
         /* eslint-disable @typescript-eslint/naming-convention, capitalized-comments */
         GuildMessageManager: 100, // channel.messages
-        ApplicationCommandManager: 0, // guild.commands
         BaseGuildEmojiManager: 0, // guild.emojis
         StageInstanceManager: 0, // guild.stageInstances
         ThreadManager: 0, // channel.threads
