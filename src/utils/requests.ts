@@ -25,7 +25,6 @@ import StoreMediaCtx from "@/commands/StoreMediaCtx";
 import Sentry from "@sentry/node";
 import ms from "ms";
 import Infraction from "@/commands/Infraction";
-import { ValidationError } from "zod-validation-error";
 
 export async function handleModerationRequest(message: Message<true>, config: GuildConfig): Promise<void> {
     const requestConfig = config.data.moderation_requests
@@ -330,18 +329,35 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
  * @param config - The guild configuration.
  */
 export async function approveModerationRequest(request: Message<true>, reviewerId: Snowflake, config: GuildConfig): Promise<void> {
+    const requestConfig = config.data.moderation_requests
+        .find(requestConfig => requestConfig.channel_id === request.channel.id);
+
+    if (!requestConfig) return;
+
+    const validationResult = await InfractionUtil.validateReason(request.content, config);
+
+    if (!validationResult.success) {
+        config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, ${validationResult.message}`);
+        return;
+    }
+
     let data: Prisma.ModerationRequestCreateInput;
 
     try {
-        data = await validateMuteRequest(request, config);
-    } catch (error) {
-        if (error instanceof ValidationError) {
-            temporaryReply(request, error.message, config.data.response_ttl);
+        if (requestConfig.type === ModerationRequestType.Mute) {
+            data = await validateMuteRequest(request, config);
         } else {
-            Sentry.captureException(error);
-            temporaryReply(request, "An unknown error has occurred while trying to approve the request", config.data.response_ttl);
+            const res = await validateBanRequest(request, config);
+            data = res[2];
+        }
+    } catch (error) {
+        if (error instanceof RequestValidationError) {
+            config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, ${error.message}`);
+            return;
         }
 
+        Sentry.captureException(error);
+        config.sendNotification(`${userMention(reviewerId)} An unknown error has occurred while trying to approve the request.`);
         return;
     }
 
