@@ -35,7 +35,8 @@ export default class ReportUser extends Component {
         if (!reason.match(/\w/g)) {
             return {
                 content: "Please provide a valid reason for reporting the user.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 
@@ -51,7 +52,8 @@ export default class ReportUser extends Component {
         if (!userReportChannel || !userReportChannel.isTextBased()) {
             return {
                 content: "An error occurred while trying to fetch the report channel, please contact staff if this keeps happening.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 
@@ -159,7 +161,8 @@ export default class ReportUser extends Component {
 
         return {
             content: `Your report against ${userMention(targetId)} has been submitted successfully.`,
-            ephemeral: true
+            ephemeral: true,
+            temporary: true
         };
     }
 
@@ -231,7 +234,8 @@ export default class ReportUser extends Component {
 
         return {
             content: `Successfully updated the reason of your report against ${userMention(targetId)}.`,
-            ephemeral: true
+            ephemeral: true,
+            temporary: true
         };
     }
 }

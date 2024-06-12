@@ -117,7 +117,7 @@ export default class InteractionCreate extends EventListener {
             });
         }
 
-        if (isTemporary) {
+        if (isTemporary && ephemeralReply) {
             setTimeout(() => {
                 interaction.deleteReply().catch(() => null);
             }, config.data.response_ttl);

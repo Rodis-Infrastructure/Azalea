@@ -37,22 +37,34 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
         const validationResult = await InfractionUtil.validateReason(reason, config);
 
         if (!validationResult.success) {
-            return validationResult.message;
+            return {
+                content: validationResult.message,
+                temporary: true
+            };
         }
 
         if (member) {
             if (member.roles.highest.position >= interaction.member.roles.highest.position) {
-                return "You can't unmute someone with the same or higher role than you";
+                return {
+                    content: "You can't unmute someone with the same or higher role than you",
+                    temporary: true
+                };
             }
 
             if (!member.isCommunicationDisabled()) {
-                return "You can't unmute someone who isn't muted";
+                return {
+                    content: "You can't unmute someone who isn't muted",
+                    temporary: true
+                };
             }
         } else {
             const isMuted = await InfractionManager.getActiveMute(user.id, interaction.guildId);
 
             if (!isMuted) {
-                return "There are no active mutes for this user";
+                return {
+                    content: "There are no active mutes for this user",
+                    temporary: true
+                };
             }
         }
 
@@ -65,7 +77,10 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
         });
 
         if (!infraction) {
-            return "An error occurred while storing the infraction";
+            return {
+                content: "An error occurred while storing the infraction",
+                temporary: true
+            };
         }
 
         if (member) {
@@ -75,7 +90,10 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
                 const sentryId = Sentry.captureException(error);
                 InfractionManager.deleteInfraction(infraction.id);
 
-                return `An error occurred while unmuting the member (\`${sentryId}\`)`;
+                return {
+                    content: `An error occurred while unmuting the member (\`${sentryId}\`)`,
+                    temporary: true
+                };
             }
         }
 
@@ -90,9 +108,15 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
         }
 
         if (member) {
-            return `Successfully ${message}`;
+            return {
+                content: `Successfully ${message}`,
+                temporary: true
+            };
         } else {
-            return `User not in server, I will try to unmute ${user} if they rejoin - \`#${infraction.id}\` ${formattedReason}`;
+            return {
+                content: `User not in server, I will try to unmute ${user} if they rejoin - \`#${infraction.id}\` ${formattedReason}`,
+                temporary: true
+            };
         }
     }
 }

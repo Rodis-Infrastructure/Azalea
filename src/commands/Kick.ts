@@ -46,19 +46,31 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
         const validationResult = await InfractionUtil.validateReason(reason, config);
 
         if (!validationResult.success) {
-            return validationResult.message;
+            return {
+                content: validationResult.message,
+                temporary: true
+            };
         }
 
         if (!member) {
-            return "You can't kick someone who isn't in the server";
+            return {
+                content: "You can't kick someone who isn't in the server",
+                temporary: true
+            };
         }
 
         if (!member.kickable) {
-            return "I do not have permission to kick this user";
+            return {
+                content: "I do not have permission to kick this user",
+                temporary: true
+            };
         }
 
         if (member.roles.highest.position >= interaction.member.roles.highest.position) {
-            return "You cannot kick a user with a higher or equal role";
+            return {
+                content: "You cannot kick a user with a higher or equal role",
+                temporary: true
+            };
         }
 
         // Log the infraction and store it in the database
@@ -71,7 +83,10 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
         });
 
         if (!infraction) {
-            return "An error occurred while storing the infraction";
+            return {
+                content: "An error occurred while storing the infraction",
+                temporary: true
+            };
         }
 
         try {
@@ -80,7 +95,10 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
             const sentryId = Sentry.captureException(error);
             await InfractionManager.deleteInfraction(infraction.id);
 
-            return `An error occurred while kicking the member (\`${sentryId}\`)`;
+            return {
+                content: `An error occurred while kicking the member (\`${sentryId}\`)`,
+                temporary: true
+            };
         }
 
         InfractionManager.logInfraction(infraction, interaction.member, config);
@@ -93,6 +111,9 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
             config.sendNotification(`${interaction.user} ${message}`, false);
         }
 
-        return `Successfully ${message}`;
+        return {
+            content: `Successfully ${message}`,
+            temporary: true
+        };
     }
 }

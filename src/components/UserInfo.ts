@@ -19,7 +19,8 @@ export default class UserInfo extends Component {
         if (!targetId) {
             return {
                 content: "Failed to get the target user's ID.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 
@@ -34,7 +35,8 @@ export default class UserInfo extends Component {
         if (!user) {
             return {
                 content: "Failed to fetch the target user.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 

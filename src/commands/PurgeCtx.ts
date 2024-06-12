@@ -19,11 +19,17 @@ export default class PurgeCtx extends Command<UserContextMenuCommandInteraction<
         const member = interaction.targetMember;
 
         if (!interaction.channel) {
-            return Promise.resolve("Failed to get the channel.");
+            return Promise.resolve({
+                content: "Failed to get the channel.",
+                temporary: true
+            });
         }
 
         if (member && member.roles.highest.position >= interaction.member.roles.highest.position) {
-            return Promise.resolve("You cannot purge messages from a user with a higher role than you.");
+            return Promise.resolve({
+                content: "You cannot purge messages from a user with a higher role than you.",
+                temporary: true
+            });
         }
 
         const purgedMessages = await Purge.purgeUser(
@@ -33,7 +39,10 @@ export default class PurgeCtx extends Command<UserContextMenuCommandInteraction<
         );
 
         if (!purgedMessages.length) {
-            return Promise.resolve("No messages were purged.");
+            return Promise.resolve({
+                content: "No messages were purged.",
+                temporary: true
+            });
         }
 
         const logURLs = await Purge.log(purgedMessages, interaction.channel, config);

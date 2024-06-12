@@ -72,31 +72,49 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         const validationResult = await InfractionUtil.validateReason(reason, config);
 
         if (!validationResult.success) {
-            return validationResult.message;
+            return {
+                content: validationResult.message,
+                temporary: true
+            };
         }
 
         if (member) {
             if (!member.manageable || !interaction.appPermissions.has(PermissionFlagsBits.ModerateMembers)) {
-                return "I do not have permission to mute this user";
+                return {
+                    content: "I do not have permission to mute this user",
+                    temporary: true
+                };
             }
 
             if (member.roles.highest.position >= interaction.member.roles.highest.position) {
-                return "You cannot mute a user with a higher or equal role";
+                return {
+                    content: "You cannot mute a user with a higher or equal role",
+                    temporary: true
+                };
             }
 
             if (member.isCommunicationDisabled()) {
-                return "You can't mute someone who is already muted";
+                return {
+                    content: "You can't mute someone who is already muted",
+                    temporary: true
+                };
             }
         } else {
             const isMuted = await InfractionManager.getActiveMute(user.id, interaction.guildId);
 
             if (isMuted) {
-                return "You can't mute someone who is already muted";
+                return {
+                    content: "You can't mute someone who is already muted",
+                    temporary: true
+                };
             }
         }
 
         if (!DURATION_FORMAT.test(duration)) {
-            return `Invalid duration format. Please use the following format: \`<number><unit>\` (e.g. \`1d\`, \`2h\`, \`15m\`)`;
+            return {
+                content: `Invalid duration format. Please use the following format: \`<number><unit>\` (e.g. \`1d\`, \`2h\`, \`15m\`)`,
+                temporary: true
+            };
         }
 
         // Reset the regex index
@@ -105,7 +123,12 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         let msDuration = ms(duration);
 
         if (msDuration > MAX_MUTE_DURATION) msDuration = MAX_MUTE_DURATION;
-        if (msDuration <= 0) return "Invalid duration. Please use a duration greater than `0`";
+        if (msDuration <= 0) {
+            return {
+                content: "Invalid duration. Please use a duration greater than `0`",
+                temporary: true
+            };
+        }
 
         const msExpiresAt = Date.now() + msDuration;
         const expiresAt = new Date(msExpiresAt);
@@ -121,7 +144,10 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         });
 
         if (!infraction) {
-            return "An error occurred while storing the infraction";
+            return {
+                content: "An error occurred while storing the infraction",
+                temporary: true
+            };
         }
 
         if (member) {
@@ -131,7 +157,10 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
                 const sentryId = Sentry.captureException(error);
                 InfractionManager.deleteInfraction(infraction.id);
 
-                return `An error occurred while muting the member (\`${sentryId}\`)`;
+                return {
+                    content: `An error occurred while muting the member (\`${sentryId}\`)`,
+                    temporary: true
+                };
             }
         }
 
@@ -145,9 +174,15 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
         }
 
         if (member) {
-            return `Successfully ${message}`;
+            return {
+                content: `Successfully ${message}`,
+                temporary: true
+            };
         } else {
-            return `User not in server, I will try to ${message.replace("-", "if they rejoin -")}`;
+            return {
+                content: `User not in server, I will try to ${message.replace("-", "if they rejoin -")}`,
+                temporary: true
+            };
         }
     }
 }

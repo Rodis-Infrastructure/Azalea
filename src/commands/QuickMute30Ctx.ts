@@ -66,7 +66,10 @@ export async function handleQuickMute(data: {
 
     if (!targetMessage.content) {
         return {
-            message: "This action can't be performed on messages with no message content.",
+            message: {
+                content: "This action can't be performed on messages with no message content.",
+                temporary: true
+            },
             success: false
         };
     }
@@ -90,7 +93,10 @@ export async function handleQuickMute(data: {
 
     if (!channel) {
         return {
-            message: "Failed to fetch the source channel. Unable to perform quick mute",
+            message: {
+                content: "Failed to fetch the source channel. Unable to perform quick mute",
+                temporary: true
+            },
             success: false
         };
     }
@@ -100,21 +106,30 @@ export async function handleQuickMute(data: {
     if (targetMember) {
         if (targetMember.roles.highest.position >= executor.roles.highest.position) {
             return {
-                message: "You can't mute someone with the same or higher role than you",
+                message: {
+                    content: "You can't mute someone with the same or higher role than you",
+                    temporary: true
+                },
                 success: false
             };
         }
 
         if (!targetMember.manageable) {
             return {
-                message: "I do not have permission to mute this user",
+                message: {
+                    content: "I do not have permission to mute this user",
+                    temporary: true
+                },
                 success: false
             };
         }
 
         if (targetMember.isCommunicationDisabled()) {
             return {
-                message: "You can't mute someone who is already muted",
+                message: {
+                    content: "You can't mute someone who is already muted",
+                    temporary: true
+                },
                 success: false
             };
         }
@@ -123,7 +138,10 @@ export async function handleQuickMute(data: {
 
         if (isMuted) {
             return {
-                message: "You can't mute someone who is already muted",
+                message: {
+                    content: "You can't mute someone who is already muted",
+                    temporary: true
+                },
                 success: false
             };
         }
@@ -154,7 +172,10 @@ export async function handleQuickMute(data: {
 
     if (!infraction) {
         return {
-            message: "An error occurred while storing the infraction",
+            message: {
+                content: "An error occurred while storing the infraction",
+                temporary: true
+            },
             success: false
         };
     }
@@ -167,7 +188,10 @@ export async function handleQuickMute(data: {
             InfractionManager.deleteInfraction(infraction.id);
 
             return {
-                message: `An error occurred while quick muting the member (\`${sentryId}\`)`,
+                message: {
+                    content: `An error occurred while quick muting the member (\`${sentryId}\`)`,
+                    temporary: true
+                },
                 success: false
             };
         }
@@ -184,18 +208,24 @@ export async function handleQuickMute(data: {
 
     if (targetMember) {
         return {
-            message: `Successfully ${message}`,
+            message: {
+                content: `Successfully ${message}`,
+                temporary: true
+            },
             success: true
         };
     } else {
         return {
-            message: `User not in server, I will try to ${message.replace("-", "if they join -")}`,
+            message: {
+                content: `User not in server, I will try to ${message.replace("-", "if they join -")}`,
+                temporary: true
+            },
             success: true
         };
     }
 }
 
 interface QuickMuteResult {
-    message: string;
+    message: string | InteractionReplyData;
     success: boolean;
 }

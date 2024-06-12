@@ -54,16 +54,25 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
         const validationResult = await InfractionUtil.validateReason(reason, config);
 
         if (!validationResult.success) {
-            return validationResult.message;
+            return {
+                content: validationResult.message,
+                temporary: true
+            };
         }
 
         if (member) {
             if (!member.bannable) {
-                return "I do not have permission to ban this user";
+                return {
+                    content: "I do not have permission to ban this user",
+                    temporary: true
+                };
             }
 
             if (member.roles.highest.position >= interaction.member.roles.highest.position) {
-                return "You cannot ban a user with a higher or equal role";
+                return {
+                    content: "You cannot ban a user with a higher or equal role",
+                    temporary: true
+                };
             }
         }
 
@@ -74,7 +83,10 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
 
         if (ban) {
             const formattedReason = InfractionUtil.formatReason(ban.reason ?? DEFAULT_INFRACTION_REASON);
-            return `This user is already banned ${formattedReason}`;
+            return {
+                content: `This user is already banned ${formattedReason}`,
+                temporary: true
+            };
         }
 
         const infraction = await InfractionManager.storeInfraction({
@@ -86,7 +98,10 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
         });
 
         if (!infraction) {
-            return "An error occurred while storing the infraction";
+            return {
+                content: "An error occurred while storing the infraction",
+                temporary: true
+            };
         }
 
         const deleteMessageSeconds = interaction.options.getBoolean("delete_messages")
@@ -99,7 +114,10 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             const sentryId = Sentry.captureException(error);
             await InfractionManager.deleteInfraction(infraction.id);
 
-            return `An error occurred while banning the member (\`${sentryId}\`)`;
+            return {
+                content: `An error occurred while banning the member (\`${sentryId}\`)`,
+                temporary: true
+            };
         }
 
         InfractionManager.logInfraction(infraction, interaction.member, config);
@@ -112,6 +130,9 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             config.sendNotification(`${interaction.user} ${message}`, false);
         }
 
-        return `Successfully ${message}`;
+        return {
+            content: `Successfully ${message}`,
+            temporary: true
+        };
     }
 }

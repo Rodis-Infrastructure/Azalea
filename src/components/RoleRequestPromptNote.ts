@@ -46,7 +46,8 @@ export default class RoleRequestPromptNote extends Component {
             await interaction.message!.edit({ embeds: [embed] });
             return {
                 content: "Note updated successfully!",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 
@@ -79,7 +80,8 @@ export default class RoleRequestPromptNote extends Component {
 
         return {
             content: "Note updated successfully!",
-            ephemeral: true
+            ephemeral: true,
+            temporary: true
         };
     }
 }

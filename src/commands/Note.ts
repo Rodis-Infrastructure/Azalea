@@ -41,11 +41,17 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
         const validationResult = await InfractionUtil.validateReason(note, config);
 
         if (!validationResult.success) {
-            return validationResult.message;
+            return {
+                content: validationResult.message,
+                temporary: true
+            };
         }
 
         if (member && member.roles.highest.position >= interaction.member.roles.highest.position) {
-            return "You cannot add a note to a user with a higher or equal role";
+            return {
+                content: "You cannot add a note to a user with a higher or equal role",
+                temporary: true
+            };
         }
 
         const user = member?.user ?? interaction.options.getUser("user", true);
@@ -58,7 +64,10 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
         });
 
         if (!infraction) {
-            return "An error occurred while storing the note";
+            return {
+                content: "An error occurred while storing the note",
+                temporary: true
+            };
         }
 
         InfractionManager.logInfraction(infraction, interaction.member, config);
@@ -70,6 +79,9 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
             config.sendNotification(`${interaction.user} ${message}`, false);
         }
 
-        return `Successfully ${message}`;
+        return {
+            content: `Successfully ${message}`,
+            temporary: true
+        };
     }
 }

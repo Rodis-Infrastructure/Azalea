@@ -25,7 +25,8 @@ export default class SearchInfractionsCtx extends Command<UserContextMenuCommand
         ) {
             return Promise.resolve({
                 content: "You do not have permission to view this user's infractions.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             });
         }
 

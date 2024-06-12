@@ -17,7 +17,8 @@ export default class InfractionInfo extends Component {
         if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
             return Promise.resolve({
                 content: "You do not have permission to view infractions",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             });
         }
 

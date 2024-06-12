@@ -32,7 +32,8 @@ export async function handleInfractionSearchPagination(interaction: ButtonIntera
     if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
         return {
             content: "You do not have permission to view infractions.",
-            ephemeral: true
+            ephemeral: true,
+            temporary: true
         };
     }
 
@@ -45,7 +46,8 @@ export async function handleInfractionSearchPagination(interaction: ButtonIntera
     if (!target) {
         return {
             content: "Failed to fetch the target user.",
-            ephemeral: true
+            ephemeral: true,
+            temporary: true
         };
     }
 

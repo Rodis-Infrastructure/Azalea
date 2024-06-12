@@ -41,11 +41,17 @@ export default class ListPermissions extends Command<ChatInputCommandInteraction
         const clientMember = interaction.guild.members.me;
 
         if (!channel) {
-            return "Failed to find the channel.";
+            return {
+                content: "Failed to find the channel.",
+                temporary: true
+            };
         }
 
         if (!clientMember) {
-            return "Failed to find the client as a member.";
+            return {
+                content: "Failed to find the client as a member.",
+                temporary: true
+            };
         }
 
         let permissions: Record<string, boolean>;

@@ -1,11 +1,11 @@
 import { InteractionReplyData } from "@utils/types";
 import { ButtonInteraction } from "discord.js";
+import { Permission } from "@managers/config/schema";
 import { client } from "./..";
 
 import Component from "@managers/components/Component";
 import Infraction, { InfractionSearchFilter } from "@/commands/Infraction";
 import ConfigManager from "@managers/config/ConfigManager";
-import { Permission } from "@managers/config/schema";
 
 export default class Infractions extends Component {
     constructor() {
@@ -19,7 +19,8 @@ export default class Infractions extends Component {
         if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
             return {
                 content: "You do not have permission to view infractions.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 
@@ -29,7 +30,8 @@ export default class Infractions extends Component {
         if (!user) {
             return {
                 content: "Failed to fetch the target user.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 

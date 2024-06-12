@@ -43,7 +43,8 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
         if (!response) {
             return {
                 content: "Response not found.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 

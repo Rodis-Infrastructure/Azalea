@@ -88,13 +88,19 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
             case ReminderSubcommand.Remove:
                 return Reminders._delete(interaction);
             default:
-                return Promise.resolve("Unknown subcommand");
+                return Promise.resolve({
+                    content: "Unknown subcommand",
+                    temporary: true
+                });
         }
     }
 
     private static async _create(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         if (!interaction.channel) {
-            return "Failed to fetch the channel";
+            return {
+                content: "Failed to fetch the channel",
+                temporary: true
+            };
         }
 
         const reminderCount = await prisma.reminder.count({
@@ -104,13 +110,19 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
         });
 
         if (reminderCount === 10) {
-            return "You cannot create more than 10 reminders at a time";
+            return {
+                content: "You cannot create more than 10 reminders at a time",
+                temporary: true
+            };
         }
 
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
         if (config.channelInScope(interaction.channel)) {
-            return "Reminders can only be created in non-ephemeral channels";
+            return {
+                content: "Reminders can only be created in non-ephemeral channels",
+                temporary: true
+            };
         }
 
         const duration = interaction.options.getString("duration", true);

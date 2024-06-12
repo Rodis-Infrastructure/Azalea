@@ -35,7 +35,8 @@ export default class ReportUserCtx extends Command<UserContextMenuCommandInterac
         if (!config.data.user_reports) {
             return {
                 content: "User reports are disabled in this server.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 
@@ -46,7 +47,8 @@ export default class ReportUserCtx extends Command<UserContextMenuCommandInterac
         if (isExcluded) {
             return {
                 content: "You cannot report this user.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 

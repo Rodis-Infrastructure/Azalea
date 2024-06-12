@@ -24,7 +24,10 @@ export default class ReportMessageCtx extends Command<MessageContextMenuCommandI
         const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
         if (targetUser.bot) {
-            return Promise.resolve("You cannot report bots");
+            return Promise.resolve({
+                content: "You cannot report bots",
+                temporary: true
+            });
         }
 
         await MessageReactionAdd.createMessageReport(
@@ -33,6 +36,9 @@ export default class ReportMessageCtx extends Command<MessageContextMenuCommandI
             config
         );
 
-        return Promise.resolve(`Successfully reported ${targetUser}, thank you for your report!`);
+        return Promise.resolve({
+            content: `Successfully reported ${targetUser}, thank you for your report!`,
+            temporary: true
+        });
     }
 }

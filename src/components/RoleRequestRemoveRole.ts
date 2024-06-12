@@ -18,7 +18,8 @@ export default class RoleRequestRemoveRole extends Component {
         if (!config.hasPermission(interaction.member, Permission.ManageRoleRequests)) {
             return {
                 content: "You do not have permission to manage role requests.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 
@@ -60,6 +61,10 @@ export default class RoleRequestRemoveRole extends Component {
             content: response,
             ephemeral: true
         });
+
+        setTimeout(() => {
+            interaction.deleteReply().catch(() => null);
+        }, config.data.response_ttl);
 
         await interaction.message.delete().catch(() => null);
         return null;

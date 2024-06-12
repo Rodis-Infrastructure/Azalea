@@ -91,11 +91,15 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
     });
 
     if (!result.success) {
-        return Promise.resolve({
-            content: result.message,
-            ephemeral: true,
-            temporary: true
-        });
+        if (typeof result.message === "string") {
+            return {
+                content: result.message,
+                ephemeral: true,
+                temporary: true
+            };
+        } else {
+            return result.message;
+        }
     }
 
     const status = duration === QuickMuteDuration.Short
@@ -107,15 +111,20 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
         data: { status }
     });
 
-    await interaction.reply({
-        content: result.message,
-        ephemeral: true
-    });
+    if (typeof result.message === "string") {
+        await interaction.reply({
+            content: result.message,
+            ephemeral: true
+        });
+    } else {
+        delete result.message?.temporary;
+        await interaction.reply(result.message as Omit<InteractionReplyData, "temporary">);
+    }
 
     setTimeout(() => {
         interaction.deleteReply().catch(() => null);
     }, config.data.response_ttl);
 
     await interaction.message.delete();
-    return Promise.resolve(null);
+    return null;
 }

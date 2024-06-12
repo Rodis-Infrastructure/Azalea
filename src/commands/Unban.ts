@@ -36,7 +36,10 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
         const validationResult = await InfractionUtil.validateReason(reason, config);
 
         if (!validationResult.success) {
-            return validationResult.message;
+            return {
+                content: validationResult.message,
+                temporary: true
+            };
         }
 
         const isBanned = await interaction.guild.bans.fetch(user.id)
@@ -44,7 +47,10 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
             .catch(() => false);
 
         if (!isBanned) {
-            return "This user is not banned";
+            return {
+                content: "This user is not banned",
+                temporary: true
+            };
         }
 
         const infraction = await InfractionManager.storeInfraction({
@@ -56,7 +62,10 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
         });
 
         if (!infraction) {
-            return "An error occurred while storing the infraction";
+            return {
+                content: "An error occurred while storing the infraction",
+                temporary: true
+            };
         }
 
         try {
@@ -65,7 +74,10 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
             const sentryId = Sentry.captureException(error);
             InfractionManager.deleteInfraction(infraction.id);
 
-            return `An error occurred while unbanning the member (\`${sentryId}\`)`;
+            return {
+                content: `An error occurred while unbanning the member (\`${sentryId}\`)`,
+                temporary: true
+            };
         }
 
         InfractionManager.logInfraction(infraction, interaction.member, config);
@@ -77,6 +89,9 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
             config.sendNotification(`${interaction.user} ${message}`, false);
         }
 
-        return `Successfully ${message}`;
+        return {
+            content: `Successfully ${message}`,
+            temporary: true
+        };
     }
 }

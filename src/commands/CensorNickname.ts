@@ -44,7 +44,10 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
 
     static async handle(executor: GuildMember, target: GuildMember | null, config: GuildConfig): Promise<InteractionReplyData> {
         if (!target) {
-            return "You can't censor the nickname of someone who isn't in the server";
+            return {
+                content: "You can't censor the nickname of someone who isn't in the server",
+                temporary: true
+            };
         }
 
         const { exclude_roles, nickname, exclusion_response } = config.data.nickname_censorship;
@@ -55,7 +58,10 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
         }
 
         if (!target.manageable) {
-            return "I do not have permission to censor this user's nickname";
+            return {
+                content: "I do not have permission to censor this user's nickname",
+                temporary: true
+            };
         }
 
         const initialNickname = target.displayName;
@@ -71,7 +77,10 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
             config
         });
 
-        return `Successfully changed ${target}'s nickname from \`${initialNickname}\` to \`${censoredNickname}\``;
+        return {
+            content: `Successfully changed ${target}'s nickname from \`${initialNickname}\` to \`${censoredNickname}\``,
+            temporary: true
+        };
     }
 
     private static _formatCensoredNickname(nickname: string, targetId: Snowflake): string {

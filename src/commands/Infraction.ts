@@ -188,7 +188,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                     config.hasPermission(member, Permission.ViewInfractions) &&
                     !config.hasPermission(interaction.member, Permission.ViewModerationActivity)
                 ) {
-                    return "You do not have permission to view this user's infractions";
+                    return {
+                        content: "You do not have permission to view this user's infractions",
+                        temporary: true
+                    };
                 }
 
                 const user = member?.user ?? interaction.options.getUser("user", true);
@@ -228,7 +231,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
             case InfractionSubcommand.Active: {
                 if (!interaction.channel) {
-                    return "Failed to fetch the current channel.";
+                    return {
+                        content: "Failed to fetch the current channel.",
+                        temporary: true
+                    };
                 }
 
                 const ephemeral = config.channelInScope(interaction.channel);
@@ -245,7 +251,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 const infractionId = interaction.options.getInteger("infraction_id", true);
 
                 if (!config.hasPermission(interaction.member, Permission.ManageInfractions)) {
-                    return "You do not have permission to restore infractions.";
+                    return {
+                        content: "You do not have permission to restore infractions.",
+                        temporary: true
+                    };
                 }
 
                 return Infraction._restore(infractionId, interaction.member, config);
@@ -257,7 +266,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             }
 
             default:
-                return "Unknown subcommand";
+                return {
+                    content: "Unknown subcommand",
+                    temporary: true
+                };
         }
     }
 
@@ -326,7 +338,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         });
 
         if (!infraction) {
-            return `Infraction with ID \`#${infractionId}\` not found.`;
+            return {
+                content: `Infraction with ID \`#${infractionId}\` not found.`,
+                temporary: true
+            };
         }
 
         const embedColor = InfractionUtil.mapActionToEmbedColor(infraction.action);
@@ -416,17 +431,26 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         });
 
         if (!infraction) {
-            return `Infraction with ID \`#${infractionId}\` not found.`;
+            return {
+                content: `Infraction with ID \`#${infractionId}\` not found.`,
+                temporary: true
+            };
         }
 
         // Check whether the executor has permission to manage infractions
         if (infraction.executor_id !== executor.id && !config.hasPermission(executor, Permission.ManageInfractions)) {
-            return "You do not have permission to archive this infraction.";
+            return {
+                content: "You do not have permission to archive this infraction.",
+                temporary: true
+            };
         }
 
         // Check whether the infraction is active (if it's temporary)
         if (infraction.expires_at && infraction.expires_at > new Date()) {
-            return "Cannot archive an active infraction.";
+            return {
+                content: "Cannot archive an active infraction.",
+                temporary: true
+            };
         }
 
         await prisma.infraction.update({
@@ -457,7 +481,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             config
         });
 
-        return `Successfully archived infraction \`#${infractionId}\``;
+        return {
+            content: `Successfully archived infraction \`#${infractionId}\``,
+            temporary: true
+        };
     }
 
     /**
@@ -483,7 +510,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         }).catch(() => null);
 
         if (!infraction) {
-            return `Archived infraction with ID \`#${infractionId}\` not found.`;
+            return {
+                content: `Archived infraction with ID \`#${infractionId}\` not found.`,
+                temporary: true
+            };
         }
 
         const formattedAction = InfractionUtil.formatAction(infraction.action, infraction.flag);
@@ -506,7 +536,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             config
         });
 
-        return `Successfully restored infraction \`#${infractionId}\``;
+        return {
+            content: `Successfully restored infraction \`#${infractionId}\``,
+            temporary: true
+        };
     }
 
     /**
@@ -546,18 +579,27 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         });
 
         if (!oldState) {
-            return `Active mute with ID \`#${infractionId}\` not found.`;
+            return {
+                content: `Active mute with ID \`#${infractionId}\` not found.`,
+                temporary: true
+            };
         }
 
         // Ensure the executor is either the original executor or has permission to manage infractions
         if (oldState.executor_id !== executor.id && !config.hasPermission(executor, Permission.ManageInfractions)) {
-            return "You do not have permission to update the duration of this mute.";
+            return {
+                content: "You do not have permission to update the duration of this mute.",
+                temporary: true
+            };
         }
 
         let msDuration = ms(duration);
 
         if (!msDuration || msDuration < 0) {
-            return "Invalid duration provided. Please provide a valid duration.";
+            return {
+                content: "Invalid duration provided. Please provide a valid duration.",
+                temporary: true
+            };
         }
 
         if (msDuration > MAX_MUTE_DURATION) {
@@ -615,7 +657,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             config
         });
 
-        return `Successfully updated the duration of infraction \`#${infractionId}\` (expires ${time(expiresAt, TimestampStyles.RelativeTime)})`;
+        return {
+            content: `Successfully updated the duration of infraction \`#${infractionId}\` (expires ${time(expiresAt, TimestampStyles.RelativeTime)})`,
+            temporary: true
+        };
     }
 
     /**
@@ -650,12 +695,18 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         }).catch(() => null);
 
         if (!oldState) {
-            return `Infraction with ID \`#${infractionId}\` not found.`;
+            return {
+                content: `Infraction with ID \`#${infractionId}\` not found.`,
+                temporary: true
+            };
         }
 
         // Ensure the executor is either the original executor or has permission to manage infractions
         if (oldState.executor_id !== executor.id && !config.hasPermission(executor, Permission.ManageInfractions)) {
-            return "You do not have permission to update the reason of this infraction.";
+            return {
+                content: "You do not have permission to update the reason of this infraction.",
+                temporary: true
+            };
         }
 
         const validationResult = await InfractionUtil.validateReason(reason, config);
@@ -711,7 +762,11 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         });
 
         const formattedReason = InfractionUtil.formatReason(reason);
-        return `Successfully updated the reason of infraction \`#${infractionId}\` ${formattedReason}`;
+
+        return {
+            content: `Successfully updated the reason of infraction \`#${infractionId}\` ${formattedReason}`,
+            temporary: true
+        };
     }
 
     /**

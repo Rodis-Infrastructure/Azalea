@@ -31,14 +31,16 @@ export default class RoleRequestSelectRole extends Component {
         if (!roleRequestConfig) {
             return {
                 content: "Role requests are not enabled in this guild.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 
         if (!config.hasPermission(interaction.member, Permission.ManageRoleRequests)) {
             return {
                 content: "You do not have permission to manage role requests.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 
@@ -49,7 +51,8 @@ export default class RoleRequestSelectRole extends Component {
         if (!selectedRole) {
             return {
                 content: "This role is not available for request.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 
@@ -58,7 +61,8 @@ export default class RoleRequestSelectRole extends Component {
         if (!role) {
             return {
                 content: "Failed to fetch the role.",
-                ephemeral: true
+                ephemeral: true,
+                temporary: true
             };
         }
 
@@ -184,15 +188,13 @@ export default class RoleRequestSelectRole extends Component {
                 content: `Failed to assign the role to the following ${pluralize(failedMembers.length, "member")}: ${failedMembers}`,
                 ephemeral: true
             });
-
-            return null;
+        } else {
+            // The role was successfully assigned to all members
+            await interaction.followUp({
+                content: `Successfully assigned the role to ${members.length} ${pluralize(members.length, "member")}.`,
+                ephemeral: true
+            });
         }
-
-        // The role was successfully assigned to all members
-        await interaction.followUp({
-            content: `Successfully assigned the role to ${members.length} ${pluralize(members.length, "member")}.`,
-            ephemeral: true
-        });
 
         return null;
     }

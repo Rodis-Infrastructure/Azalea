@@ -30,7 +30,10 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
         const files: Attachment[] = Array.from(interaction.targetMessage.attachments.values());
 
         if (!files.length) {
-            return "This message doesn't have any attachments.";
+            return {
+                content: "This message doesn't have any attachments.",
+                temporary: true
+            };
         }
 
         try {
@@ -38,7 +41,10 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
             return `Stored \`${files.length}\` ${pluralize(files.length, "attachment")} from ${interaction.targetMessage.author} - ${logURLs.join(" ")}`;
         } catch (error) {
             if (error instanceof MediaStoreError) {
-                return error.message;
+                return {
+                    content: error.message,
+                    temporary: true
+                };
             }
 
             Sentry.captureException(error, {
@@ -50,7 +56,10 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
                 }
             });
 
-            return "An error occurred while storing the media.";
+            return {
+                content: "An error occurred while storing the media.",
+                temporary: true
+            };
         }
     }
 

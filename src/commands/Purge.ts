@@ -103,7 +103,10 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
 
         if (period) {
             if (!DURATION_FORMAT.test(period)) {
-                return `Invalid period format. Please use the following format: \`<number><unit>\` (e.g. \`1d\`, \`2h\`, \`15m\`)`;
+                return {
+                    content: `Invalid period format. Please use the following format: \`<number><unit>\` (e.g. \`1d\`, \`2h\`, \`15m\`)`,
+                    temporary: true
+                };
             }
 
             DURATION_FORMAT.lastIndex = 0;
@@ -111,11 +114,17 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
         }
 
         if (!channel) {
-            return Promise.resolve("Failed to get the channel.");
+            return {
+                content: "Failed to get the channel.",
+                temporary: true
+            };
         }
 
         if (!channel.permissionsFor(interaction.member).has(PermissionFlagsBits.ManageMessages)) {
-            return Promise.resolve(`You do not have permission to manage messages in ${channel}.`);
+            return {
+                content: `You do not have permission to manage messages in ${channel}.`,
+                temporary: true
+            };
         }
 
         let purgedMessages: Message[];
@@ -126,7 +135,10 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
                 const targetMember = interaction.options.getMember("user");
 
                 if (targetMember && targetMember.roles.highest.position >= interaction.member.roles.highest.position) {
-                    return Promise.resolve("You cannot purge messages from a user with a higher role than you.");
+                    return {
+                        content: "You cannot purge messages from a user with a higher role than you.",
+                        temporary: true
+                    };
                 }
 
                 const target = targetMember?.user ?? interaction.options.getUser("user", true);
@@ -143,7 +155,10 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
         }
 
         if (!purgedMessages.length) {
-            return Promise.resolve("No messages were purged.");
+            return {
+                content: "No messages were purged.",
+                temporary: true
+            };
         }
 
         if (msPeriod) {

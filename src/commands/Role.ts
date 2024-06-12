@@ -8,9 +8,9 @@ import {
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
+import { DEFAULT_EMBED_COLOR } from "@utils/constants";
 
 import Command from "@managers/commands/Command";
-import { DEFAULT_EMBED_COLOR } from "@utils/constants";
 
 export default class Role extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -50,7 +50,10 @@ export default class Role extends Command<ChatInputCommandInteraction<"cached">>
             }
 
             default:
-                return "Unknown subcommand";
+                return {
+                    content: "Unknown subcommand",
+                    temporary: true
+                };
         }
     }
 
