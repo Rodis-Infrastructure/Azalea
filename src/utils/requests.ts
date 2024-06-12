@@ -383,13 +383,8 @@ export async function approveModerationRequest(request: Message<true>, reviewerI
             }
 
             const target = await config.guild.members.fetch(data.target_id).catch(() => null);
+            await target?.timeout(data.duration || null, data.reason).catch(() => null);
 
-            if (!target) {
-                config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, the offender may have left the guild.`);
-                return;
-            }
-
-            await target.timeout(data.duration || null, data.reason).catch(() => null);
             handleModerationRequestApproveLog(LoggingEvent.MuteRequestApprove, "Muted");
             break;
         }
