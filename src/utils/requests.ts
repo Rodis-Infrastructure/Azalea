@@ -25,6 +25,7 @@ import StoreMediaCtx from "@/commands/StoreMediaCtx";
 import Sentry from "@sentry/node";
 import ms from "ms";
 import Infraction from "@/commands/Infraction";
+import { ValidationError } from "zod-validation-error";
 
 export async function handleModerationRequest(message: Message<true>, config: GuildConfig): Promise<void> {
     const requestConfig = config.data.moderation_requests
@@ -94,15 +95,10 @@ export async function handleModerationRequest(message: Message<true>, config: Gu
         // Store the request in the database if it doesn't exist
         // Update the reason if the request is already stored
         await prisma.moderationRequest.upsert({
+            where: { id: message.id },
             create: request,
-            where: {
-                id: message.id
-            },
             update: {
                 target_id: request.target_id,
-                // The author is only updated if the original
-                // request was made by a bot
-                author_id: request.author_id,
                 reason: request.reason,
                 duration: request.duration
             }
@@ -329,35 +325,30 @@ async function validateBanRequest(request: Message<true>, config: GuildConfig): 
 /**
  * Approve a moderation request.
  *
- * @param requestId - The message ID of the request.
+ * @param request - The request message.
  * @param reviewerId - The ID of the user approving the moderation request.
  * @param config - The guild configuration.
  */
-export async function approveModerationRequest(requestId: Snowflake, reviewerId: Snowflake, config: GuildConfig): Promise<void> {
-    const request = await prisma.moderationRequest.update({
-        where: { id: requestId },
-        data: { status: RequestStatus.Approved },
-        select: {
-            id: true,
-            type: true,
-            target_id: true,
-            duration: true,
-            reason: true,
-            guild_id: true,
-            author_id: true
-        }
-    }).catch(() => null);
+export async function approveModerationRequest(request: Message<true>, reviewerId: Snowflake, config: GuildConfig): Promise<void> {
+    let data: Prisma.ModerationRequestCreateInput;
 
-    if (!request) {
-        config.sendNotification(`${userMention(reviewerId)} The request was not found or it failed validation.`);
+    try {
+        data = await validateMuteRequest(request, config);
+    } catch (error) {
+        if (error instanceof ValidationError) {
+            temporaryReply(request, error.message, config.data.response_ttl);
+        } else {
+            Sentry.captureException(error);
+            temporaryReply(request, "An unknown error has occurred while trying to approve the request", config.data.response_ttl);
+        }
+
         return;
     }
 
-    request.duration &&= request.duration * 1000;
     const reviewer = await config.guild.members.fetch(reviewerId)
         .catch(() => null);
 
-    const requestAuthor = await config.guild.members.fetch(request.author_id)
+    const requestAuthor = await config.guild.members.fetch(data.author_id)
         .catch(() => null);
 
     const handleModerationRequestApproveLog = (event: LoggingEvent, action: string): void => {
@@ -367,9 +358,9 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
             .setTitle(action)
             .setFields([
                 { name: "Reviewer", value: userMentionWithId(reviewerId) },
-                { name: "Request Author", value: userMentionWithId(request.author_id) },
-                { name: "Target", value: userMentionWithId(request.target_id) },
-                { name: "Request Content", value: request.reason }
+                { name: "Request Author", value: userMentionWithId(data.author_id) },
+                { name: "Target", value: userMentionWithId(data.target_id) },
+                { name: "Request Content", value: data.reason }
             ])
             .setTimestamp();
 
@@ -384,40 +375,40 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
         });
     };
 
-    switch (request.type) {
+    switch (data.type) {
         case ModerationRequestType.Mute: {
-            const target = await config.guild.members.fetch(request.target_id).catch(() => null);
+            if (!reviewer || !config.hasPermission(reviewer, Permission.ManageMuteRequests)) {
+                config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, you do not have permission to manage mute requests.`);
+                return;
+            }
+
+            const target = await config.guild.members.fetch(data.target_id).catch(() => null);
 
             if (!target) {
                 config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, the offender may have left the guild.`);
                 return;
             }
 
-            if (!reviewer || !config.hasPermission(reviewer, Permission.ManageMuteRequests)) {
-                config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, you do not have permission to manage mute requests.`);
-                return;
-            }
-
-            await target.timeout(request.duration, request.reason).catch(() => null);
+            await target.timeout(data.duration || null, data.reason).catch(() => null);
             handleModerationRequestApproveLog(LoggingEvent.MuteRequestApprove, "Muted");
             break;
         }
 
         case ModerationRequestType.Ban: {
-            const target = await client.users.fetch(request.target_id).catch(() => null);
+            if (!reviewer || !config.hasPermission(reviewer, Permission.ManageBanRequests)) {
+                config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, you do not have permission to manage ban requests.`);
+                return;
+            }
+
+            const target = await client.users.fetch(data.target_id).catch(() => null);
 
             if (!target) {
                 config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, the offender was not found.`);
                 return;
             }
 
-            if (!reviewer || !config.hasPermission(reviewer, Permission.ManageBanRequests)) {
-                config.sendNotification(`${userMention(reviewerId)} Failed to approve the request, you do not have permission to manage ban requests.`);
-                return;
-            }
-
             await config.guild.members.ban(target, {
-                reason: request.reason,
+                reason: data.reason,
                 deleteMessageSeconds: config.data.delete_message_seconds_on_ban
             });
 
@@ -426,34 +417,48 @@ export async function approveModerationRequest(requestId: Snowflake, reviewerId:
         }
     }
 
-    const action = request.type === ModerationRequestType.Mute
+    const action = data.type === ModerationRequestType.Mute
         ? InfractionAction.Mute
         : InfractionAction.Ban;
 
-    const expiresAt = request.duration
-        ? new Date(Date.now() + request.duration)
+    const expiresAt = data.duration
+        ? new Date(Date.now() + (data.duration * 1000))
         : null;
 
-    const formattedReason = InfractionUtil.formatReason(request.reason);
+    const formattedReason = InfractionUtil.formatReason(data.reason);
 
     config.sendNotification(
-        `${userMention(request.author_id)}'s ${request.type} request against ${userMention(request.target_id)} has been approved by ${userMention(reviewerId)} ${formattedReason}`,
+        `${userMention(data.author_id)}'s ${data.type} request against ${userMention(data.target_id)} has been approved by ${userMention(reviewerId)} ${formattedReason}`,
         false
     );
 
+    await prisma.moderationRequest.upsert({
+        where: { id: request.id },
+        create: {
+            ...data,
+            status: RequestStatus.Approved
+        },
+        update: {
+            status: RequestStatus.Approved,
+            target_id: data.target_id,
+            reason: data.reason,
+            duration: data.duration
+        }
+    });
+
     const infraction = await InfractionManager.storeInfraction({
         expires_at: expiresAt,
-        guild_id: request.guild_id,
+        guild_id: data.guild_id,
         executor_id: reviewerId,
-        request_author_id: request.author_id,
-        target_id: request.target_id,
-        reason: request.reason,
+        request_author_id: data.author_id,
+        target_id: data.target_id,
+        reason: data.reason,
         action
     });
 
     if (infraction) {
         InfractionManager.logInfraction(infraction, reviewer, config);
-    } else if (request.type === ModerationRequestType.Mute) {
+    } else if (data.type === ModerationRequestType.Mute) {
         config.sendNotification(`${userMention(reviewerId)} Failed to mute the user, unable to schedule mute.`);
     }
 }

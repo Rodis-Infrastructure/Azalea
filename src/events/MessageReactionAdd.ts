@@ -132,7 +132,7 @@ export default class MessageReactionAdd extends EventListener {
         // Handle moderation request approvals
         // Permission checks are performed in approval function
         if (isModerationRequestChannel && emojiId === config.data.emojis.approve) {
-            await approveModerationRequest(message.id, user.id, config);
+            await approveModerationRequest(message, user.id, config);
             return;
         }
 
