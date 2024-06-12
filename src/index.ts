@@ -2,7 +2,7 @@
 import { CLIENT_INTENTS, CLIENT_PARTIALS, EXIT_EVENTS } from "@utils/constants";
 import { PrismaClient } from "@prisma/client";
 import { startCleanupOperations } from "./utils";
-import { Client, Events } from "discord.js";
+import { Client, Events, Options } from "discord.js";
 
 import Sentry from "@sentry/node";
 import CommandManager from "./managers/commands/CommandManager";
@@ -28,7 +28,24 @@ export const prisma = new PrismaClient();
  */
 export const client: Client<true> = new Client({
     intents: CLIENT_INTENTS,
-    partials: CLIENT_PARTIALS
+    partials: CLIENT_PARTIALS,
+    makeCache: Options.cacheWithLimits({
+        /* eslint-disable @typescript-eslint/naming-convention, capitalized-comments */
+        GuildMessageManager: 100, // channel.messages
+        ApplicationCommandManager: 0, // guild.commands
+        BaseGuildEmojiManager: 0, // guild.emojis
+        StageInstanceManager: 0, // guild.stageInstances
+        ThreadManager: 0, // channel.threads
+        AutoModerationRuleManager: 0,
+        DMMessageManager: 0,
+        GuildForumThreadManager: 0,
+        GuildInviteManager: 0, // guild.invites
+        PresenceManager: 0, // guild.presences
+        GuildScheduledEventManager: 0, // guild.scheduledEvents
+        VoiceStateManager: 0, // guild.voiceStates
+        ThreadMemberManager: 0 // thread.members
+        /* eslint-enable @typescript-eslint/naming-convention, capitalized-comments */
+    })
 });
 
 async function main(): Promise<void> {
