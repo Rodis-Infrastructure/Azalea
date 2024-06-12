@@ -4,8 +4,7 @@ import {
     GuildMember,
     GuildTextBasedChannel,
     Message,
-    MessageCreateOptions,
-    MessagePayload
+    MessageCreateOptions
 } from "discord.js";
 
 import { LoggingEvent, Scoping } from "@managers/config/schema";
@@ -23,7 +22,7 @@ export async function log(data: {
     config: GuildConfig,
     member: GuildMember | null,
     channel: GuildBasedChannel | null,
-    message: string | MessagePayload | MessageCreateOptions
+    message: string | MessageCreateOptions
 }): Promise<Message<true>[] | null> {
     const { event, config, channel, message, member } = data;
 
