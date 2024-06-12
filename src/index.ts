@@ -41,7 +41,6 @@ export const client: Client<true> = new Client({
         GuildInviteManager: 0, // guild.invites
         PresenceManager: 0, // guild.presences
         GuildScheduledEventManager: 0, // guild.scheduledEvents
-        VoiceStateManager: 0, // guild.voiceStates
         ThreadMemberManager: 0 // thread.members
         /* eslint-enable @typescript-eslint/naming-convention, capitalized-comments */
     })
