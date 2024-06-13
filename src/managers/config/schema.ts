@@ -326,7 +326,6 @@ const loggingSchema = z.object({
 const defaultLogging = loggingSchema.parse({});
 
 const moderationRequestSchema = z.object({
-    type: moderationRequestTypeEnum,
     channel_id: snowflakeSchema,
     alert: alertSchema.optional()
 });
