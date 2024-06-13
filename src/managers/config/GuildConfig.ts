@@ -29,7 +29,6 @@ import { MessageReportStatus, UserReportStatus } from "@utils/reports";
 import { fromZodError } from "zod-validation-error";
 import { pluralize, randInt, startCronJob } from "@/utils";
 import { Snowflake } from "discord-api-types/v10";
-import { RequestStatus } from "@utils/requests";
 import { LOG_ENTRY_DATE_FORMAT } from "@utils/constants";
 import { TypedRegEx } from "typed-regex";
 import { capitalize } from "lodash";
@@ -118,65 +117,65 @@ export default class GuildConfig {
         }
     }
 
-    async startRequestReviewReminderCronJobs(): Promise<void> {
-        for (const request of this.data.moderation_requests) {
-            const alertConfig = request.alert;
-            if (!alertConfig) return;
-
-            const alertChannel = await this.guild.channels
-                .fetch(alertConfig.channel_id)
-                .catch(() => null);
-
-            const stringifiedData = JSON.stringify(request);
-
-            if (!alertChannel) {
-                Logger.error(`Failed to mount moderation request alert, unknown channel: ${stringifiedData}`);
-                continue;
-            }
-
-            if (!alertChannel.isTextBased()) {
-                Logger.error(`Failed to mount moderation request alert, channel is not text-based: ${stringifiedData}`);
-                continue;
-            }
-
-            const mentionedRoles = alertConfig.mentioned_roles
-                .map(roleMention)
-                .join(" ") || "";
-
-            const monitorSlug = `${request.type.toUpperCase()}_REQUEST_REVIEW_REMINDER`;
-
-            // Start the cron job for the alert
-            startCronJob(monitorSlug, alertConfig.cron, async () => {
-                const unresolvedRequests = await prisma.moderationRequest.findMany({
-                    where: {
-                        status: RequestStatus.Pending,
-                        type: request.type,
-                        guild_id: this.guild.id
-                    },
-                    orderBy: { created_at: "asc" }
-                });
-
-                const oldestRequest = unresolvedRequests.at(0);
-                const oldestRequestURL = oldestRequest && messageLink(request.channel_id, oldestRequest.id, this.guild.id);
-
-                const alert = GuildConfig._entityExceedsAlertThresholds({
-                    name: `${request.type} request`,
-                    count: unresolvedRequests.length,
-                    createdAt: oldestRequest?.created_at,
-                    oldestEntityURL: oldestRequestURL,
-                    config: alertConfig
-                });
-
-                if (!alert) return;
-
-                // Send the alert to the channel
-                alertChannel.send({
-                    content: `${mentionedRoles} Pending ${request.type} requests`,
-                    embeds: alertConfig.embed ? [alert] : undefined
-                });
-            });
-        }
-    }
+    // async startRequestReviewReminderCronJobs(): Promise<void> {
+    //     for (const request of this.data.moderation_requests) {
+    //         const alertConfig = request.alert;
+    //         if (!alertConfig) return;
+    //
+    //         const alertChannel = await this.guild.channels
+    //             .fetch(alertConfig.channel_id)
+    //             .catch(() => null);
+    //
+    //         const stringifiedData = JSON.stringify(request);
+    //
+    //         if (!alertChannel) {
+    //             Logger.error(`Failed to mount moderation request alert, unknown channel: ${stringifiedData}`);
+    //             continue;
+    //         }
+    //
+    //         if (!alertChannel.isTextBased()) {
+    //             Logger.error(`Failed to mount moderation request alert, channel is not text-based: ${stringifiedData}`);
+    //             continue;
+    //         }
+    //
+    //         const mentionedRoles = alertConfig.mentioned_roles
+    //             .map(roleMention)
+    //             .join(" ") || "";
+    //
+    //         const monitorSlug = `${request.type.toUpperCase()}_REQUEST_REVIEW_REMINDER`;
+    //
+    //         // Start the cron job for the alert
+    //         startCronJob(monitorSlug, alertConfig.cron, async () => {
+    //             const unresolvedRequests = await prisma.moderationRequest.findMany({
+    //                 where: {
+    //                     status: RequestStatus.Pending,
+    //                     type: request.type,
+    //                     guild_id: this.guild.id
+    //                 },
+    //                 orderBy: { created_at: "asc" }
+    //             });
+    //
+    //             const oldestRequest = unresolvedRequests.at(0);
+    //             const oldestRequestURL = oldestRequest && messageLink(request.channel_id, oldestRequest.id, this.guild.id);
+    //
+    //             const alert = GuildConfig._entityExceedsAlertThresholds({
+    //                 name: `${request.type} request`,
+    //                 count: unresolvedRequests.length,
+    //                 createdAt: oldestRequest?.created_at,
+    //                 oldestEntityURL: oldestRequestURL,
+    //                 config: alertConfig
+    //             });
+    //
+    //             if (!alert) return;
+    //
+    //             // Send the alert to the channel
+    //             alertChannel.send({
+    //                 content: `${mentionedRoles} Pending ${request.type} requests`,
+    //                 embeds: alertConfig.embed ? [alert] : undefined
+    //             });
+    //         });
+    //     }
+    // }
 
     /**
      * Check whether an alert needs to be sent.
