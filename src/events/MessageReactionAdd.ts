@@ -4,7 +4,7 @@ import {
     Colors,
     EmbedBuilder,
     Events,
-    GuildEmoji,
+    GuildEmoji, GuildMember,
     hyperlink,
     Message,
     MessageCreateOptions,
@@ -28,17 +28,18 @@ import { log, mapLogEntriesToFile } from "@utils/logging";
 import { DEFAULT_EMBED_COLOR, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { cleanContent, cropLines, pluralize, userMentionWithId } from "@/utils";
 import { ButtonStyle, Snowflake } from "discord-api-types/v10";
-import { approveModerationRequest, denyModerationRequest, RequestStatus } from "@utils/requests";
 import { prisma } from "./..";
 import { MessageReportFlag, MessageReportStatus, MessageReportUtil } from "@utils/reports";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { QuickMuteDuration } from "@utils/infractions";
 
+import MuteRequestUtil, { MuteRequestStatus } from "@utils/muteRequests";
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import Purge from "@/commands/Purge";
 import Sentry from "@sentry/node";
+import BanRequestUtil from "@utils/banRequests";
 
 export default class MessageReactionAdd extends EventListener {
     constructor() {
@@ -68,7 +69,6 @@ export default class MessageReactionAdd extends EventListener {
 
         const emojiId = MessageReactionAdd._getEmojiId(reaction.emoji);
         const executor = await message.guild.members.fetch(user.id);
-
 
         // All subsequent actions require the emoji configuration
         if (!config.data.emojis || !emojiId) return;
@@ -126,27 +126,45 @@ export default class MessageReactionAdd extends EventListener {
             await MessageReactionAdd.createMessageReport(user.id, message, config);
         }
 
-        const isModerationRequestChannel = config.data.moderation_requests
-            .some(requestConfig => requestConfig.channel_id === message.channelId);
+        // Handle moderation requests
+        MessageReactionAdd.handleModerationRequest(message, emojiId, executor, config);
+    }
 
-        // Handle moderation request approvals
-        // Permission checks are performed in approval function
-        if (isModerationRequestChannel && emojiId === config.data.emojis.approve) {
-            await approveModerationRequest(message, user.id, config);
+    static async handleModerationRequest(message: Message<true>, emojiId: string, executor: GuildMember, config: GuildConfig): Promise<void> {
+        const isMuteRequestChannel = message.channelId === config.data.mute_requests?.channel_id;
+        const isBanRequestChannel = message.channelId === config.data.ban_requests?.channel_id;
+
+        if (isMuteRequestChannel && emojiId === config.data.emojis!.approve) {
+            await MuteRequestUtil.approve(message, executor, config);
             return;
         }
 
-        // Handle moderation request denials
-        // Permission checks are performed in denial function
-        if (isModerationRequestChannel && emojiId === config.data.emojis.deny) {
-            await denyModerationRequest(message.id, user.id, config);
+        if (isBanRequestChannel && emojiId === config.data.emojis!.approve) {
+            await BanRequestUtil.approve(message, executor, config);
             return;
         }
 
-        if (isModerationRequestChannel) {
-            await prisma.moderationRequest.update({
+        if (isMuteRequestChannel && emojiId === config.data.emojis!.deny) {
+            await MuteRequestUtil.deny(message.id, executor, config);
+            return;
+        }
+
+        if (isBanRequestChannel && emojiId === config.data.emojis!.deny) {
+            await BanRequestUtil.deny(message.id, executor, config);
+            return;
+        }
+
+        if (isMuteRequestChannel) {
+            await prisma.muteRequest.update({
                 where: { id: message.id },
-                data: { status: RequestStatus.Unknown }
+                data: { status: MuteRequestStatus.Unknown }
+            }).catch(() => null);
+        }
+
+        if (isBanRequestChannel) {
+            await prisma.banRequest.update({
+                where: { id: message.id },
+                data: { status: MuteRequestStatus.Unknown }
             }).catch(() => null);
         }
     }

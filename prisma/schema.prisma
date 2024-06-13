@@ -8,18 +8,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model ModerationRequest {
+model BanRequest {
   id         String   @id
   author_id  String
   target_id  String
   guild_id   String
   reason     String
-  type       String
-  status     String   @default("pending")
   created_at DateTime @default(now())
+  status     Int      @default(1)
   /// ID of the auto-mute infraction
   mute_id    Int?
-  duration   Int?
+}
+
+model MuteRequest {
+  id         String   @id
+  author_id  String
+  target_id  String
+  guild_id   String
+  reason     String
+  created_at DateTime @default(now())
+  status     Int      @default(1)
+  duration   Int
 }
 
 model Message {
@@ -66,7 +75,7 @@ model MessageReport {
   /// Where the report was created
   created_at      DateTime @default(now())
   /// Status of the report
-  status          Int      @default(4) // Unresolved
+  status          Int      @default(4)
   /// Additional report context
   flags           Int
   /// Whether the message was deleted
@@ -83,7 +92,7 @@ model UserReport {
   guild_id    String
   reported_by String
   created_at  DateTime @default(now())
-  status      Int      @default(2) // Unresolved
+  status      Int      @default(2)
   reason      String
   /// ID of the user that resolved the report
   resolved_by String?

@@ -11,7 +11,6 @@ import {
 } from "discord.js";
 
 import { Messages, temporaryReply } from "@utils/messages";
-import { handleModerationRequest } from "@utils/requests";
 import { MediaStoreError } from "@utils/errors";
 import { pluralize, userMentionWithId } from "@/utils";
 import { RoleRequestNoteAction } from "@/components/RoleRequestNote";
@@ -23,6 +22,8 @@ import EventListener from "@managers/events/EventListener";
 import Sentry from "@sentry/node";
 import StoreMediaCtx from "@/commands/StoreMediaCtx";
 import GuildConfig from "@managers/config/GuildConfig";
+import MuteRequestUtil from "@utils/muteRequests";
+import BanRequestUtil from "@utils/banRequests";
 
 export default class MessageCreate extends EventListener {
     constructor() {
@@ -39,8 +40,15 @@ export default class MessageCreate extends EventListener {
         const config = ConfigManager.getGuildConfig(message.guild.id);
         if (!config) return;
 
-        // Source channel conditions are handled within the function
-        handleModerationRequest(message, config);
+        // Handle new mute requests
+        if (message.channelId === config.data.mute_requests?.channel_id) {
+            await MuteRequestUtil.upsert(message, config);
+        }
+
+        // Handle new ban requests
+        if (message.channelId === config.data.ban_requests?.channel_id) {
+            await BanRequestUtil.upsert(message, config);
+        }
 
         if (message.author.bot) return;
         Messages.queue(message);

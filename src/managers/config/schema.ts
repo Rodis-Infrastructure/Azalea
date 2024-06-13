@@ -410,7 +410,8 @@ export type InfractionReasons = z.infer<typeof infractionReasonsSchema>;
 // Guild config schema exported for validation
 export const rawGuildConfigSchema = z.object({
     logging: loggingSchema.default(defaultLogging),
-    moderation_requests: z.array(moderationRequestSchema).default([]),
+    ban_requests: moderationRequestSchema.optional(),
+    mute_requests: moderationRequestSchema.optional(),
     infraction_reasons: infractionReasonsSchema.default({}),
     auto_reactions: z.array(autoReactionSchema).default([]),
     notification_channel: snowflakeSchema.optional(),

@@ -8,4 +8,6 @@ interface ObjectPropDiff {
 }
 
 export type InteractionReplyData = InteractionReplyOptions & Partial<Record<"temporary", boolean>> | string | null;
-export type Result = { success: true } | { success: false; message: string };
+export type Result<T = undefined> =
+    | { success: false, message: string }
+    | { success: true } & (T extends undefined ? { data?: never } : { data: T });

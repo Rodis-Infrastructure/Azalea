@@ -25,12 +25,13 @@ import { Message } from "@prisma/client";
 import { client, prisma } from "./..";
 import { LoggingEvent } from "@managers/config/schema";
 import { MessageReportFlag, MessageReportStatus, MessageReportUtil } from "@utils/reports";
-import { RequestStatus } from "@utils/requests";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import MessageBulkDelete from "./MessageBulkDelete";
+import MuteRequestUtil, { MuteRequestStatus } from "@utils/muteRequests";
+import BanRequestUtil, { BanRequestStatus } from "@utils/banRequests";
 
 export default class MessageDelete extends EventListener {
     constructor() {
@@ -57,18 +58,17 @@ export default class MessageDelete extends EventListener {
         const config = ConfigManager.getGuildConfig(message.guild_id);
         if (!config) return;
 
-        const isModerationRequestChannel = config.data.moderation_requests
-            .some(requestConfig => requestConfig.channel_id === message.channel_id);
-
-        // Update the moderation request status to deleted
-        if (isModerationRequestChannel) {
-            await prisma.moderationRequest.update({
-                where: { id: message.id },
-                data: { status: RequestStatus.Deleted }
-            }).catch(() => null);
+        // Handle mute request deletion
+        if (message.channel_id === config.data.mute_requests?.channel_id) {
+            await MuteRequestUtil.setStatus(message.id, MuteRequestStatus.Deleted);
         }
 
-        this.handleMessageDeleteLog(message, config).catch(() => null);
+        // Handle ban request deletion
+        if (message.channel_id === config.data.ban_requests?.channel_id) {
+            await BanRequestUtil.setStatus(message.id, BanRequestStatus.Deleted);
+        }
+
+        MessageDelete.handleMessageDeleteLog(message, config).catch(() => null);
     }
 
     // Fetch the user responsible for deleting the message
@@ -97,7 +97,7 @@ export default class MessageDelete extends EventListener {
             .catch(() => null);
     }
 
-    async handleMessageDeleteLog(message: Message, config: GuildConfig): Promise<void> {
+    static async handleMessageDeleteLog(message: Message, config: GuildConfig): Promise<void> {
         const channel = await client.channels.fetch(message.channel_id).catch(() => null) as GuildTextBasedChannel | null;
         if (!channel) return;
 

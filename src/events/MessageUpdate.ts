@@ -17,7 +17,6 @@ import {
 
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { log, mapLogEntriesToFile } from "@utils/logging";
-import { handleModerationRequest } from "@utils/requests";
 import { Message } from "@prisma/client";
 import { cleanContent } from "@/utils";
 import { LoggingEvent } from "@managers/config/schema";
@@ -25,6 +24,8 @@ import { LoggingEvent } from "@managers/config/schema";
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
+import MuteRequestUtil from "@utils/muteRequests";
+import BanRequestUtil from "@utils/banRequests";
 
 export default class MessageUpdate extends EventListener {
     constructor() {
@@ -53,7 +54,16 @@ export default class MessageUpdate extends EventListener {
         if (oldContent === newContent) return;
 
         MessageUpdate._log(message, oldContent, config).catch(() => null);
-        handleModerationRequest(message, config);
+
+        // Handle updated mute request
+        if (message.channelId === config.data.mute_requests?.channel_id) {
+            await MuteRequestUtil.upsert(message, config);
+        }
+
+        // Handle updated ban request
+        if (message.channelId === config.data.ban_requests?.channel_id) {
+            await BanRequestUtil.upsert(message, config);
+        }
     }
 
     private static async _log(message: DiscordMessage<true>, oldContent: string, config: GuildConfig): Promise<void> {
