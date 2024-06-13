@@ -194,7 +194,7 @@ export default class MuteRequestUtil {
         }
 
         const { targetMember, data } = validationResult.data;
-        await targetMember?.timeout(data.duration || null, data.reason)
+        await targetMember?.timeout(data.duration * 1000, data.reason)
             .catch(() => null);
 
         // Log the approval
