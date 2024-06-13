@@ -125,6 +125,25 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                     type: ApplicationCommandOptionType.Subcommand
                 },
                 {
+                    name: InfractionSubcommand.Transfer,
+                    description: "Transfer one user's infraction history to another user",
+                    type: ApplicationCommandOptionType.Subcommand,
+                    options: [
+                        {
+                            name: "source_user",
+                            description: "The user to transfer the infractions from",
+                            type: ApplicationCommandOptionType.User,
+                            required: true
+                        },
+                        {
+                            name: "target_user",
+                            description: "The user to transfer the infractions to",
+                            type: ApplicationCommandOptionType.User,
+                            required: true
+                        }
+                    ]
+                },
+                {
                     name: InfractionSubcommand.Reason,
                     description: "Update the reason of an infraction",
                     type: ApplicationCommandOptionType.Subcommand,
@@ -265,12 +284,55 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 return Infraction.info(infractionId, interaction.guildId);
             }
 
+            case InfractionSubcommand.Transfer: {
+                if (!config.hasPermission(interaction.member, Permission.TransferInfractions)) {
+                    return {
+                        content: "You do not have permission to transfer infractions.",
+                        temporary: true
+                    };
+                }
+
+                const sourceUser = interaction.options.getUser("source_user", true);
+                const targetUser = interaction.options.getUser("target_user", true);
+
+                return Infraction._transfer(sourceUser, targetUser, interaction.guildId);
+            }
+
             default:
                 return {
                     content: "Unknown subcommand",
                     temporary: true
                 };
         }
+    }
+
+    private static async _transfer(sourceUser: User, targetUser: User, guildId: Snowflake): Promise<InteractionReplyData> {
+        const sourceInfractions = await prisma.infraction.findMany({
+            where: {
+                target_id: sourceUser.id,
+                guild_id: guildId
+            }
+        });
+
+        if (!sourceInfractions.length) {
+            return {
+                content: `No infractions found for ${sourceUser}`,
+                temporary: true
+            };
+        }
+
+        const targetInfractions = sourceInfractions.map(infraction => ({
+            ...infraction,
+            id: undefined,
+            target_id: targetUser.id
+        }));
+
+        await prisma.infraction.createMany({ data: targetInfractions });
+
+        return {
+            content: `Successfully transferred \`${sourceInfractions.length}\` ${pluralize(sourceInfractions.length, "infraction")} from ${sourceUser} to ${targetUser}`,
+            temporary: true
+        };
     }
 
     static async listActive(page = 1): Promise<InteractionReplyData> {
@@ -1006,5 +1068,6 @@ enum InfractionSubcommand {
     Reason = "reason",
     Archive = "archive",
     Restore = "restore",
-    Active = "active"
+    Active = "active",
+    Transfer = "transfer"
 }
