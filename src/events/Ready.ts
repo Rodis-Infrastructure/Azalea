@@ -29,7 +29,7 @@ export default class Ready extends EventListener {
         // Start scheduled messages for all guilds
         ConfigManager.guildConfigs.forEach(config => {
             config.startScheduledMessageCronJobs();
-            // config.startRequestReviewReminderCronJobs();
+            config.startMuteRequestReviewReminderCronJobs();
             config.startMessageReportReviewReminderCronJob();
             config.startMessageReportRemovalCronJob();
             config.startUserReportReviewReminderCronJob();

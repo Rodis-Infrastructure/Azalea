@@ -30,6 +30,8 @@ import { fromZodError } from "zod-validation-error";
 import { pluralize, randInt, startCronJob } from "@/utils";
 import { Snowflake } from "discord-api-types/v10";
 import { LOG_ENTRY_DATE_FORMAT } from "@utils/constants";
+import { MuteRequestStatus } from "@utils/muteRequests";
+import { BanRequestStatus } from "@utils/banRequests";
 import { TypedRegEx } from "typed-regex";
 import { capitalize } from "lodash";
 
@@ -117,65 +119,115 @@ export default class GuildConfig {
         }
     }
 
-    // async startRequestReviewReminderCronJobs(): Promise<void> {
-    //     for (const request of this.data.moderation_requests) {
-    //         const alertConfig = request.alert;
-    //         if (!alertConfig) return;
-    //
-    //         const alertChannel = await this.guild.channels
-    //             .fetch(alertConfig.channel_id)
-    //             .catch(() => null);
-    //
-    //         const stringifiedData = JSON.stringify(request);
-    //
-    //         if (!alertChannel) {
-    //             Logger.error(`Failed to mount moderation request alert, unknown channel: ${stringifiedData}`);
-    //             continue;
-    //         }
-    //
-    //         if (!alertChannel.isTextBased()) {
-    //             Logger.error(`Failed to mount moderation request alert, channel is not text-based: ${stringifiedData}`);
-    //             continue;
-    //         }
-    //
-    //         const mentionedRoles = alertConfig.mentioned_roles
-    //             .map(roleMention)
-    //             .join(" ") || "";
-    //
-    //         const monitorSlug = `${request.type.toUpperCase()}_REQUEST_REVIEW_REMINDER`;
-    //
-    //         // Start the cron job for the alert
-    //         startCronJob(monitorSlug, alertConfig.cron, async () => {
-    //             const unresolvedRequests = await prisma.moderationRequest.findMany({
-    //                 where: {
-    //                     status: RequestStatus.Pending,
-    //                     type: request.type,
-    //                     guild_id: this.guild.id
-    //                 },
-    //                 orderBy: { created_at: "asc" }
-    //             });
-    //
-    //             const oldestRequest = unresolvedRequests.at(0);
-    //             const oldestRequestURL = oldestRequest && messageLink(request.channel_id, oldestRequest.id, this.guild.id);
-    //
-    //             const alert = GuildConfig._entityExceedsAlertThresholds({
-    //                 name: `${request.type} request`,
-    //                 count: unresolvedRequests.length,
-    //                 createdAt: oldestRequest?.created_at,
-    //                 oldestEntityURL: oldestRequestURL,
-    //                 config: alertConfig
-    //             });
-    //
-    //             if (!alert) return;
-    //
-    //             // Send the alert to the channel
-    //             alertChannel.send({
-    //                 content: `${mentionedRoles} Pending ${request.type} requests`,
-    //                 embeds: alertConfig.embed ? [alert] : undefined
-    //             });
-    //         });
-    //     }
-    // }
+    async startMuteRequestReviewReminderCronJobs(): Promise<void> {
+        const config = this.data.mute_requests;
+        if (!config?.alert) return;
+
+        const alertChannel = await this.guild.channels
+            .fetch(config.alert.channel_id)
+            .catch(() => null);
+
+        const stringifiedData = JSON.stringify(config);
+
+        if (!alertChannel) {
+            Logger.error(`Failed to mount mute request alert, unknown channel: ${stringifiedData}`);
+            return;
+        }
+
+        if (!alertChannel.isTextBased()) {
+            Logger.error(`Failed to mount mute request alert, channel is not text-based: ${stringifiedData}`);
+            return;
+        }
+
+        const mentionedRoles = config.alert.mentioned_roles
+            .map(roleMention)
+            .join(" ") || "";
+
+        // Start the cron job for the alert
+        startCronJob("MUTE_REQUEST_REVIEW_REMINDER", config.alert.cron, async () => {
+            const unresolvedRequests = await prisma.muteRequest.findMany({
+                where: {
+                    status: MuteRequestStatus.Pending,
+                    guild_id: this.guild.id
+                },
+                orderBy: { created_at: "asc" }
+            });
+
+            const oldestRequest = unresolvedRequests.at(0);
+            const oldestRequestURL = oldestRequest && messageLink(config.channel_id, oldestRequest.id, this.guild.id);
+
+            const alert = GuildConfig._entityExceedsAlertThresholds({
+                name: "mute request",
+                count: unresolvedRequests.length,
+                createdAt: oldestRequest?.created_at,
+                oldestEntityURL: oldestRequestURL,
+                config: config.alert!
+            });
+
+            if (!alert) return;
+
+            // Send the alert to the channel
+            alertChannel.send({
+                content: `${mentionedRoles} Pending mute ${pluralize(unresolvedRequests.length, "request")}`,
+                embeds: config.alert!.embed ? [alert] : undefined
+            });
+        });
+    }
+
+    async startBanRequestReviewReminderCronJobs(): Promise<void> {
+        const config = this.data.ban_requests;
+        if (!config?.alert) return;
+
+        const alertChannel = await this.guild.channels
+            .fetch(config.alert.channel_id)
+            .catch(() => null);
+
+        const stringifiedData = JSON.stringify(config);
+
+        if (!alertChannel) {
+            Logger.error(`Failed to mount ban request alert, unknown channel: ${stringifiedData}`);
+            return;
+        }
+
+        if (!alertChannel.isTextBased()) {
+            Logger.error(`Failed to mount ban request alert, channel is not text-based: ${stringifiedData}`);
+            return;
+        }
+
+        const mentionedRoles = config.alert.mentioned_roles
+            .map(roleMention)
+            .join(" ") || "";
+
+        // Start the cron job for the alert
+        startCronJob("BAN_REQUEST_REVIEW_REMINDER", config.alert.cron, async () => {
+            const unresolvedRequests = await prisma.banRequest.findMany({
+                where: {
+                    status: BanRequestStatus.Pending,
+                    guild_id: this.guild.id
+                },
+                orderBy: { created_at: "asc" }
+            });
+
+            const oldestRequest = unresolvedRequests.at(0);
+            const oldestRequestURL = oldestRequest && messageLink(config.channel_id, oldestRequest.id, this.guild.id);
+
+            const alert = GuildConfig._entityExceedsAlertThresholds({
+                name: "ban request",
+                count: unresolvedRequests.length,
+                createdAt: oldestRequest?.created_at,
+                oldestEntityURL: oldestRequestURL,
+                config: config.alert!
+            });
+
+            if (!alert) return;
+
+            // Send the alert to the channel
+            alertChannel.send({
+                content: `${mentionedRoles} Pending ban ${pluralize(unresolvedRequests.length, "request")}`,
+                embeds: config.alert!.embed ? [alert] : undefined
+            });
+        });
+    }
 
     /**
      * Check whether an alert needs to be sent.
