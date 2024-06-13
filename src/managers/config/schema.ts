@@ -153,6 +153,7 @@ export enum Permission {
      * - View the moderation activity of staff using `/info`
      */
     ManageInfractions = "manage_infractions",
+    TransferInfractions = "transfer_infractions",
     /**
      * ## Grants access to:
      *
@@ -189,13 +190,6 @@ export enum Permission {
 }
 
 const permissionEnum = z.nativeEnum(Permission);
-
-export enum ModerationRequestType {
-    Ban = "ban",
-    Mute = "mute"
-}
-
-const moderationRequestTypeEnum = z.nativeEnum(ModerationRequestType);
 
 // ————————————————————————————————————————————————————————————————————————————————
 // Guild Config
