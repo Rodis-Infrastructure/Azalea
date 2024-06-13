@@ -15,7 +15,6 @@ import { TypedRegEx } from "typed-regex";
 import { client, prisma } from "./..";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { temporaryReply } from "./messages";
-import { EMBED_FIELD_CHAR_LIMIT } from "./constants";
 import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
 import { userMentionWithId } from "./index";
 import { log } from "./logging";
@@ -34,20 +33,6 @@ export default class BanRequestUtil {
         }
 
         const { data } = validationResult.data;
-
-        // Append the media log URLs to the message content
-        if (request.attachments.size) {
-            const media = Array.from(request.attachments.values());
-            const logURLs = await StoreMediaCtx.storeMedia(request.member, request.author.id, media, config);
-
-            data.reason += ` ${logURLs.join(" ")}`;
-        }
-
-        if (data.reason.length > EMBED_FIELD_CHAR_LIMIT) {
-            await temporaryReply(request, `The reason is too long, it must be under ${EMBED_FIELD_CHAR_LIMIT} characters.`, config.data.response_ttl);
-            await request.react("⚠️");
-            return;
-        }
 
         // Remove the bot's reaction
         await request.reactions.cache.find(r => r.me)?.remove();
@@ -103,6 +88,14 @@ export default class BanRequestUtil {
                 success: false,
                 message: "Invalid ban request format."
             };
+        }
+
+        // Append the media log URLs to the message content
+        if (request.attachments.size) {
+            const media = Array.from(request.attachments.values());
+            const logURLs = await StoreMediaCtx.storeMedia(request.member, request.author.id, media, config);
+
+            args.reason += ` ${logURLs.join(" ")}`;
         }
 
         const reasonValidationResult = await InfractionUtil.validateReason(args.reason, config);
