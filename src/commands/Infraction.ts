@@ -19,7 +19,6 @@ import {
 import {
     DEFAULT_EMBED_COLOR,
     DEFAULT_INFRACTION_REASON,
-    DEFAULT_MUTE_DURATION,
     EMBED_FIELD_CHAR_LIMIT,
     MAX_MUTE_DURATION
 } from "@utils/constants";
@@ -665,7 +664,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         }
 
         if (msDuration > MAX_MUTE_DURATION) {
-            msDuration = DEFAULT_MUTE_DURATION;
+            msDuration = MAX_MUTE_DURATION;
         }
 
         const targetMember = await config.guild.members

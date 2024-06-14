@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TypedRegEx } from "typed-regex";
-
+import { MAX_MUTE_DURATION } from "@utils/constants";
 // ————————————————————————————————————————————————————————————————————————————————
 // Misc
 // ————————————————————————————————————————————————————————————————————————————————
@@ -428,6 +428,10 @@ export const rawGuildConfigSchema = z.object({
     // default: 3 seconds (3000ms)
     response_ttl: z.number().min(1000).default(3000),
     emojis: emojisSchema.optional(),
+    default_mute_duration_seconds: z.number()
+        .min(1)
+        .max(MAX_MUTE_DURATION / 1000)
+        .default(MAX_MUTE_DURATION / 1000),
     // Value must be between 1 and 100 (inclusive) - Default: 100
     default_purge_amount: z.number()
         .min(1)

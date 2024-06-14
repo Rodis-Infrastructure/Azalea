@@ -5,7 +5,6 @@ import { TypedRegEx } from "typed-regex";
 import { client, prisma } from "./..";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { temporaryReply } from "./messages";
-import { MAX_MUTE_DURATION } from "./constants";
 import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
 import { userMentionWithId } from "./index";
 import { log } from "./logging";
@@ -144,10 +143,9 @@ export default class MuteRequestUtil {
             };
         }
 
-        const maxMuteDurationSeconds = MAX_MUTE_DURATION / 1000;
         const durationSeconds = args.duration
-            ? Math.min(ms(args.duration) / 1000, maxMuteDurationSeconds)
-            : maxMuteDurationSeconds;
+            ? Math.min(ms(args.duration) / 1000, config.data.default_mute_duration_seconds)
+            : config.data.default_mute_duration_seconds;
 
         return {
             success: true,

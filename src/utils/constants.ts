@@ -22,9 +22,6 @@ export const DEFAULT_INFRACTION_REASON = "No infraction reason";
 export const EMBED_FIELD_CHAR_LIMIT = 1000;
 
 // 28 days
-export const DEFAULT_MUTE_DURATION = 1000 * 60 * 60 * 24 * 28;
-
-// 28 days
 export const MAX_MUTE_DURATION = 1000 * 60 * 60 * 24 * 28;
 
 // 13 days
