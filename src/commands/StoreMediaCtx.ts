@@ -1,21 +1,20 @@
 import {
     ApplicationCommandType,
-    Attachment, GuildMember,
+    Attachment,
+    GuildMember,
     MessageContextMenuCommandInteraction,
     Snowflake,
     userMention
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { InteractionReplyData, Result } from "@utils/types";
 import { log } from "@utils/logging";
 import { pluralize } from "@/utils";
-import { MediaStoreError } from "@utils/errors";
 import { LoggingEvent } from "@managers/config/schema";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
-import Sentry from "@sentry/node";
 
 export default class StoreMediaCtx extends Command<MessageContextMenuCommandInteraction<"cached">> {
     constructor() {
@@ -36,31 +35,16 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
             };
         }
 
-        try {
-            const logURLs = await StoreMediaCtx.storeMedia(interaction.member, interaction.targetMessage.author.id, files, config);
-            return `Stored \`${files.length}\` ${pluralize(files.length, "attachment")} from ${interaction.targetMessage.author} - ${logURLs.join(" ")}`;
-        } catch (error) {
-            if (error instanceof MediaStoreError) {
-                return {
-                    content: error.message,
-                    temporary: true
-                };
-            }
+        const result = await StoreMediaCtx.storeMedia(interaction.member, interaction.targetMessage.author.id, files, config);
 
-            Sentry.captureException(error, {
-                extra: {
-                    message: "Failed to store media",
-                    executor: interaction.user.id,
-                    target: interaction.targetMessage.author.id,
-                    files
-                }
-            });
-
+        if (!result.success) {
             return {
-                content: "An error occurred while storing the media.",
+                content: result.message,
                 temporary: true
             };
         }
+
+        return `Stored \`${files.length}\` ${pluralize(files.length, "attachment")} from ${interaction.targetMessage.author} - ${result.data.join(" ")}`;
     }
 
     /**
@@ -70,14 +54,16 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
      * @param executor - The user who stored the media
      * @param targetId - ID of the user whose media is being stored
      * @param config - The guild configuration
-     * @throws MediaStoreError - If the media size exceeds 10MB
      * @returns The media log URLs
      */
-    static async storeMedia(executor: GuildMember | null, targetId: Snowflake, media: Attachment[], config: GuildConfig): Promise<string[]> {
+    static async storeMedia(executor: GuildMember | null, targetId: Snowflake, media: Attachment[], config: GuildConfig): Promise<Result<string[]>> {
         const size = media.reduce((acc, file) => acc + file.size, 0);
 
         if (size > 10_000_000) {
-            throw new MediaStoreError("Cannot store media larger than 10MB.");
+            return {
+                success: false,
+                message: "Cannot store media larger than 10MB."
+            };
         }
 
         const loggedMessages = await log({
@@ -93,9 +79,15 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
         });
 
         if (!loggedMessages?.length) {
-            throw new MediaStoreError("Failed to store media.");
+            return {
+                success: false,
+                message: "Failed to store media."
+            };
         }
 
-        return loggedMessages.map(message => message.url);
+        return {
+            success: true,
+            data: loggedMessages.map(message => message.url)
+        };
     }
 }

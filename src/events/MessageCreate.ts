@@ -11,7 +11,6 @@ import {
 } from "discord.js";
 
 import { Messages, temporaryReply } from "@utils/messages";
-import { MediaStoreError } from "@utils/errors";
 import { pluralize, userMentionWithId } from "@/utils";
 import { RoleRequestNoteAction } from "@/components/RoleRequestNote";
 import { client } from "./..";
@@ -19,7 +18,6 @@ import { DEFAULT_EMBED_COLOR } from "@utils/constants";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
-import Sentry from "@sentry/node";
 import StoreMediaCtx from "@/commands/StoreMediaCtx";
 import GuildConfig from "@managers/config/GuildConfig";
 import MuteRequestUtil from "@utils/muteRequests";
@@ -31,10 +29,7 @@ export default class MessageCreate extends EventListener {
     }
 
     async execute(newMessage: PartialMessage | Message<true>): Promise<void> {
-        const message = newMessage.partial
-            ? await newMessage.fetch().catch(() => null) as Message<true> | null
-            : newMessage;
-
+        const message = await MessageCreate._parseMessage(newMessage);
         if (!message || message.author.id === client.user.id) return;
 
         const config = ConfigManager.getGuildConfig(message.guild.id);
@@ -50,62 +45,84 @@ export default class MessageCreate extends EventListener {
             await BanRequestUtil.upsert(message, config);
         }
 
+        // Subsequent processes should not run if the message author is a bot
         if (message.author.bot) return;
+
         Messages.queue(message);
+        MessageCreate._handleAutoReactions(message, config);
+        await MessageCreate._handleMediaChannel(message, config);
 
         // Handle media conversion
-        if (
-            message.channel.id === config.data.media_conversion_channel &&
-            message.attachments.size &&
-            !message.content
-        ) {
-            try {
-                const media = Array.from(message.attachments.values());
-                const logURLs = await StoreMediaCtx.storeMedia(message.member, message.author.id, media, config);
-
-                await message.reply(`Stored \`${media.length}\` ${pluralize(media.length, "attachment")} - ${logURLs.join(" ")}`);
-                message.delete().catch(() => null);
-            } catch (error) {
-                if (error instanceof MediaStoreError) {
-                    temporaryReply(message, error.message, config.data.response_ttl);
-                } else {
-                    Sentry.captureException(error);
-                    temporaryReply(message, "An error occurred while converting media..", config.data.response_ttl);
-                }
-            }
+        if (message.channel.id === config.data.media_conversion_channel) {
+            await MessageCreate._handleMediaConversion(message, config);
         }
 
-        if (message.member) {
-            const autoReactionEmojis = config.getAutoReactionEmojis(message.channel.id, message.member.roles.cache);
-
-            // Add auto reactions to the message
-            for (const emoji of autoReactionEmojis) {
-                message.react(emoji).catch(() => null);
-            }
-        }
-
-        const mediaChannel = config.data.media_channels
-            .find(mediaChannel => mediaChannel.channel_id === message.channel.id);
-
-        // Remove message if it doesn't have an attachment in a media channel
-        if (mediaChannel && !message.member?.roles.cache.some(role => mediaChannel.exclude_roles.includes(role.id))) {
-            const hasAttachments = message.attachments.size > 0 || message.content.includes("://");
-            const canPostInMediaChannel = !mediaChannel.allowed_roles || mediaChannel.allowed_roles
-                .some(roleId => message.member?.roles.cache.has(roleId));
-
-            if (!hasAttachments) {
-                await temporaryReply(message, "This is a media-only channel, please include an attachment in your message.", config.data.response_ttl);
-                message.delete().catch(() => null);
-            } else if (!canPostInMediaChannel) {
-                const response = mediaChannel.fallback_response ?? "You do not have permission to post in this channel.";
-                await temporaryReply(message, response, config.data.response_ttl);
-                message.delete().catch(() => null);
-            }
-        }
-
+        // Handle role requests
         if (config.data.role_requests?.channel_id === message.channel.id && message.mentions.users.size) {
             MessageCreate._createRoleRequest(message, config);
         }
+    }
+
+    private static async _parseMessage(message: PartialMessage | Message<true>): Promise<Message<true> | null> {
+        return message.partial
+            ? await message.fetch().catch(() => null) as Message<true> | null
+            : message;
+    }
+
+    private static async _handleMediaChannel(message: Message<true>, config: GuildConfig): Promise<void> {
+        const mediaChannel = config.data.media_channels
+            .find(mediaChannel => mediaChannel.channel_id === message.channel.id);
+
+        if (!mediaChannel) return;
+
+        const isExcluded = message.member?.roles.cache.some(role =>
+            mediaChannel.exclude_roles.includes(role.id)
+        );
+
+        if (isExcluded) return;
+
+        const hasAttachments = message.attachments.size > 0 || message.content.includes("://");
+        const canPostInMediaChannel = !mediaChannel.allowed_roles || mediaChannel.allowed_roles
+            .some(roleId => message.member?.roles.cache.has(roleId));
+
+        if (!hasAttachments) {
+            await temporaryReply(message, "This is a media-only channel, please include an attachment in your message.", config.data.response_ttl);
+            message.delete().catch(() => null);
+            return;
+        }
+
+        if (!canPostInMediaChannel) {
+            const response = mediaChannel.fallback_response ?? "You do not have permission to post in this channel.";
+            await temporaryReply(message, response, config.data.response_ttl);
+
+            message.delete().catch(() => null);
+        }
+    }
+
+    private static _handleAutoReactions(message: Message<true>, config: GuildConfig): void {
+        if (!message.member) return;
+
+        const autoReactionEmojis = config.getAutoReactionEmojis(message.channel.id, message.member.roles.cache);
+
+        // Add auto reactions to the message
+        for (const emoji of autoReactionEmojis) {
+            message.react(emoji).catch(() => null);
+        }
+    }
+
+    private static async _handleMediaConversion(message: Message<true>, config: GuildConfig): Promise<void> {
+        if (!message.attachments.size || message.content) return;
+
+        const media = Array.from(message.attachments.values());
+        const result = await StoreMediaCtx.storeMedia(message.member, message.author.id, media, config);
+
+        if (!result.success) {
+            await temporaryReply(message, result.message, config.data.response_ttl);
+            return;
+        }
+
+        await message.reply(`Stored \`${media.length}\` ${pluralize(media.length, "attachment")} - ${result.data.join(" ")}`);
+        message.delete().catch(() => null);
     }
 
     private static async _createRoleRequest(message: Message<true>, config: GuildConfig): Promise<void> {
