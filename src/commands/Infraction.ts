@@ -267,14 +267,6 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
             case InfractionSubcommand.Restore: {
                 const infractionId = interaction.options.getInteger("infraction_id", true);
-
-                if (!config.hasPermission(interaction.member, Permission.ManageInfractions)) {
-                    return {
-                        content: "You do not have permission to restore infractions.",
-                        temporary: true
-                    };
-                }
-
                 return Infraction._restore(infractionId, interaction.member, config);
             }
 
@@ -562,8 +554,15 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
      */
     private static async _restore(infractionId: number, executor: GuildMember, config: GuildConfig): Promise<InteractionReplyData> {
         const infraction = await prisma.infraction.update({
-            where: { id: infractionId, archived_at: { not: null } },
-            select: { action: true, flag: true },
+            where: {
+                id: infractionId,
+                archived_at: { not: null }
+            },
+            select: {
+                action: true,
+                flag: true,
+                executor_id: true
+            },
             data: {
                 archived_at: null,
                 archived_by: null
@@ -573,6 +572,14 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         if (!infraction) {
             return {
                 content: `Archived infraction with ID \`#${infractionId}\` not found.`,
+                temporary: true
+            };
+        }
+
+        // Check whether the executor has permission to manage infractions
+        if (infraction.executor_id !== executor.id && !config.hasPermission(executor, Permission.ManageInfractions)) {
+            return {
+                content: "You do not have permission to restore this infraction.",
                 temporary: true
             };
         }
