@@ -205,7 +205,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
               AND status NOT IN (${BanRequestStatus.Approved}, ${BanRequestStatus.Denied})
         `;
 
-        const moderationActivity: ModerationActivity = {
+        const activity: ModerationActivity = {
             executed: {
                 bans: 0,
                 manualMutes: 0,
@@ -226,79 +226,101 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
         };
 
         for (const infraction of infractions) {
-            // The infraction was executed by the user
-            if (!infraction.request_author_id) {
-                switch (infraction.action) {
-                    case InfractionAction.Ban: {
-                        moderationActivity.executed.bans++;
-                        break;
-                    }
-
-                    case InfractionAction.Kick: {
-                        moderationActivity.executed.kicks++;
-                        break;
-                    }
-
-                    case InfractionAction.Mute: {
-                        if (infraction.flag === InfractionFlag.Quick) {
-                            moderationActivity.executed.quickMutes++;
-                        } else {
-                            moderationActivity.executed.manualMutes++;
-                        }
-                        break;
-                    }
-
-                    case InfractionAction.Unban: {
-                        moderationActivity.executed.unbans++;
-                        break;
-                    }
-
-                    case InfractionAction.Unmute: {
-                        moderationActivity.executed.unmutes++;
-                        break;
-                    }
-
-                    case InfractionAction.Warn: {
-                        moderationActivity.executed.warns++;
-                        break;
-                    }
-                }
-            }
-
-            // The infraction was reviewed by the user
-            if (infraction.executor_id === userId && infraction.request_author_id) {
-                switch (infraction.action) {
-                    case InfractionAction.Ban: {
-                        moderationActivity.reviewed.approved.bans++;
-                        break;
-                    }
-
-                    case InfractionAction.Mute: {
-                        moderationActivity.reviewed.approved.mutes++;
-                        break;
-                    }
-                }
+            if (infraction.request_author_id) {
+                Moderation._evaluateReviewedInfraction(infraction, activity);
+            } else {
+                Moderation._evaluateDealtInfraction(infraction, activity);
             }
         }
 
-        // The infractions were requested by the user
+        Moderation._evaluateRequestedMutes(muteRequests, activity);
+        Moderation._evaluateRequestedBans(banRequests, activity);
+
+        return activity;
+    }
+
+    private static _evaluateDealtInfraction(infraction: Infraction, activity: ModerationActivity): void {
+        switch (infraction.action) {
+            case InfractionAction.Ban: {
+                activity.executed.bans++;
+                break;
+            }
+
+            case InfractionAction.Kick: {
+                activity.executed.kicks++;
+                break;
+            }
+
+            case InfractionAction.Mute: {
+                if (infraction.flag === InfractionFlag.Quick) {
+                    activity.executed.quickMutes++;
+                } else {
+                    activity.executed.manualMutes++;
+                }
+                break;
+            }
+
+            case InfractionAction.Unban: {
+                activity.executed.unbans++;
+                break;
+            }
+
+            case InfractionAction.Unmute: {
+                activity.executed.unmutes++;
+                break;
+            }
+
+            case InfractionAction.Warn: {
+                activity.executed.warns++;
+                break;
+            }
+        }
+    }
+
+    private static _evaluateReviewedInfraction(infraction: Infraction, activity: ModerationActivity): void {
+        switch (infraction.action) {
+            case InfractionAction.Ban: {
+                activity.reviewed.approved.bans++;
+                break;
+            }
+
+            case InfractionAction.Mute: {
+                activity.reviewed.approved.mutes++;
+                break;
+            }
+        }
+    }
+
+    private static _evaluateRequestedMutes(muteRequests: MuteRequest[], activity: ModerationActivity): void {
         for (const muteRequest of muteRequests) {
-            if (muteRequest.status === MuteRequestStatus.Approved) {
-                moderationActivity.requested.approved.mutes++;
-            } else if (muteRequest.status === MuteRequestStatus.Denied) {
-                moderationActivity.requested.denied.mutes++;
+            switch (muteRequest.status) {
+                case MuteRequestStatus.Approved: {
+                    activity.requested.approved.mutes++;
+                    break;
+                }
+
+                case MuteRequestStatus.Denied: {
+                    activity.requested.denied.mutes++;
+                    break;
+                }
             }
         }
+    }
 
+    private static _evaluateRequestedBans(banRequests: BanRequest[], activity: ModerationActivity): void {
         for (const banRequest of banRequests) {
-            if (banRequest.status === BanRequestStatus.Approved) {
-                moderationActivity.requested.approved.bans++;
-            } else if (banRequest.status === BanRequestStatus.Denied) {
-                moderationActivity.requested.denied.bans++;
+            switch (banRequest.status) {
+                case BanRequestStatus.Approved: {
+                    activity.requested.approved.bans++;
+                    break;
+                }
+
+                case BanRequestStatus.Denied: {
+                    activity.requested.denied.bans++;
+                    break;
+                }
             }
         }
-
-        return moderationActivity;
     }
 }
 
