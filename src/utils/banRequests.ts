@@ -194,6 +194,8 @@ export default class BanRequestUtil {
             deleteMessageSeconds: config.data.delete_message_seconds_on_ban
         }).catch(() => null);
 
+        InfractionManager.endActiveMutes(config.guild.id, targetId);
+
         // Log the approval
         const embed = new EmbedBuilder()
             .setColor(Colors.Green)
