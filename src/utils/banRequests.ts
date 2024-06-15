@@ -93,9 +93,11 @@ export default class BanRequestUtil {
         // Append the media log URLs to the message content
         if (request.attachments.size) {
             const media = Array.from(request.attachments.values());
-            const logURLs = await StoreMediaCtx.storeMedia(request.member, request.author.id, media, config);
+            const result = await StoreMediaCtx.storeMedia(request.member, request.author.id, media, config);
 
-            args.reason += ` ${logURLs.join(" ")}`;
+            if (result.success) {
+                args.reason += ` ${result.data.join(" ")}`;
+            }
         }
 
         const reasonValidationResult = await InfractionUtil.validateReason(args.reason, config);
@@ -271,6 +273,12 @@ export default class BanRequestUtil {
         }
 
         const targetMention = userMention(request.target_id);
+        const targetMember = await config.guild.members.fetch(request.target_id)
+            .catch(() => null);
+
+        targetMember?.timeout(null, "Ban request denial");
+        InfractionManager.endActiveMutes(config.guild.id, request.target_id);
+
         const requestChannelId = config.data.ban_requests!.channel_id;
         const requestURL = messageLink(requestChannelId, requestId, config.guild.id);
         const requestHyperlink = hyperlink("Your request", requestURL);
