@@ -194,6 +194,15 @@ export default class MuteRequestUtil {
             return;
         }
 
+        const isBanned = await config.guild.bans.fetch(data.target_id)
+            .then(() => true)
+            .catch(() => false);
+
+        if (isBanned) {
+            config.sendNotification(`${reviewer} Failed to approve the mute request, the target is banned.`);
+            return;
+        }
+
         // Log the approval
         const embed = new EmbedBuilder()
             .setColor(Colors.Green)

@@ -147,6 +147,20 @@ export async function handleQuickMute(data: {
         }
     }
 
+    const isBanned = await config.guild.bans.fetch(targetUserId)
+        .then(() => true)
+        .catch(() => false);
+
+    if (isBanned) {
+        return {
+            success: false,
+            message: {
+                content: "You can't mute a banned user.",
+                temporary: true
+            }
+        };
+    }
+
     const msExpiresAt = Date.now() + duration;
     const expiresAt = new Date(msExpiresAt);
     const relativeTimestamp = time(expiresAt, TimestampStyles.RelativeTime);

@@ -130,6 +130,17 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             };
         }
 
+        const isBanned = await interaction.guild.bans.fetch(user)
+            .then(() => true)
+            .catch(() => false);
+
+        if (isBanned) {
+            return {
+                content: "You can't mute a banned user.",
+                temporary: true
+            };
+        }
+
         const msExpiresAt = Date.now() + msDuration;
         const expiresAt = new Date(msExpiresAt);
 
