@@ -82,13 +82,9 @@ export default class GuildAuditLogEntryCreate extends EventListener {
                             expires_at: new Date(msDuration)
                         });
 
-                        if (infraction) {
-                            notification = notification.replace("$INFRACTION_ID", infraction.id.toString());
-                            InfractionManager.logInfraction(infraction, executorMember, config);
-                        } else {
-                            notification = notification.replace("$INFRACTION_ID", "unknown");
-                        }
+                        notification = notification.replace("$INFRACTION_ID", infraction.id.toString());
 
+                        InfractionManager.logInfraction(infraction, executorMember, config);
                         config.sendNotification(notification, false);
                         return;
                     }
@@ -115,13 +111,9 @@ export default class GuildAuditLogEntryCreate extends EventListener {
             flag
         });
 
-        if (infraction) {
-            notification = notification.replace("$INFRACTION_ID", infraction.id.toString());
-            InfractionManager.logInfraction(infraction, executorMember, config);
-        } else {
-            notification = notification.replace("$INFRACTION_ID", "unknown");
-        }
+        notification = notification.replace("$INFRACTION_ID", infraction.id.toString());
 
+        InfractionManager.logInfraction(infraction, executorMember, config);
         config.sendNotification(notification, false);
     }
 }
