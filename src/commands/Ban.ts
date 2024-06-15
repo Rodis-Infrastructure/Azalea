@@ -97,13 +97,6 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             reason
         });
 
-        if (!infraction) {
-            return {
-                content: "An error occurred while storing the infraction",
-                temporary: true
-            };
-        }
-
         const deleteMessageSeconds = interaction.options.getBoolean("delete_messages")
             ? config.data.delete_message_seconds_on_ban
             : 0;

@@ -10,16 +10,10 @@ import { TypedRegEx } from "typed-regex";
 import { Result } from "./types";
 
 import GuildConfig from "@managers/config/GuildConfig";
-import Sentry from "@sentry/node";
 
 export class InfractionManager {
-    static async storeInfraction(data: Prisma.InfractionCreateInput): Promise<Infraction | null> {
-        try {
-            return await prisma.infraction.create({ data });
-        } catch (error) {
-            Sentry.captureException(error, { extra: { data } });
-            return null;
-        }
+    static storeInfraction(data: Prisma.InfractionCreateInput): Promise<Infraction> {
+        return prisma.infraction.create({ data });
     }
 
     static async deleteInfraction(infractionId: number): Promise<void> {

@@ -82,13 +82,6 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
             reason
         });
 
-        if (!infraction) {
-            return {
-                content: "An error occurred while storing the infraction",
-                temporary: true
-            };
-        }
-
         try {
             await member.kick(reason);
         } catch (error) {

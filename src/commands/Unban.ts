@@ -61,13 +61,6 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
             reason
         });
 
-        if (!infraction) {
-            return {
-                content: "An error occurred while storing the infraction",
-                temporary: true
-            };
-        }
-
         try {
             await interaction.guild.members.unban(user, reason);
         } catch (error) {

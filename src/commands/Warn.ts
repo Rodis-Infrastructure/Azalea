@@ -62,13 +62,6 @@ export default class Warn extends Command<ChatInputCommandInteraction<"cached">>
             reason: reason
         });
 
-        if (!infraction) {
-            return {
-                content: "An error occurred while storing the infraction",
-                temporary: true
-            };
-        }
-
         InfractionManager.logInfraction(infraction, interaction.member, config);
 
         const formattedReason = InfractionUtil.formatReason(reason);

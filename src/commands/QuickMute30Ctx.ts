@@ -170,16 +170,6 @@ export async function handleQuickMute(data: {
         reason
     });
 
-    if (!infraction) {
-        return {
-            message: {
-                content: "An error occurred while storing the infraction",
-                temporary: true
-            },
-            success: false
-        };
-    }
-
     if (targetMember) {
         try {
             await targetMember.timeout(duration, reason);

@@ -63,13 +63,6 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
             reason: note
         });
 
-        if (!infraction) {
-            return {
-                content: "An error occurred while storing the note",
-                temporary: true
-            };
-        }
-
         InfractionManager.logInfraction(infraction, interaction.member, config);
 
         const formattedReason = InfractionUtil.formatReason(note);

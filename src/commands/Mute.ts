@@ -143,13 +143,6 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             reason
         });
 
-        if (!infraction) {
-            return {
-                content: "An error occurred while storing the infraction",
-                temporary: true
-            };
-        }
-
         if (member) {
             try {
                 await member.timeout(msDuration, reason);

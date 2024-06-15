@@ -194,9 +194,6 @@ export default class MuteRequestUtil {
             return;
         }
 
-        await targetMember?.timeout(data.duration * 1000, data.reason)
-            .catch(() => null);
-
         // Log the approval
         const embed = new EmbedBuilder()
             .setColor(Colors.Green)
@@ -219,14 +216,6 @@ export default class MuteRequestUtil {
             }
         });
 
-        const expiresAt = new Date(Date.now() + (data.duration * 1000));
-        const formattedReason = InfractionUtil.formatReason(data.reason);
-
-        config.sendNotification(
-            `${userMention(data.author_id)}'s mute request against ${userMention(data.target_id)} has been approved by ${reviewer} ${formattedReason}`,
-            false
-        );
-
         await prisma.muteRequest.upsert({
             where: { id: request.id },
             create: {
@@ -241,6 +230,7 @@ export default class MuteRequestUtil {
             }
         });
 
+        const expiresAt = new Date(Date.now() + (data.duration * 1000));
         const infraction = await InfractionManager.storeInfraction({
             expires_at: expiresAt,
             guild_id: data.guild_id,
@@ -251,11 +241,21 @@ export default class MuteRequestUtil {
             action: InfractionAction.Mute
         });
 
-        if (infraction) {
-            InfractionManager.logInfraction(infraction, reviewer, config);
-        } else if (!targetMember) {
+        try {
+            await targetMember?.timeout(data.duration * 1000, data.reason);
+        } catch {
+            InfractionManager.deleteInfraction(infraction.id);
             config.sendNotification(`${reviewer} Failed to mute the user, unable to schedule mute.`);
+            return;
         }
+
+        InfractionManager.logInfraction(infraction, reviewer, config);
+        const formattedReason = InfractionUtil.formatReason(data.reason);
+
+        config.sendNotification(
+            `${userMention(data.author_id)}'s mute request against ${userMention(data.target_id)} has been approved by ${reviewer} - \`#${infraction.id}\` ${formattedReason}`,
+            false
+        );
     }
 
     /**

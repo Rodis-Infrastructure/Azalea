@@ -183,18 +183,11 @@ export default class BanRequestUtil {
         const validationResult = await BanRequestUtil._validate(request, config);
 
         if (!validationResult.success) {
-            config.sendNotification(`${reviewer} Failed to approve the ban request, ${validationResult.message}`);
+            config.sendNotification(`${reviewer} Failed to approve the ban request. ${validationResult.message}`);
             return;
         }
 
         const { targetId, data } = validationResult.data;
-
-        await config.guild.members.ban(targetId, {
-            reason: data.reason,
-            deleteMessageSeconds: config.data.delete_message_seconds_on_ban
-        }).catch(() => null);
-
-        InfractionManager.endActiveMutes(config.guild.id, targetId);
 
         // Log the approval
         const embed = new EmbedBuilder()
@@ -220,11 +213,6 @@ export default class BanRequestUtil {
 
         const formattedReason = InfractionUtil.formatReason(data.reason);
 
-        config.sendNotification(
-            `${userMention(data.author_id)}'s ban request against ${userMention(data.target_id)} has been approved by ${reviewer} ${formattedReason}`,
-            false
-        );
-
         await prisma.banRequest.upsert({
             where: { id: request.id },
             create: {
@@ -247,11 +235,24 @@ export default class BanRequestUtil {
             action: InfractionAction.Ban
         });
 
-        if (infraction) {
-            InfractionManager.logInfraction(infraction, reviewer, config);
-        } else {
+        try {
+            await config.guild.members.ban(targetId, {
+                reason: data.reason,
+                deleteMessageSeconds: config.data.delete_message_seconds_on_ban
+            });
+        } catch {
+            InfractionManager.deleteInfraction(infraction.id);
             config.sendNotification(`${reviewer} Failed to ban the user.`);
+            return;
         }
+
+        InfractionManager.endActiveMutes(config.guild.id, targetId);
+        InfractionManager.logInfraction(infraction, reviewer, config);
+
+        config.sendNotification(
+            `${userMention(data.author_id)}'s ban request against ${userMention(data.target_id)} has been approved by ${reviewer} - \`#${infraction.id}\` ${formattedReason}`,
+            false
+        );
     }
 
     /**
