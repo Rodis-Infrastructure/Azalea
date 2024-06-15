@@ -8,7 +8,7 @@ import { Permission } from "@managers/config/schema";
 
 export default class InfractionInfo extends Component {
     constructor() {
-        super({ matches: /^infraction-info-\d+$/g });
+        super({ matches: /^infraction-info-\d+$/m });
     }
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {

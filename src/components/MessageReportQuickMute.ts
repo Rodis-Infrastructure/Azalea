@@ -11,13 +11,17 @@ import Component from "@managers/components/Component";
 import MessageReportResolve from "./MessageReportResolve";
 import ConfigManager from "@managers/config/ConfigManager";
 
-export default class MessageReportQuickMute30 extends Component {
+export default class MessageReportQuickMute extends Component {
     constructor() {
-        super("message-report-qm30");
+        super({ matches: /^message-report-qm[36]0$/m });
     }
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
-        return handleMessageReportQuickMute(interaction, QuickMuteDuration.Short);
+        const duration = interaction.customId.endsWith("60")
+            ? QuickMuteDuration.Long
+            : QuickMuteDuration.Short;
+
+        return handleMessageReportQuickMute(interaction, duration);
     }
 }
 

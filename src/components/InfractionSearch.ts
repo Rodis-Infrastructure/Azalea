@@ -7,10 +7,10 @@ import Component from "@managers/components/Component";
 import Infraction, { InfractionSearchFilter } from "@/commands/Infraction";
 import ConfigManager from "@managers/config/ConfigManager";
 
-export default class Infractions extends Component {
+export default class InfractionSearch extends Component {
     constructor() {
         // Format: infraction-search-{userId}
-        super({ matches: /infraction-search-\d{17,19}/g });
+        super({ matches: /^infraction-search-\d{17,19}$/m });
     }
 
     async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {

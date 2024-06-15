@@ -22,7 +22,7 @@ export const MAX_MEMBERS = 120;
 export default class RoleMembers extends Component {
     constructor() {
         // Format: role-members-{requiredRoleId}
-        super({ matches: /role-members(-\d{17,19})?/g });
+        super({ matches: /^role-members(-\d{17,19})?$/m });
     }
 
     async execute(interaction: RoleSelectMenuInteraction<"cached">): Promise<InteractionReplyData> {

@@ -41,6 +41,7 @@ import GuildConfig from "@managers/config/GuildConfig";
 import Command from "@managers/commands/Command";
 import ConfigManager from "@managers/config/ConfigManager";
 import ms from "ms";
+import { InfractionSearchPaginationDirection } from "@/components/InfractionSearchPagination";
 
 // Filter infraction search results
 export enum InfractionSearchFilter {
@@ -1035,26 +1036,26 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
         const nextPageButton = new ButtonBuilder()
             .setLabel("→")
-            .setCustomId(`${paginationButtonCustomIdPrefix}-next`)
+            .setCustomId(`${paginationButtonCustomIdPrefix}-${InfractionSearchPaginationDirection.Next}`)
             .setDisabled(isLastPage)
             .setStyle(ButtonStyle.Primary);
 
         const previousPageButton = new ButtonBuilder()
             .setLabel("←")
-            .setCustomId(`${paginationButtonCustomIdPrefix}-back`)
+            .setCustomId(`${paginationButtonCustomIdPrefix}-${InfractionSearchPaginationDirection.Back}`)
             .setDisabled(isFirstPage)
             .setStyle(ButtonStyle.Primary);
 
         if (totalPageCount > 2) {
             const firstPageButton = new ButtonBuilder()
                 .setLabel("«")
-                .setCustomId(`${paginationButtonCustomIdPrefix}-first`)
+                .setCustomId(`${paginationButtonCustomIdPrefix}-${InfractionSearchPaginationDirection.First}`)
                 .setDisabled(isFirstPage)
                 .setStyle(ButtonStyle.Primary);
 
             const lastPageButton = new ButtonBuilder()
                 .setLabel("»")
-                .setCustomId(`${paginationButtonCustomIdPrefix}-last`)
+                .setCustomId(`${paginationButtonCustomIdPrefix}-${InfractionSearchPaginationDirection.Last}`)
                 .setDisabled(isLastPage)
                 .setStyle(ButtonStyle.Primary);
 

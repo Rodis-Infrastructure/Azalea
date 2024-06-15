@@ -2,19 +2,36 @@ import { InteractionReplyData } from "@utils/types";
 import { ButtonComponent, ButtonInteraction, InteractionUpdateOptions } from "discord.js";
 import { client } from "./..";
 import { Permission } from "@managers/config/schema";
-import { PageOptions, parsePageOptions } from "./InfractionActiveNext";
+import { PageOptions, parsePageOptions } from "./InfractionActivePagination";
 
 import Component from "@managers/components/Component";
 import Infraction, { InfractionSearchFilter } from "@/commands/Infraction";
 import ConfigManager from "@managers/config/ConfigManager";
 
-export default class InfractionSearchNext extends Component {
+export default class InfractionSearchPagination extends Component {
     constructor() {
-        super("infraction-search-next");
+        super({ matches: /^infraction-search-(next|back|last|first)$/m });
     }
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
-        return handleInfractionSearchPagination(interaction, { pageOffset: 1 });
+        const direction = interaction.customId.split("-")[2] as InfractionSearchPaginationDirection;
+
+        switch (direction) {
+            case InfractionSearchPaginationDirection.Next:
+                return handleInfractionSearchPagination(interaction, { pageOffset: 1 });
+
+            case InfractionSearchPaginationDirection.Back:
+                return handleInfractionSearchPagination(interaction, { pageOffset: -1 });
+
+            case InfractionSearchPaginationDirection.First:
+                return handleInfractionSearchPagination(interaction, { page: 1 });
+
+            case InfractionSearchPaginationDirection.Last:
+                return handleInfractionSearchPagination(interaction, { page: 0 });
+
+            default:
+                return Promise.resolve("Unknown direction.");
+        }
     }
 }
 
@@ -71,4 +88,11 @@ export async function handleInfractionSearchPagination(interaction: ButtonIntera
 
     await interaction.update(updatedResult);
     return null;
+}
+
+export enum InfractionSearchPaginationDirection {
+    Next = "next",
+    Back = "back",
+    Last = "last",
+    First = "first"
 }

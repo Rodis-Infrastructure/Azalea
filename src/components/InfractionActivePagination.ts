@@ -1,18 +1,36 @@
 import { InteractionReplyData } from "@utils/types";
 import { ButtonComponent, ButtonInteraction, InteractionUpdateOptions } from "discord.js";
+import { InfractionSearchPaginationDirection } from "./InfractionSearchPagination";
 import { Permission } from "@managers/config/schema";
 
 import Component from "@managers/components/Component";
 import Infraction from "@/commands/Infraction";
 import ConfigManager from "@managers/config/ConfigManager";
 
-export default class InfractionActiveNext extends Component {
+export default class InfractionActivePagination extends Component {
     constructor() {
-        super("infraction-active-next");
+        super({ matches: /^infraction-active-(next|back|last|first)$/m });
     }
 
     execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
-        return handleInfractionActivePagination(interaction, { pageOffset: 1 });
+        const direction = interaction.customId.split("-")[2] as InfractionSearchPaginationDirection;
+
+        switch (direction) {
+            case InfractionSearchPaginationDirection.Next:
+                return handleInfractionActivePagination(interaction, { pageOffset: 1 });
+
+            case InfractionSearchPaginationDirection.Back:
+                return handleInfractionActivePagination(interaction, { pageOffset: -1 });
+
+            case InfractionSearchPaginationDirection.First:
+                return handleInfractionActivePagination(interaction, { page: 1 });
+
+            case InfractionSearchPaginationDirection.Last:
+                return handleInfractionActivePagination(interaction, { page: 0 });
+
+            default:
+                return Promise.resolve("Unknown direction.");
+        }
     }
 }
 
