@@ -4,11 +4,13 @@ import {
     Colors,
     EmbedBuilder,
     Events,
-    GuildEmoji, GuildMember,
+    GuildEmoji,
+    GuildMember,
     hyperlink,
     Message,
     MessageCreateOptions,
     MessageReaction,
+    PartialMessage,
     PartialMessageReaction,
     ReactionEmoji,
     roleMention,
@@ -47,17 +49,11 @@ export default class MessageReactionAdd extends EventListener {
     }
 
     async execute(addedReaction: MessageReaction | PartialMessageReaction, user: User): Promise<void> {
-        const reaction = addedReaction.partial
-            ? await addedReaction.fetch().catch(() => null)
-            : addedReaction;
-
+        const reaction = await MessageReactionAdd._parseReaction(addedReaction);
         if (!reaction) return;
 
-        const message = reaction.message.partial
-            ? await reaction.message.fetch().catch(() => null) as Message<true> | null
-            : reaction.message as Message<true>;
-
-        if (!message) return;
+        const message = await MessageReactionAdd._parseMessage(reaction.message);
+        if (!message || !message.inGuild()) return;
 
         const config = ConfigManager.getGuildConfig(message.guildId);
         if (!config) return;
@@ -73,61 +69,93 @@ export default class MessageReactionAdd extends EventListener {
         // All subsequent actions require the emoji configuration
         if (!config.data.emojis || !emojiId) return;
 
+        const canUseEmoji = (emoji: keyof typeof config.data.emojis, permission: Permission): boolean => {
+            return emojiId === config.data.emojis![emoji] && config.hasPermission(executor, permission);
+        };
+
         // Handle a 30-minute quick mute
-        if (emojiId === config.data.emojis.quick_mute_30 && config.hasPermission(executor, Permission.QuickMute)) {
-            try {
-                const res = await handleQuickMute({
-                    duration: QuickMuteDuration.Short,
-                    targetMessage: message,
-                    executor
-                }, true);
-
-                // Mention the executor with the error response
-                if (!res.success) {
-                    config.sendNotification(`${user} ${res.message}`);
-                }
-            } catch (error) {
-                const sentryId = Sentry.captureException(error);
-                config.sendNotification(`${user} An error occurred while trying to execute the quick mute (\`${sentryId}\`)`);
-            }
-
+        if (canUseEmoji("quick_mute_30", Permission.QuickMute)) {
+            await MessageReactionAdd._handleQuickMute({
+                duration: QuickMuteDuration.Short,
+                executor,
+                message,
+                config
+            });
             return;
         }
 
         // Handle a one-hour quick mute
-        if (emojiId === config.data.emojis.quick_mute_60 && config.hasPermission(executor, Permission.QuickMute)) {
-            try {
-                const res = await handleQuickMute({
-                    targetMessage: message,
-                    duration: QuickMuteDuration.Long,
-                    executor
-                }, true);
-
-                // Mention the executor with the error response
-                if (!res.success) {
-                    config.sendNotification(`${user} ${res.message}`);
-                }
-            } catch (error) {
-                const sentryId = Sentry.captureException(error);
-                config.sendNotification(`${user} An error occurred while trying to execute the quick mute (\`${sentryId}\`)`);
-            }
-
+        if (canUseEmoji("quick_mute_60", Permission.QuickMute)) {
+            await MessageReactionAdd._handleQuickMute({
+                duration: QuickMuteDuration.Long,
+                executor,
+                message,
+                config
+            });
             return;
         }
 
         // Handle message purging
-        if (emojiId === config.data.emojis.purge_messages && config.hasPermission(executor, Permission.PurgeMessages)) {
+        if (canUseEmoji("purge_messages", Permission.PurgeMessages)) {
             await MessageReactionAdd._purgeUser(message, user.id, config);
             return;
         }
 
         // Handle message reports
-        if (emojiId === config.data.emojis.report_message && config.hasPermission(executor, Permission.ReportMessages)) {
+        if (canUseEmoji("report_message", Permission.ReportMessages)) {
             await MessageReactionAdd.createMessageReport(user.id, message, config);
         }
 
         // Handle moderation requests
         MessageReactionAdd.handleModerationRequest(message, emojiId, executor, config);
+    }
+
+    private static async _parseReaction(reaction: PartialMessageReaction | MessageReaction): Promise<MessageReaction | null> {
+        if (reaction.partial) {
+            try {
+                return await reaction.fetch();
+            } catch {
+                return null;
+            }
+        }
+
+        return Promise.resolve(reaction);
+    }
+
+    private static async _parseMessage(message: PartialMessage | Message): Promise<Message | null> {
+        if (message.partial) {
+            try {
+                return await message.fetch();
+            } catch {
+                return null;
+            }
+        }
+
+        return Promise.resolve(message);
+    }
+
+    private static async _handleQuickMute(data: {
+        message: Message<true>,
+        executor: GuildMember,
+        duration: QuickMuteDuration,
+        config: GuildConfig
+    }): Promise<void> {
+        const { message, executor, duration, config } = data;
+
+        try {
+            const result = await handleQuickMute({
+                targetMessage: message,
+                duration,
+                executor
+            });
+
+            if (!result.success) {
+                config.sendNotification(`${executor} ${result.message}`);
+            }
+        } catch (error) {
+            const sentryId = Sentry.captureException(error);
+            config.sendNotification(`${executor} An error occurred while trying to execute the quick mute (\`${sentryId}\`)`);
+        }
     }
 
     static async handleModerationRequest(message: Message<true>, emojiId: string, executor: GuildMember, config: GuildConfig): Promise<void> {

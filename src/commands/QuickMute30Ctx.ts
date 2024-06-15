@@ -18,7 +18,7 @@ import {
     QuickMuteDuration
 } from "@utils/infractions";
 
-import { InteractionReplyData } from "@utils/types";
+import { InteractionReplyData, Result } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { cleanContent, cropLines, elipsify } from "@/utils";
 import { Message } from "@prisma/client";
@@ -37,13 +37,20 @@ export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInt
     }
 
     async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
-        const { message } = await handleQuickMute({
+        const result = await handleQuickMute({
             executor: interaction.member,
             targetMessage: interaction.targetMessage,
             duration: QuickMuteDuration.Short
         });
 
-        return message;
+        if (!result.success) {
+            return {
+                content: result.message,
+                temporary: true
+            };
+        }
+
+        return result.data;
     }
 }
 
@@ -61,15 +68,12 @@ export async function handleQuickMute(data: {
     executor: GuildMember,
     targetMessage: DiscordMessage<true> | Message,
     duration: QuickMuteDuration
-}, mention = false): Promise<QuickMuteResult> {
+}, mention = false): Promise<Result<InteractionReplyData>> {
     const { executor, targetMessage, duration } = data;
 
     if (!targetMessage.content) {
         return {
-            message: {
-                content: "This action can't be performed on messages with no message content.",
-                temporary: true
-            },
+            message: "This action can't be performed on messages with no message content.",
             success: false
         };
     }
@@ -93,10 +97,7 @@ export async function handleQuickMute(data: {
 
     if (!channel) {
         return {
-            message: {
-                content: "Failed to fetch the source channel. Unable to perform quick mute",
-                temporary: true
-            },
+            message: "Failed to fetch the source channel. Unable to perform quick mute",
             success: false
         };
     }
@@ -106,30 +107,21 @@ export async function handleQuickMute(data: {
     if (targetMember) {
         if (targetMember.roles.highest.position >= executor.roles.highest.position) {
             return {
-                message: {
-                    content: "You can't mute someone with the same or higher role than you",
-                    temporary: true
-                },
+                message: "You can't mute someone with the same or higher role than you",
                 success: false
             };
         }
 
         if (!targetMember.manageable) {
             return {
-                message: {
-                    content: "I do not have permission to mute this user",
-                    temporary: true
-                },
+                message: "I do not have permission to mute this user",
                 success: false
             };
         }
 
         if (targetMember.isCommunicationDisabled()) {
             return {
-                message: {
-                    content: "You can't mute someone who is already muted",
-                    temporary: true
-                },
+                message: "You can't mute someone who is already muted",
                 success: false
             };
         }
@@ -138,10 +130,7 @@ export async function handleQuickMute(data: {
 
         if (isMuted) {
             return {
-                message: {
-                    content: "You can't mute someone who is already muted",
-                    temporary: true
-                },
+                message: "You can't mute someone who is already muted",
                 success: false
             };
         }
@@ -153,11 +142,8 @@ export async function handleQuickMute(data: {
 
     if (isBanned) {
         return {
-            success: false,
-            message: {
-                content: "You can't mute a banned user.",
-                temporary: true
-            }
+            message: "You can't mute a banned user.",
+            success: false
         };
     }
 
@@ -192,10 +178,7 @@ export async function handleQuickMute(data: {
             InfractionManager.deleteInfraction(infraction.id);
 
             return {
-                message: {
-                    content: `An error occurred while quick muting the member (\`${sentryId}\`)`,
-                    temporary: true
-                },
+                message: `An error occurred while quick muting the member (\`${sentryId}\`)`,
                 success: false
             };
         }
@@ -212,24 +195,13 @@ export async function handleQuickMute(data: {
 
     if (targetMember) {
         return {
-            message: {
-                content: `Successfully ${message}`,
-                temporary: true
-            },
+            data: `Successfully ${message}`,
             success: true
         };
     } else {
         return {
-            message: {
-                content: `User not in server, I will try to ${message.replace("-", "if they join -")}`,
-                temporary: true
-            },
+            data: `User not in server, I will try to ${message.replace("-", "if they join -")}`,
             success: true
         };
     }
-}
-
-interface QuickMuteResult {
-    message: string | InteractionReplyData;
-    success: boolean;
 }

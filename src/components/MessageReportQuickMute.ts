@@ -38,7 +38,6 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
     if (!config.hasPermission(interaction.member, Permission.QuickMute)) {
         return Promise.resolve({
             content: "You do not have permission to execute quick mutes",
-            ephemeral: true,
             temporary: true
         });
     }
@@ -63,7 +62,6 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
     if (!report) {
         return Promise.resolve({
             content: "Failed to find the report. Unable to perform quick mute",
-            ephemeral: true,
             temporary: true
         });
     }
@@ -73,7 +71,6 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
     if (!sourceChannel) {
         return Promise.resolve({
             content: "Failed to fetch the source channel. Unable to perform quick mute",
-            ephemeral: true,
             temporary: true
         });
     }
@@ -83,7 +80,6 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
     if (!reportedMessage) {
         return Promise.resolve({
             content: "Failed to fetch the message. Unable to perform quick mute",
-            ephemeral: true,
             temporary: true
         });
     }
@@ -95,15 +91,7 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
     });
 
     if (!result.success) {
-        if (typeof result.message === "string") {
-            return {
-                content: result.message,
-                ephemeral: true,
-                temporary: true
-            };
-        } else {
-            return result.message;
-        }
+        return result.message;
     }
 
     const status = duration === QuickMuteDuration.Short
@@ -115,14 +103,14 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
         data: { status }
     });
 
-    if (typeof result.message === "string") {
+    if (typeof result.data === "string") {
         await interaction.reply({
-            content: result.message,
+            content: result.data,
             ephemeral: true
         });
     } else {
-        delete result.message?.temporary;
-        await interaction.reply(result.message as Omit<InteractionReplyData, "temporary">);
+        delete result.data?.temporary;
+        await interaction.reply(result.data as Omit<InteractionReplyData, "temporary">);
     }
 
     setTimeout(() => {
