@@ -106,23 +106,6 @@ export default class BanRequestUtil {
             return reasonValidationResult;
         }
 
-        // Check if the request is a duplicate
-        const originalRequest = await prisma.banRequest.findFirst({
-            select: { id: true },
-            where: {
-                NOT: { id: request.id },
-                target_id: args.targetId,
-                guild_id: config.guild.id,
-                status: BanRequestStatus.Pending
-            }
-        });
-
-        // Ignore duplicate requests from bots
-        if (originalRequest && !request.author.bot) {
-            const requestURL = messageLink(request.channelId, originalRequest.id, request.guildId);
-            await temporaryReply(request, `A ban request for this user is already pending: ${requestURL}`, config.data.response_ttl);
-        }
-
         const targetMember = await config.guild.members
             .fetch(args.targetId)
             .catch(() => null);
@@ -138,6 +121,17 @@ export default class BanRequestUtil {
             };
         }
 
+        const isBanned = await config.guild.bans.fetch(args.targetId)
+            .then(() => true)
+            .catch(() => false);
+
+        if (isBanned) {
+            return {
+                success: false,
+                message: "This user is already banned."
+            };
+        }
+
         // Verify permissions
         if (
             request.member &&
@@ -148,6 +142,23 @@ export default class BanRequestUtil {
                 success: false,
                 message: "You cannot ban a member with a higher or equal role."
             };
+        }
+
+        // Check if the request is a duplicate
+        const originalRequest = await prisma.banRequest.findFirst({
+            select: { id: true },
+            where: {
+                NOT: { id: request.id },
+                target_id: args.targetId,
+                guild_id: config.guild.id,
+                status: BanRequestStatus.Pending
+            }
+        });
+
+        // Ignore duplicate requests from bots
+        if (originalRequest && !request.author.bot) {
+            const requestURL = messageLink(request.channelId, originalRequest.id, request.guildId);
+            await temporaryReply(request, `A ban request for this user is already pending: ${requestURL}`, config.data.response_ttl);
         }
 
         return {
