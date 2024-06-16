@@ -15,7 +15,7 @@ import {
 } from "discord.js";
 
 import {
-    Alert,
+    ReviewReminder,
     Scoping,
     Permission,
     RawGuildConfig,
@@ -121,30 +121,30 @@ export default class GuildConfig {
 
     async startMuteRequestReviewReminderCronJobs(): Promise<void> {
         const config = this.data.mute_requests;
-        if (!config?.alert) return;
+        if (!config?.review_reminder) return;
 
-        const alertChannel = await this.guild.channels
-            .fetch(config.alert.channel_id)
+        const reviewReminderChannel = await this.guild.channels
+            .fetch(config.review_reminder.channel_id)
             .catch(() => null);
 
         const stringifiedData = JSON.stringify(config);
 
-        if (!alertChannel) {
-            Logger.error(`Failed to mount mute request alert, unknown channel: ${stringifiedData}`);
+        if (!reviewReminderChannel) {
+            Logger.error(`Failed to mount mute request review reminders, unknown channel: ${stringifiedData}`);
             return;
         }
 
-        if (!alertChannel.isTextBased()) {
-            Logger.error(`Failed to mount mute request alert, channel is not text-based: ${stringifiedData}`);
+        if (!reviewReminderChannel.isTextBased()) {
+            Logger.error(`Failed to mount mute request review reminders, channel is not text-based: ${stringifiedData}`);
             return;
         }
 
-        const mentionedRoles = config.alert.mentioned_roles
+        const mentionedRoles = config.review_reminder.mentioned_roles
             .map(roleMention)
             .join(" ") || "";
 
-        // Start the cron job for the alert
-        startCronJob("MUTE_REQUEST_REVIEW_REMINDER", config.alert.cron, async () => {
+        // Start the cron job for the review reminder
+        startCronJob("MUTE_REQUEST_REVIEW_REMINDER", config.review_reminder.cron, async () => {
             const unresolvedRequests = await prisma.muteRequest.findMany({
                 where: {
                     status: MuteRequestStatus.Pending,
@@ -156,50 +156,49 @@ export default class GuildConfig {
             const oldestRequest = unresolvedRequests.at(0);
             const oldestRequestURL = oldestRequest && messageLink(config.channel_id, oldestRequest.id, this.guild.id);
 
-            const alert = GuildConfig._entityExceedsAlertThresholds({
+            const reminder = GuildConfig._entityExceedsReminderThresholds({
                 name: "mute request",
                 count: unresolvedRequests.length,
                 createdAt: oldestRequest?.created_at,
                 oldestEntityURL: oldestRequestURL,
-                config: config.alert!
+                config: config.review_reminder!
             });
 
-            if (!alert) return;
+            if (!reminder) return;
 
-            // Send the alert to the channel
-            alertChannel.send({
+            reviewReminderChannel.send({
                 content: `${mentionedRoles} Pending mute ${pluralize(unresolvedRequests.length, "request")}`,
-                embeds: config.alert!.embed ? [alert] : undefined
+                embeds: config.review_reminder!.embed ? [reminder] : undefined
             });
         });
     }
 
     async startBanRequestReviewReminderCronJobs(): Promise<void> {
         const config = this.data.ban_requests;
-        if (!config?.alert) return;
+        if (!config?.review_reminder) return;
 
-        const alertChannel = await this.guild.channels
-            .fetch(config.alert.channel_id)
+        const reviewReminderChannel = await this.guild.channels
+            .fetch(config.review_reminder.channel_id)
             .catch(() => null);
 
         const stringifiedData = JSON.stringify(config);
 
-        if (!alertChannel) {
-            Logger.error(`Failed to mount ban request alert, unknown channel: ${stringifiedData}`);
+        if (!reviewReminderChannel) {
+            Logger.error(`Failed to mount ban request review reminders, unknown channel: ${stringifiedData}`);
             return;
         }
 
-        if (!alertChannel.isTextBased()) {
-            Logger.error(`Failed to mount ban request alert, channel is not text-based: ${stringifiedData}`);
+        if (!reviewReminderChannel.isTextBased()) {
+            Logger.error(`Failed to mount ban request review reminders, channel is not text-based: ${stringifiedData}`);
             return;
         }
 
-        const mentionedRoles = config.alert.mentioned_roles
+        const mentionedRoles = config.review_reminder.mentioned_roles
             .map(roleMention)
             .join(" ") || "";
 
-        // Start the cron job for the alert
-        startCronJob("BAN_REQUEST_REVIEW_REMINDER", config.alert.cron, async () => {
+        // Start the cron job for the review reminder
+        startCronJob("BAN_REQUEST_REVIEW_REMINDER", config.review_reminder.cron, async () => {
             const unresolvedRequests = await prisma.banRequest.findMany({
                 where: {
                     status: BanRequestStatus.Pending,
@@ -211,26 +210,25 @@ export default class GuildConfig {
             const oldestRequest = unresolvedRequests.at(0);
             const oldestRequestURL = oldestRequest && messageLink(config.channel_id, oldestRequest.id, this.guild.id);
 
-            const alert = GuildConfig._entityExceedsAlertThresholds({
+            const reminder = GuildConfig._entityExceedsReminderThresholds({
                 name: "ban request",
                 count: unresolvedRequests.length,
                 createdAt: oldestRequest?.created_at,
                 oldestEntityURL: oldestRequestURL,
-                config: config.alert!
+                config: config.review_reminder!
             });
 
-            if (!alert) return;
+            if (!reminder) return;
 
-            // Send the alert to the channel
-            alertChannel.send({
+            reviewReminderChannel.send({
                 content: `${mentionedRoles} Pending ban ${pluralize(unresolvedRequests.length, "request")}`,
-                embeds: config.alert!.embed ? [alert] : undefined
+                embeds: config.review_reminder!.embed ? [reminder] : undefined
             });
         });
     }
 
     /**
-     * Check whether an alert needs to be sent.
+     * Check whether a reminder needs to be sent.
      * The following checks are performed:
      *
      * - Does the entity count exceed the threshold?
@@ -240,16 +238,16 @@ export default class GuildConfig {
      * @param data.count - The count of the entity
      * @param data.oldestEntityURL - The URL of the oldest entity
      * @param data.createdAt - The creation date of the oldest entity
-     * @param data.config - The alert configuration for the entity
-     * @returns The alert embed, if the entity exceeds the thresholds
+     * @param data.config - The reminder configuration for the entity
+     * @returns The reminder embed to send if the entity exceeds the thresholds
      * @private
      */
-    private static _entityExceedsAlertThresholds(data: {
+    private static _entityExceedsReminderThresholds(data: {
         name: string,
         count: number,
         oldestEntityURL?: string,
         createdAt?: Date,
-        config: Alert
+        config: ReviewReminder
     }): EmbedBuilder | null {
         const { count, createdAt, config, name } = data;
         const capitalizedName = capitalize(name);
@@ -260,14 +258,14 @@ export default class GuildConfig {
             .join(" ");
 
         const oldestEntityHyperlink = hyperlink("here", data.oldestEntityURL ?? "");
-        const alert = new EmbedBuilder()
+        const reminder = new EmbedBuilder()
             .setColor(Colors.Red)
             .setTitle(`${fullyCapitalizedName} Review Reminder`)
             .setDescription(`There ${pluralize(count, "is", "are")} currently \`${count}\` unresolved ${pluralize(count, name)}, starting from ${oldestEntityHyperlink}`)
             .setFields({
-                name: "Alert Conditions",
-                value: "This alert is sent whenever **at least one** of the following conditions is met:\n\n" +
-                    `- There are ${config.count_threshold}+ unresolved ${name}\n` +
+                name: "Reminder Conditions",
+                value: "This reminder is sent whenever **at least one** of the following conditions is met:\n\n" +
+                    `- There ${pluralize(config.count_threshold, "is", "are")} ${config.count_threshold}+ unresolved ${pluralize(config.count_threshold, name)}\n` +
                     `- The oldest ${name} was created before ${time(createdAtDateThreshold, TimestampStyles.ShortDateTime)}`
             })
             .setTimestamp();
@@ -278,8 +276,8 @@ export default class GuildConfig {
         if (count < config.count_threshold) {
             Logger.info(`${capitalizedName} count is below the threshold, no actions need to be taken`);
         } else {
-            Logger.info(`${capitalizedName} count exceeds the threshold, sending alert`);
-            return alert;
+            Logger.info(`${capitalizedName} count exceeds the threshold, sending review reminder`);
+            return reminder;
         }
 
         if (!createdAt) return null;
@@ -293,8 +291,8 @@ export default class GuildConfig {
         Logger.info(`${capitalizedName} created at threshold: ${createdAtThreshold}`);
 
         if (age > config.age_threshold) {
-            Logger.info(`Oldest ${name} exceeds the age threshold, sending alert`);
-            return alert;
+            Logger.info(`Oldest ${name} exceeds the age threshold, sending review reminder`);
+            return reminder;
         } else {
             Logger.info(`Oldest ${name} is below the age threshold, no actions need to be taken`);
         }
@@ -303,33 +301,33 @@ export default class GuildConfig {
     }
 
     async startMessageReportReviewReminderCronJob(): Promise<void> {
-        const alertConfig = this.data.message_reports?.alert;
+        const reviewReminderConfig = this.data.message_reports?.review_reminder;
         const reportChannelId = this.data.message_reports?.report_channel;
 
-        if (!alertConfig || !reportChannelId) return;
+        if (!reviewReminderConfig || !reportChannelId) return;
 
-        const alertChannel = await this.guild.channels
-            .fetch(alertConfig.channel_id)
+        const reviewReminderChannel = await this.guild.channels
+            .fetch(reviewReminderConfig.channel_id)
             .catch(() => null);
 
-        const stringifiedData = JSON.stringify(alertConfig);
+        const stringifiedData = JSON.stringify(reviewReminderConfig);
 
-        if (!alertChannel) {
+        if (!reviewReminderChannel) {
             Logger.error(`Failed to mount message report review reminders, unknown channel: ${stringifiedData}`);
             return;
         }
 
-        if (!alertChannel.isTextBased()) {
+        if (!reviewReminderChannel.isTextBased()) {
             Logger.error(`Failed to mount message report review reminders, channel is not text-based: ${stringifiedData}`);
             return;
         }
 
-        const mentionedRoles = alertConfig.mentioned_roles
+        const mentionedRoles = reviewReminderConfig.mentioned_roles
             .map(roleMention)
             .join(" ") || "";
 
-        // Start the cron job for the alert
-        startCronJob("MESSAGE_REPORT_REVIEW_REMINDER", alertConfig.cron, async () => {
+        // Start the cron job for the review reminder
+        startCronJob("MESSAGE_REPORT_REVIEW_REMINDER", reviewReminderConfig.cron, async () => {
             const unresolvedReports = await prisma.messageReport.findMany({
                 where: { status: MessageReportStatus.Unresolved },
                 orderBy: { created_at: "asc" }
@@ -338,20 +336,19 @@ export default class GuildConfig {
             const oldestReport = unresolvedReports.at(0);
             const oldestReportURL = oldestReport && messageLink(reportChannelId, oldestReport.id, this.guild.id);
 
-            const alert = GuildConfig._entityExceedsAlertThresholds({
+            const reminder = GuildConfig._entityExceedsReminderThresholds({
                 name: "message report",
                 count: unresolvedReports.length,
                 createdAt: oldestReport?.created_at,
                 oldestEntityURL: oldestReportURL,
-                config: alertConfig
+                config: reviewReminderConfig
             });
 
-            if (!alert) return;
+            if (!reminder) return;
 
-            // Send the alert to the channel
-            alertChannel.send({
-                content: `${mentionedRoles} Pending message reports`,
-                embeds: alertConfig.embed ? [alert] : undefined
+            reviewReminderChannel.send({
+                content: `${mentionedRoles} Pending message ${pluralize(unresolvedReports.length, "report")}`,
+                embeds: reviewReminderConfig.embed ? [reminder] : undefined
             });
         });
     }
@@ -408,42 +405,42 @@ export default class GuildConfig {
             Logger.info(`Removing ${expiredUserReports.length} expired user ${pluralize(expiredUserReports.length, "report")}`);
 
             for (const userReport of expiredUserReports) {
-                const alert = await reportChannel.messages.fetch(userReport.id)
+                const reminder = await reportChannel.messages.fetch(userReport.id)
                     .catch(() => null);
 
-                alert?.delete().catch(() => null);
+                reminder?.delete().catch(() => null);
             }
         });
     }
 
     async startUserReportReviewReminderCronJob(): Promise<void> {
-        const alertConfig = this.data.user_reports?.alert;
+        const reviewReminderConfig = this.data.user_reports?.review_reminder;
         const reportChannelId = this.data.user_reports?.report_channel;
 
-        if (!alertConfig || !reportChannelId) return;
+        if (!reviewReminderConfig || !reportChannelId) return;
 
-        const alertChannel = await this.guild.channels
-            .fetch(alertConfig.channel_id)
+        const reviewReminderChannel = await this.guild.channels
+            .fetch(reviewReminderConfig.channel_id)
             .catch(() => null);
 
-        const stringifiedData = JSON.stringify(alertConfig);
+        const stringifiedData = JSON.stringify(reviewReminderConfig);
 
-        if (!alertChannel) {
+        if (!reviewReminderChannel) {
             Logger.error(`Failed to mount user report review reminders, unknown channel: ${stringifiedData}`);
             return;
         }
 
-        if (!alertChannel.isTextBased()) {
+        if (!reviewReminderChannel.isTextBased()) {
             Logger.error(`Failed to mount user report review reminders, channel is not text-based: ${stringifiedData}`);
             return;
         }
 
-        const mentionedRoles = alertConfig.mentioned_roles
+        const mentionedRoles = reviewReminderConfig.mentioned_roles
             .map(roleMention)
             .join(" ") || "";
 
-        // Start the cron job for the alert
-        startCronJob("USER_REPORT_REVIEW_REMINDER", alertConfig.cron, async () => {
+        // Start the cron job for the review reminder
+        startCronJob("USER_REPORT_REVIEW_REMINDER", reviewReminderConfig.cron, async () => {
             const unresolvedReports = await prisma.userReport.findMany({
                 where: { status: UserReportStatus.Unresolved },
                 orderBy: { created_at: "asc" }
@@ -452,20 +449,19 @@ export default class GuildConfig {
             const oldestReport = unresolvedReports.at(0);
             const oldestReportURL = oldestReport && messageLink(reportChannelId, oldestReport.id, this.guild.id);
 
-            const alert = GuildConfig._entityExceedsAlertThresholds({
+            const reminder = GuildConfig._entityExceedsReminderThresholds({
                 name: "user report",
                 count: unresolvedReports.length,
                 createdAt: oldestReport?.created_at,
                 oldestEntityURL: oldestReportURL,
-                config: alertConfig
+                config: reviewReminderConfig
             });
 
-            if (!alert) return;
+            if (!reminder) return;
 
-            // Send the alert to the channel
-            alertChannel.send({
+            reviewReminderChannel.send({
                 content: `${mentionedRoles} Pending user reports`,
-                embeds: alertConfig.embed ? [alert] : undefined
+                embeds: reviewReminderConfig.embed ? [reminder] : undefined
             });
         });
     }
@@ -522,10 +518,10 @@ export default class GuildConfig {
             Logger.info(`Removing ${expiredMessageReports.length} expired message ${pluralize(expiredMessageReports.length, "report")}`);
 
             for (const messageReport of expiredMessageReports) {
-                const alert = await reportChannel.messages.fetch(messageReport.id)
+                const reminder = await reportChannel.messages.fetch(messageReport.id)
                     .catch(() => null);
 
-                alert?.delete().catch(() => null);
+                reminder?.delete().catch(() => null);
             }
         });
     }

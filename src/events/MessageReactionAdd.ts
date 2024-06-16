@@ -209,10 +209,10 @@ export default class MessageReactionAdd extends EventListener {
 
         const reportChannel = await config.guild.channels.fetch(config.data.message_reports.report_channel);
 
-        // Ensure the alert channel exists and is a text channel
+        // Ensure the report channel exists and is a text channel
         // An error should be thrown since the bot shouldn't be started with an incomplete configuration
         if (!reportChannel || !reportChannel.isTextBased()) {
-            throw new Error(`Invalid report channel passed to \`message_reports.alert_channel\` in the config for guild with ID ${config.guild.id}`);
+            throw new Error(`Invalid report channel passed to \`message_reports.report_channel\` in the config for guild with ID ${config.guild.id}`);
         }
 
         // Check if there is an existing report for a message with the same content
@@ -268,7 +268,7 @@ export default class MessageReactionAdd extends EventListener {
         const mappedFlags = MessageReportUtil.formatFlags(flags);
         const stickerId = message.stickers.first()?.id ?? null;
 
-        const alert = new EmbedBuilder()
+        const reportEmbed = new EmbedBuilder()
             .setColor(DEFAULT_EMBED_COLOR)
             .setTitle("Message Report")
             .setThumbnail(message.author.displayAvatarURL())
@@ -298,7 +298,7 @@ export default class MessageReactionAdd extends EventListener {
             const formattedReferenceContent = await formatMessageContentForShortLog(croppedReferenceContent, referenceStickerId, reference.url);
 
             // Insert the reference content before the actual message content
-            alert.spliceFields(2, 0, {
+            reportEmbed.spliceFields(2, 0, {
                 name: `Reference from @${reference.author.username} (${reference.author.id})`,
                 value: formattedReferenceContent
             });
@@ -306,7 +306,7 @@ export default class MessageReactionAdd extends EventListener {
 
         // Add flags to the embed if there are any
         if (mappedFlags.length) {
-            alert.addFields({
+            reportEmbed.addFields({
                 name: "Flags",
                 value: mappedFlags
             });
@@ -356,7 +356,7 @@ export default class MessageReactionAdd extends EventListener {
 
         const report = await reportChannel.send({
             content: mentionedRoles,
-            embeds: [alert],
+            embeds: [reportEmbed],
             components: [actionRow]
         });
 
@@ -383,12 +383,12 @@ export default class MessageReactionAdd extends EventListener {
             }
         });
 
-        alert.setTitle("New Message Report");
+        reportEmbed.setTitle("New Message Report");
 
         log({
             event: LoggingEvent.MessageReportCreate,
             channel: message.channel,
-            message: { embeds: [alert] },
+            message: { embeds: [reportEmbed] },
             member: null,
             config
         });

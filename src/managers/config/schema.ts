@@ -235,21 +235,21 @@ export type ChannelScoping = z.infer<typeof channelScopingSchema>;
 export type RoleScoping = z.infer<typeof roleScopingSchema>;
 export type Scoping = z.infer<typeof scopingSchema>;
 
-const alertSchema = z.object({
+const reviewReminderSchema = z.object({
     channel_id: snowflakeSchema,
-    // Cron expression for when to send the alert - Default: Every hour
+    // Cron expression for when to send the reminder - Default: Every hour
     cron: cronSchema.default("0 * * * *"),
-    // Whether the alert should contain an embed
+    // Whether the reminder should contain an embed
     embed: z.boolean().default(true),
-    // Number of unreviewed items required to trigger an alert - Default: 25
+    // Number of unreviewed items required to trigger a reminder - Default: 25
     count_threshold: z.number().min(1).default(25),
-    // How old the oldest unreviewed item has to be to trigger an alert (in milliseconds) - Default: 1 hour
+    // How old the oldest unreviewed item has to be to trigger a reminder (in milliseconds) - Default: 1 hour
     age_threshold: z.number().min(1000).default(3600000),
-    // Role(s) mentioned in the alert
+    // Role(s) mentioned in the reminders
     mentioned_roles: z.array(snowflakeSchema).max(100).default([])
 });
 
-export type Alert = z.infer<typeof alertSchema>;
+export type ReviewReminder = z.infer<typeof reviewReminderSchema>;
 
 const userFlagSchema = z.object({
     // The name of the flag
@@ -282,10 +282,10 @@ const autoReactionSchema = z.object({
 const reportSchema = z.object({
     // Channel to send reports to
     report_channel: snowflakeSchema,
-    // How long an alert will stay in the alert channel before being removed (in milliseconds)
+    // How long a report will stay in the channel before being removed (in milliseconds)
     report_ttl: z.number().min(1000).optional(),
-    alert: alertSchema.optional(),
-    // Roles mentioned in new alerts
+    review_reminder: reviewReminderSchema.optional(),
+    // Roles mentioned in new reports
     mentioned_roles: z.array(snowflakeSchema).nonempty().optional(),
     // Users with these roles will be immune to reports
     exclude_roles: z.array(snowflakeSchema).default([])
@@ -321,7 +321,7 @@ const defaultLogging = loggingSchema.parse({});
 
 const moderationRequestSchema = z.object({
     channel_id: snowflakeSchema,
-    alert: alertSchema.optional()
+    review_reminder: reviewReminderSchema.optional()
 });
 
 const permissionsSchema = z.object({

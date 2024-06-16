@@ -58,8 +58,8 @@ export default class MessageReportResolve extends Component {
 
     // Format: Resolved by {executor} (action: {action})
     static log(interaction: ButtonInteraction<"cached">, config: GuildConfig, action?: string): void {
-        const [alert] = interaction.message.embeds;
-        const embed = new EmbedBuilder(alert.toJSON())
+        const [reminder] = interaction.message.embeds;
+        const embed = new EmbedBuilder(reminder.toJSON())
             .setColor(Colors.Green)
             .setTitle("Message Report Resolved");
 
