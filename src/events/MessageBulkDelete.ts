@@ -53,7 +53,7 @@ export default class MessageBulkDelete extends EventListener {
         config: GuildConfig
     ): Promise<DiscordMessage<true>[] | null> {
         const authorMentions: ReturnType<typeof userMention>[] = [];
-        const entries: string[] = [];
+        const entries: { entry: string, createdAt: Date }[] = [];
 
         // Format message log entries
         for (const message of messages) {
@@ -74,12 +74,21 @@ export default class MessageBulkDelete extends EventListener {
                 }
             }
 
-            entries.push(subEntries.join("\n └── "));
+            entries.push({
+                entry: subEntries.join("\n └── "),
+                createdAt: message.created_at
+            });
         }
+
+        // Sort entries by creation date (newest to oldest)
+        entries.sort((a, b) => {
+            return b.createdAt.getTime() - a.createdAt.getTime();
+        });
 
         // E.g. Deleted `5` messages in #general by @user1, @user2
         const logContent = `Deleted \`${messages.length}\` ${pluralize(messages.length, "message")} in ${channel} by ${authorMentions.join(", ")}`;
-        const file = mapLogEntriesToFile(entries);
+        const mappedEntries = entries.map(({ entry }) => entry);
+        const file = mapLogEntriesToFile(mappedEntries);
 
         const logs = await log({
             event: LoggingEvent.MessageBulkDelete,
