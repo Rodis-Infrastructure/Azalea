@@ -460,7 +460,7 @@ export default class GuildConfig {
             if (!reminder) return;
 
             reviewReminderChannel.send({
-                content: `${mentionedRoles} Pending user reports`,
+                content: `${mentionedRoles} Pending user ${pluralize(unresolvedReports.length, "report")}`,
                 embeds: reviewReminderConfig.embed ? [reminder] : undefined
             });
         });
