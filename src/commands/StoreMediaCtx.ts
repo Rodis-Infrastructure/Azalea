@@ -1,7 +1,7 @@
 import {
     ApplicationCommandType,
     Attachment,
-    GuildMember,
+    GuildMember, Message,
     MessageContextMenuCommandInteraction,
     Snowflake,
     userMention
@@ -66,22 +66,31 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
             };
         }
 
-        const loggedMessages = await log({
-            event: LoggingEvent.MediaStore,
-            message: {
-                content: `Media from ${userMention(targetId)}, stored by ${executor ?? "unknown user"}`,
-                allowedMentions: { parse: [] },
-                files: media
-            },
-            channel: null,
-            member: executor,
-            config
-        });
+        let loggedMessages: Message<true>[] | null;
+
+        try {
+            loggedMessages = await log({
+                event: LoggingEvent.MediaStore,
+                message: {
+                    content: `Media from ${userMention(targetId)}, stored by ${executor ?? "unknown user"}`,
+                    allowedMentions: { parse: [] },
+                    files: media
+                },
+                channel: null,
+                member: executor,
+                config
+            });
+        } catch (error) {
+            return {
+                success: false,
+                message: "Failed to send the media log."
+            };
+        }
 
         if (!loggedMessages?.length) {
             return {
                 success: false,
-                message: "Failed to store media."
+                message: "Couldn't find any logging channels to store the media in."
             };
         }
 
