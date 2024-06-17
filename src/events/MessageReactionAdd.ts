@@ -161,7 +161,6 @@ export default class MessageReactionAdd extends EventListener {
     static async handleModerationRequest(message: Message<true>, emojiId: string, executor: GuildMember, config: GuildConfig): Promise<void> {
         const isMuteRequestChannel = message.channelId === config.data.mute_requests?.channel_id;
         const isBanRequestChannel = message.channelId === config.data.ban_requests?.channel_id;
-        const isRequestChannel = isMuteRequestChannel || isBanRequestChannel;
 
         if (isMuteRequestChannel && emojiId === config.data.emojis!.approve) {
             await MuteRequestUtil.approve(message, executor, config);
@@ -197,7 +196,21 @@ export default class MessageReactionAdd extends EventListener {
             }).catch(() => null);
         }
 
-        if (isRequestChannel && executor.id !== client.user.id) {
+        const executorIsClient = executor.id === client.user.id;
+
+        if (
+            isMuteRequestChannel &&
+            executorIsClient &&
+            config.hasPermission(executor, Permission.ManageMuteRequests)
+        ) {
+            removeClientReactions(message);
+        }
+
+        if (
+            isBanRequestChannel &&
+            executorIsClient &&
+            config.hasPermission(executor, Permission.ManageBanRequests)
+        ) {
             removeClientReactions(message);
         }
     }
