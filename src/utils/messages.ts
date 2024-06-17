@@ -424,6 +424,12 @@ export async function fetchMessage(messageId: Snowflake, channel: GuildTextBased
     }
 }
 
+export function removeClientReactions(message: DiscordMessage): void {
+    message.reactions.cache
+        .filter(r => r.me)
+        .forEach(r => r.users.remove(client.user.id));
+}
+
 interface PurgeOptions {
     // The channel messages were purged from
     channelId: Snowflake;

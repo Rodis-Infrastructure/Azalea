@@ -14,7 +14,7 @@ import { BanRequest, Prisma } from "@prisma/client";
 import { TypedRegEx } from "typed-regex";
 import { client, prisma } from "./..";
 import { LoggingEvent, Permission } from "@managers/config/schema";
-import { temporaryReply } from "./messages";
+import { removeClientReactions, temporaryReply } from "./messages";
 import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
 import { userMentionWithId } from "./index";
 import { log } from "./logging";
@@ -33,9 +33,7 @@ export default class BanRequestUtil {
         }
 
         const { data } = validationResult.data;
-
-        // Remove the bot's reaction
-        await request.reactions.cache.find(r => r.me)?.remove();
+        removeClientReactions(request);
 
         await prisma.banRequest.upsert({
             where: { id: request.id },
@@ -257,6 +255,7 @@ export default class BanRequestUtil {
             return;
         }
 
+        removeClientReactions(request);
         InfractionManager.endActiveMutes(config.guild.id, targetId);
         InfractionManager.logInfraction(infraction, reviewer, config);
 
@@ -269,33 +268,28 @@ export default class BanRequestUtil {
     /**
      * Deny a moderation request.
      *
-     * @param requestId - The request message.
+     * @param request - The request message.
      * @param reviewer - The user denying the request.
      * @param config - The guild configuration.
      */
-    static async deny(requestId: Snowflake, reviewer: GuildMember, config: GuildConfig): Promise<void> {
+    static async deny(request: Message<true>, reviewer: GuildMember, config: GuildConfig): Promise<void> {
         if (!config.hasPermission(reviewer, Permission.ManageBanRequests)) {
             config.sendNotification(`${reviewer} You do not have permission to manage ban requests.`);
             return;
         }
 
-        const request = await BanRequestUtil.setStatus(requestId, BanRequestStatus.Denied);
+        const requestData = await BanRequestUtil.setStatus(request.id, BanRequestStatus.Denied);
 
-        if (!request) {
+        if (!requestData) {
             config.sendNotification(`${reviewer} Failed to deny the ban request, the ban request was not found.`);
             return;
         }
 
-        const targetMention = userMention(request.target_id);
-        const targetMember = await config.guild.members.fetch(request.target_id)
+        await config.guild.members.fetch(requestData.target_id)
+            .then(target => target.timeout(null, "Ban request denial"))
             .catch(() => null);
 
-        targetMember?.timeout(null, "Ban request denial");
-        InfractionManager.endActiveMutes(config.guild.id, request.target_id);
-
-        const requestChannelId = config.data.ban_requests!.channel_id;
-        const requestURL = messageLink(requestChannelId, requestId, config.guild.id);
-        const requestHyperlink = hyperlink("Your request", requestURL);
+        InfractionManager.endActiveMutes(config.guild.id, requestData.target_id);
 
         // Log the denial
         const embed = new EmbedBuilder()
@@ -303,18 +297,15 @@ export default class BanRequestUtil {
             .setAuthor({ name: "Ban Request Denied" })
             .setFields([
                 { name: "Reviewer", value: userMentionWithId(reviewer.id) },
-                { name: "Request Author", value: userMentionWithId(request.author_id) },
-                { name: "Target", value: userMentionWithId(request.target_id) },
-                { name: "Request Content", value: request.reason }
+                { name: "Request Author", value: userMentionWithId(requestData.author_id) },
+                { name: "Target", value: userMentionWithId(requestData.target_id) },
+                { name: "Request Content", value: requestData.reason }
             ])
             .setTimestamp();
 
-        const requestAuthor = await config.guild.members.fetch(request.author_id)
-            .catch(() => null);
-
         log({
             event: LoggingEvent.BanRequestDeny,
-            member: requestAuthor,
+            member: request.member,
             channel: null,
             config,
             message: {
@@ -323,7 +314,11 @@ export default class BanRequestUtil {
         });
 
         const reviewerName = reviewer.nickname ?? reviewer.displayName;
-        config.sendNotification(`${userMention(request.author_id)} ${requestHyperlink} against ${targetMention} has been denied by \`${reviewerName}\`.`);
+        const targetMention = userMention(requestData.target_id);
+        const requestHyperlink = hyperlink("Your ban request", request.url);
+
+        removeClientReactions(request);
+        config.sendNotification(`${request.author} ${requestHyperlink} against ${targetMention} has been denied by \`${reviewerName}\`.`);
     }
 }
 

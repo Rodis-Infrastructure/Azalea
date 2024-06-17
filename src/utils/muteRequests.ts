@@ -4,7 +4,7 @@ import { MuteRequest, Prisma } from "@prisma/client";
 import { TypedRegEx } from "typed-regex";
 import { client, prisma } from "./..";
 import { LoggingEvent, Permission } from "@managers/config/schema";
-import { temporaryReply } from "./messages";
+import { removeClientReactions, temporaryReply } from "./messages";
 import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
 import { userMentionWithId } from "./index";
 import { log } from "./logging";
@@ -24,9 +24,7 @@ export default class MuteRequestUtil {
         }
 
         const { data } = validationResult.data;
-
-        // Remove the bot's reaction
-        await request.reactions.cache.find(r => r.me)?.remove();
+        removeClientReactions(request);
 
         await prisma.muteRequest.upsert({
             where: { id: request.id },
@@ -276,6 +274,7 @@ export default class MuteRequestUtil {
             return;
         }
 
+        removeClientReactions(request);
         InfractionManager.logInfraction(infraction, reviewer, config);
         const formattedReason = InfractionUtil.formatReason(data.reason);
 
@@ -288,27 +287,22 @@ export default class MuteRequestUtil {
     /**
      * Deny a mute request.
      *
-     * @param requestId - The request message.
+     * @param request - The request message.
      * @param reviewer - The user denying the request.
      * @param config - The guild configuration.
      */
-    static async deny(requestId: Snowflake, reviewer: GuildMember, config: GuildConfig): Promise<void> {
+    static async deny(request: Message<true>, reviewer: GuildMember, config: GuildConfig): Promise<void> {
         if (!config.hasPermission(reviewer, Permission.ManageMuteRequests)) {
             config.sendNotification(`${reviewer} You do not have permission to manage mute requests.`);
             return;
         }
 
-        const request = await MuteRequestUtil.setStatus(requestId, MuteRequestStatus.Denied);
+        const requestData = await MuteRequestUtil.setStatus(request.id, MuteRequestStatus.Denied);
 
-        if (!request) {
+        if (!requestData) {
             config.sendNotification(`${reviewer} Failed to deny the request, the request was not found.`);
             return;
         }
-
-        const targetMention = userMention(request.target_id);
-        const requestChannelId = config.data.mute_requests!.channel_id;
-        const requestURL = messageLink(requestChannelId, requestId, config.guild.id);
-        const requestHyperlink = hyperlink("Your request", requestURL);
 
         // Log the denial
         const embed = new EmbedBuilder()
@@ -316,18 +310,15 @@ export default class MuteRequestUtil {
             .setAuthor({ name: "Mute Request Denied" })
             .setFields([
                 { name: "Reviewer", value: userMentionWithId(reviewer.id) },
-                { name: "Request Author", value: userMentionWithId(request.author_id) },
-                { name: "Target", value: userMentionWithId(request.target_id) },
-                { name: "Request Content", value: request.reason }
+                { name: "Request Author", value: userMentionWithId(requestData.author_id) },
+                { name: "Target", value: userMentionWithId(requestData.target_id) },
+                { name: "Request Content", value: requestData.reason }
             ])
             .setTimestamp();
 
-        const requestAuthor = await config.guild.members.fetch(request.author_id)
-            .catch(() => null);
-
         log({
             event: LoggingEvent.MuteRequestDeny,
-            member: requestAuthor,
+            member: request.member,
             channel: null,
             config,
             message: {
@@ -336,7 +327,11 @@ export default class MuteRequestUtil {
         });
 
         const reviewerName = reviewer.nickname ?? reviewer.displayName;
-        config.sendNotification(`${userMention(request.author_id)} ${requestHyperlink} against ${targetMention} has been denied by \`${reviewerName}\`.`);
+        const targetMention = userMention(requestData.target_id);
+        const requestHyperlink = hyperlink("Your mute request", request.url);
+
+        removeClientReactions(request);
+        config.sendNotification(`${request.author} ${requestHyperlink} against ${targetMention} has been denied by \`${reviewerName}\`.`);
     }
 }
 

@@ -173,12 +173,12 @@ export default class MessageReactionAdd extends EventListener {
         }
 
         if (isMuteRequestChannel && emojiId === config.data.emojis!.deny) {
-            await MuteRequestUtil.deny(message.id, executor, config);
+            await MuteRequestUtil.deny(message, executor, config);
             return;
         }
 
         if (isBanRequestChannel && emojiId === config.data.emojis!.deny) {
-            await BanRequestUtil.deny(message.id, executor, config);
+            await BanRequestUtil.deny(message, executor, config);
             return;
         }
 
