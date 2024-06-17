@@ -11,7 +11,7 @@ import {
     MessageCreateOptions,
     MessageReaction,
     PartialMessage,
-    PartialMessageReaction,
+    PartialMessageReaction, PermissionFlagsBits,
     ReactionEmoji,
     roleMention,
     User,
@@ -97,6 +97,11 @@ export default class MessageReactionAdd extends EventListener {
 
         // Handle message purging
         if (canUseEmoji("purge_messages", Permission.PurgeMessages)) {
+            if (!message.channel.permissionsFor(executor).has(PermissionFlagsBits.ManageMessages)) {
+                config.sendNotification(`${executor} You do not have permission to manage messages in ${message.channel}.`);
+                return;
+            }
+
             await MessageReactionAdd._purgeUser(message, user.id, config);
             return;
         }
