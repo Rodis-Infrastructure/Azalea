@@ -22,7 +22,7 @@ import {
     formatMessageContentForShortLog,
     formatBulkMessageLogEntry,
     Messages,
-    prependReferenceLog
+    prependReferenceLog, removeClientReactions
 } from "@utils/messages";
 
 import { handleQuickMute } from "@/commands/QuickMute30Ctx";
@@ -30,7 +30,7 @@ import { log, mapLogEntriesToFile } from "@utils/logging";
 import { DEFAULT_EMBED_COLOR, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { cleanContent, cropLines, pluralize, userMentionWithId } from "@/utils";
 import { ButtonStyle, Snowflake } from "discord-api-types/v10";
-import { prisma } from "./..";
+import { client, prisma } from "./..";
 import { MessageReportFlag, MessageReportStatus, MessageReportUtil } from "@utils/reports";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { QuickMuteDuration } from "@utils/infractions";
@@ -161,6 +161,7 @@ export default class MessageReactionAdd extends EventListener {
     static async handleModerationRequest(message: Message<true>, emojiId: string, executor: GuildMember, config: GuildConfig): Promise<void> {
         const isMuteRequestChannel = message.channelId === config.data.mute_requests?.channel_id;
         const isBanRequestChannel = message.channelId === config.data.ban_requests?.channel_id;
+        const isRequestChannel = isMuteRequestChannel || isBanRequestChannel;
 
         if (isMuteRequestChannel && emojiId === config.data.emojis!.approve) {
             await MuteRequestUtil.approve(message, executor, config);
@@ -194,6 +195,10 @@ export default class MessageReactionAdd extends EventListener {
                 where: { id: message.id },
                 data: { status: MuteRequestStatus.Unknown }
             }).catch(() => null);
+        }
+
+        if (isRequestChannel && executor.id !== client.user.id) {
+            removeClientReactions(message);
         }
     }
 
