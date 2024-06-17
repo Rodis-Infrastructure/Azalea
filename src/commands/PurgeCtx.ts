@@ -1,4 +1,4 @@
-import { ApplicationCommandType, UserContextMenuCommandInteraction } from "discord.js";
+import { ApplicationCommandType, PermissionFlagsBits, UserContextMenuCommandInteraction } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
 import { pluralize } from "@/utils";
 
@@ -21,6 +21,13 @@ export default class PurgeCtx extends Command<UserContextMenuCommandInteraction<
         if (!interaction.channel) {
             return Promise.resolve({
                 content: "Failed to get the channel.",
+                temporary: true
+            });
+        }
+
+        if (interaction.channel.permissionsFor(interaction.member).has(PermissionFlagsBits.ManageRoles)) {
+            return Promise.resolve({
+                content: `You do not have permission to manage messages in ${interaction.channel}.`,
                 temporary: true
             });
         }
