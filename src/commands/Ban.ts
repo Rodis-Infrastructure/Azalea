@@ -7,6 +7,8 @@ import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import Sentry from "@sentry/node";
 
+const SECONDS_IN_DAY = 86400;
+
 /**
  * Bans a user from the server.
  * The following requirements must be met for the command to be successful:
@@ -39,9 +41,11 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
                     maxLength: EMBED_FIELD_CHAR_LIMIT
                 },
                 {
-                    name: "delete_messages",
-                    description: "Whether to delete the user's messages, false by default",
-                    type: ApplicationCommandOptionType.Boolean
+                    name: "delete_message_days",
+                    description: "The number of days worth of messages to delete from the user. Configured value will be used if not provided.",
+                    type: ApplicationCommandOptionType.Integer,
+                    min_value: 0,
+                    max_value: 7
                 }
             ]
         });
@@ -97,9 +101,10 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             reason
         });
 
-        const deleteMessageSeconds = interaction.options.getBoolean("delete_messages")
-            ? config.data.delete_message_seconds_on_ban
-            : 0;
+        const deleteMessageDays = interaction.options.getInteger("delete_message_days");
+        const deleteMessageSeconds = deleteMessageDays
+            ? deleteMessageDays * SECONDS_IN_DAY
+            : config.data.delete_message_seconds_on_ban;
 
         try {
             await interaction.guild.members.ban(user, { reason, deleteMessageSeconds });
