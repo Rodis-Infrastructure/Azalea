@@ -42,7 +42,7 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
                 },
                 {
                     name: "delete_message_days",
-                    description: "The number of days worth of messages to delete from the user. Configured value will be used if not provided.",
+                    description: "The number of days worth of messages to delete from the user",
                     type: ApplicationCommandOptionType.Integer,
                     min_value: 0,
                     max_value: 7
