@@ -173,7 +173,7 @@ export function humanizeTimestamp(ms: number): string {
 
     return units
         .map(({ unit, value }) => {
-            const count = Math.round(ms / value);
+            const count = Math.floor(ms / value);
             const isInRange = count > 0 && count < 60;
             ms %= value;
             return isInRange && `${count} ${pluralize(count, unit)}`;
