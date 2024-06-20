@@ -64,10 +64,11 @@ export default class MessageReactionAdd extends EventListener {
         }
 
         const emojiId = MessageReactionAdd._getEmojiId(reaction.emoji);
-        const executor = await message.guild.members.fetch(user.id);
+        const executor = await message.guild.members.fetch(user.id)
+            .catch(() => null);
 
         // All subsequent actions require the emoji configuration
-        if (!config.data.emojis || !emojiId) return;
+        if (!config.data.emojis || !emojiId || !executor) return;
 
         const canUseEmoji = (emoji: keyof typeof config.data.emojis, permission: Permission): boolean => {
             return emojiId === config.data.emojis![emoji] && config.hasPermission(executor, permission);
