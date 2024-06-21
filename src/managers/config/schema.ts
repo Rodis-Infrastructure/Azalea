@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { TypedRegEx } from "typed-regex";
 import { MAX_MUTE_DURATION } from "@utils/constants";
+import { PermissionFlagsBits, PermissionsString } from "discord.js";
+
+import _ from "lodash";
+
 // ————————————————————————————————————————————————————————————————————————————————
 // Misc
 // ————————————————————————————————————————————————————————————————————————————————
@@ -400,6 +404,79 @@ const infractionReasonsSchema = z.object({
 
 export type InfractionReasons = z.infer<typeof infractionReasonsSchema>;
 
+const discordPermissions = Object.keys(PermissionFlagsBits) as unknown as readonly [
+    PermissionsString,
+    ...PermissionsString[]
+];
+
+const discordPermissionsSchema = z.enum(discordPermissions)
+    .array()
+    .default([]);
+
+const permissionOverwriteSchema = z.object({
+    id: snowflakeSchema,
+    allow: discordPermissionsSchema,
+    deny: discordPermissionsSchema
+}).superRefine((overwrite, ctx) => {
+    // At least one of allow, deny, or unset must be set
+    if (!overwrite.allow.length && !overwrite.deny.length) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "At least one of allow, deny, or unset must be set",
+            path: ctx.path
+        });
+        return;
+    }
+
+    // Permissions cannot be included in more than one property
+    const invalidPermissions = _.intersection(overwrite.allow, overwrite.deny);
+
+    for (const permission of invalidPermissions) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Permission ${permission} is included in more than one overwrite property`,
+            path: ctx.path
+        });
+    }
+});
+
+export type PermissionOverwrite = z.infer<typeof permissionOverwriteSchema>;
+
+const lockdownChannelOverrideSchema = z.object({
+    channel_id: snowflakeSchema,
+    permission_overwrites: z.array(permissionOverwriteSchema).optional()
+});
+
+const lockdownSchema = z.object({
+    default_permission_overwrites: z.array(permissionOverwriteSchema).optional(),
+    channels: z.array(lockdownChannelOverrideSchema).nonempty()
+}).superRefine((lockdown, ctx) => {
+    const channelIds = lockdown.channels.map(channel => channel.channel_id);
+    const uniqueChannelIds = new Set(channelIds);
+
+    // Channel IDs must be unique
+    if (uniqueChannelIds.size !== channelIds.length) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Channel IDs must be unique",
+            path: ctx.path
+        });
+    }
+
+    // At least one of default_permission_overwrites or permission_overwrites must be set
+    for (const channel of lockdown.channels) {
+        if (!channel.permission_overwrites && !lockdown.default_permission_overwrites) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "At least one of default_permission_overwrites or permission_overwrites must be set",
+                path: ctx.path
+            });
+        }
+    }
+});
+
+export type Lockdown = z.infer<typeof lockdownSchema>;
+
 // Guild config schema exported for validation
 export const rawGuildConfigSchema = z.object({
     logging: loggingSchema.default(defaultLogging),
@@ -408,6 +485,7 @@ export const rawGuildConfigSchema = z.object({
     infraction_reasons: infractionReasonsSchema.default({}),
     auto_reactions: z.array(autoReactionSchema).default([]),
     notification_channel: snowflakeSchema.optional(),
+    lockdown: lockdownSchema.optional(),
     media_conversion_channel: snowflakeSchema.optional(),
     // Period of time to delete messages on ban (in seconds) - Default: 0 (disabled)
     delete_message_seconds_on_ban: z.number().max(604800).default(0),

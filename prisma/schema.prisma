@@ -123,3 +123,9 @@ model Reminder {
   created_at DateTime @default(now())
   expires_at DateTime
 }
+
+model PermissionOverwrites {
+  guild_id   String @id
+  /// Stringified JSON object of the permission overwrites
+  overwrites String
+}
