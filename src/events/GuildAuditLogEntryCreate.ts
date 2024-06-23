@@ -10,7 +10,8 @@ import {
 } from "discord.js";
 
 import { InfractionAction, InfractionFlag, InfractionManager, InfractionUtil } from "@utils/infractions";
-import { DEFAULT_INFRACTION_REASON } from "@utils/constants";
+import { DEFAULT_INFRACTION_REASON, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
+import { elipsify } from "@/utils";
 import { client } from "./..";
 
 import EventListener from "@managers/events/EventListener";
@@ -31,7 +32,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
         const executor = await client.users.fetch(executorId).catch(() => null);
         if (!executor) return;
 
-        const parsedReason = reason ?? DEFAULT_INFRACTION_REASON;
+        const parsedReason = elipsify(reason ?? DEFAULT_INFRACTION_REASON, EMBED_FIELD_CHAR_LIMIT);
         const formattedReason = InfractionUtil.formatReason(parsedReason);
         const executorMember = await guild.members.fetch(executor)
             .catch(() => null);
