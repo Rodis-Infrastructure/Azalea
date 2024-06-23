@@ -41,6 +41,7 @@ export default class RoleMembersRefresh extends Component {
             embed.setDescription("No members found.");
         } else {
             embed.setFields(mentions);
+            embed.setDescription(null);
         }
 
         await interaction.update({ embeds: [embed] });
