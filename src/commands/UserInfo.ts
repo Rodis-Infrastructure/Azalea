@@ -84,7 +84,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
                 url: user.displayAvatarURL()
             })
             .setFields({
-                name: "Created",
+                name: "Account Created",
                 value: time(user.createdAt, TimestampStyles.RelativeTime),
                 inline: true
             })
