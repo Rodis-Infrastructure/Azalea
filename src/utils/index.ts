@@ -3,7 +3,7 @@ import {
     Role,
     ThreadChannel,
     TextBasedChannel,
-    cleanContent as djsCleanContent
+    cleanContent as djsCleanContent, User, GuildMember
 } from "discord.js";
 
 import { Snowflake } from "discord-api-types/v10";
@@ -261,4 +261,36 @@ export function cleanContent(str: string, channel: TextBasedChannel): string {
     // Add IDs to mentions
     str = str.replace(/<@!?(\d{17,19})>/g, `<@$1> ($1)`);
     return djsCleanContent(str, channel);
+}
+
+/**
+ * Get the name of a user that is on the surface level.
+ * The following order is used:
+ *
+ * 1. Server nickname
+ * 2. Global display name
+ * 3. Username (returned as @username)
+ *
+ * @param member - The guild member or user to get the surface name of
+ * @returns The user's surface name
+ */
+export function getSurfaceName(member: GuildMember | User): string {
+    if (member instanceof GuildMember) {
+        return member.nickname ?? member.user.globalName ?? `@${member.user.username}`;
+    }
+
+    return member.globalName ?? `@${member.username}`;
+}
+
+/**
+ * Stringifies an object to JSON with BigInt support
+ *
+ * @param obj - The object to stringify
+ * @param space - The number of spaces to use for indentation
+ * @returns The JSON stringified object
+ */
+export function stringifyJSON(obj: unknown, space = 2): string {
+    return JSON.stringify(obj, (_, v) => {
+        return typeof v === "bigint" ? v.toString() : v;
+    }, space);
 }

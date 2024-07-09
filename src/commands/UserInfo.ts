@@ -20,6 +20,7 @@ import { BLANK_EMBED_FIELD, DEFAULT_EMBED_COLOR, DEFAULT_INFRACTION_REASON } fro
 import { prisma } from "./..";
 import { Permission, UserFlag } from "@managers/config/schema";
 import { InfractionAction, InfractionUtil } from "@utils/infractions";
+import { getSurfaceName } from "@/utils";
 
 import Command from "@managers/commands/Command";
 import GuildConfig from "@managers/config/GuildConfig";
@@ -74,12 +75,12 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
         executor: GuildMember;
     }): Promise<InteractionReplyOptions> {
         const { member, user, config, executor } = data;
-        const surfaceName = member?.nickname ?? user.displayName;
+        const surfaceName = getSurfaceName(member ?? user);
 
         const embed = new EmbedBuilder()
             .setColor(DEFAULT_EMBED_COLOR)
             .setAuthor({
-                name: `@${user.username} | ${surfaceName}`,
+                name: surfaceName,
                 iconURL: user.displayAvatarURL(),
                 url: user.displayAvatarURL()
             })

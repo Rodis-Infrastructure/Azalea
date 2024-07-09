@@ -34,6 +34,7 @@ export default class SearchInfractionsCtx extends Command<UserContextMenuCommand
             user: interaction.targetUser,
             guildId: interaction.guildId,
             filter: InfractionSearchFilter.Infractions,
+            member,
             page: 1
         });
     }

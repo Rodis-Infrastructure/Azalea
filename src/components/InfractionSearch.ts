@@ -25,7 +25,11 @@ export default class InfractionSearch extends Component {
         }
 
         const userId = interaction.customId.split("-")[2];
-        const user = await client.users.fetch(userId).catch(() => null);
+        const member = await interaction.guild.members.fetch(userId)
+            .catch(() => null);
+
+        const user = member?.user ?? await client.users.fetch(userId)
+            .catch(() => null);
 
         if (!user) {
             return {
@@ -39,6 +43,7 @@ export default class InfractionSearch extends Component {
             filter: InfractionSearchFilter.Infractions,
             guildId: interaction.guildId,
             page: 1,
+            member,
             user
         });
     }

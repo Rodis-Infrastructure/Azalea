@@ -58,7 +58,11 @@ export async function handleInfractionSearchPagination(interaction: ButtonIntera
 
     // Format: "User ID: {user_id}"
     const targetId = embed.footer!.text.split(": ")[1];
-    const target = await client.users.fetch(targetId).catch(() => null);
+    const targetMember = await interaction.guild.members.fetch(targetId)
+        .catch(() => null);
+
+    const target = targetMember?.user ?? await client.users.fetch(targetId)
+        .catch(() => null);
 
     if (!target) {
         return {
@@ -81,6 +85,7 @@ export async function handleInfractionSearchPagination(interaction: ButtonIntera
     // because they share the same properties
     const updatedResult = await Infraction.search({
         guildId: interaction.guildId,
+        member: targetMember,
         user: target,
         page,
         filter

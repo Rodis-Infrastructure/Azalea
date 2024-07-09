@@ -27,7 +27,7 @@ import {
     elipsify,
     humanizeTimestamp,
     userMentionWithId,
-    pluralize
+    pluralize, getSurfaceName
 } from "@/utils";
 
 import { InteractionReplyData } from "@utils/types";
@@ -220,6 +220,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                     guildId: interaction.guildId,
                     page: 1,
                     filter,
+                    member,
                     user
                 });
             }
@@ -479,6 +480,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             select: {
                 executor_id: true,
                 expires_at: true,
+                target_id: true,
                 action: true,
                 flag: true
             }
@@ -520,10 +522,16 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             .setColor(Colors.Red)
             .setAuthor({ name: "Infraction Archived" })
             .setTitle(formattedAction)
-            .setFields([{
-                name: "Archived By",
-                value: userMentionWithId(executor.id)
-            }])
+            .setFields([
+                {
+                    name: "Archived By",
+                    value: userMentionWithId(executor.id)
+                },
+                {
+                    name: "Offender",
+                    value: userMentionWithId(infraction.target_id)
+                }
+            ])
             .setFooter({ text: `#${infractionId}` })
             .setTimestamp();
 
@@ -841,6 +849,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
     /**
      * Searches a user's infractions
      *
+     * @param data.member - The member to search the infractions of
      * @param data.user - The user to search the infractions of
      * @param data.guildId - The guild ID to search infractions in
      * @param data.filter - The filter to apply to the search
@@ -848,12 +857,13 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
      * @returns An interaction reply with the search results
      */
     static async search(data: {
+        member: GuildMember | null,
         user: User,
         guildId: Snowflake,
         filter: InfractionSearchFilter,
         page: number
     }): Promise<InteractionReplyData> {
-        const { user, guildId, filter, page } = data;
+        const { member, user, guildId, filter, page } = data;
 
         const RESULTS_PER_PAGE = 5;
         const skipMultiplier = page - 1;
@@ -881,11 +891,12 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             })
         ]);
 
+        const surfaceName = getSurfaceName(member ?? user);
         const embed = new EmbedBuilder()
             .setColor(DEFAULT_EMBED_COLOR)
             .setTitle(`Filter: ${filter}`)
             .setAuthor({
-                name: `Infractions of @${user.username}`,
+                name: `Infractions of ${surfaceName}`,
                 iconURL: user.displayAvatarURL(),
                 url: user.displayAvatarURL()
             })
