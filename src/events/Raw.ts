@@ -2,10 +2,13 @@
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
 
-import { Events, GatewayDispatchEvents } from "discord.js";
+import { Colors, EmbedBuilder, Events, GatewayDispatchEvents } from "discord.js";
 import { RawMessageData } from "discord.js/typings/rawDataTypes";
-import { Permission } from "@managers/config/schema";
+import { LoggingEvent, Permission } from "@managers/config/schema";
 import { client } from "./..";
+import { channelMentionWithName, userMentionWithId } from "@/utils";
+import { formatMessageContentForShortLog } from "@utils/messages";
+import { log } from "@utils/logging";
 
 export default class Raw extends EventListener {
     constructor() {
@@ -50,5 +53,35 @@ export default class Raw extends EventListener {
         // Delete the forwarded message
         channel.messages.delete(data.id)
             .catch(() => null);
+
+        // Log the deletion of the forwarded message
+        // @ts-expect-error - 'message_snapshots' exists in 'data'
+        const content = data.message_snapshots[0].message.content;
+        const embed = new EmbedBuilder()
+            .setColor(Colors.Red)
+            .setAuthor({ name: "Forwarded Message Deleted" })
+            .setFields([
+                {
+                    name: "Author",
+                    value: userMentionWithId(data.author.id)
+                },
+                {
+                    name: "Channel",
+                    value: channelMentionWithName(channel)
+                },
+                {
+                    name: "Forwarded Message Content",
+                    value: await formatMessageContentForShortLog(content, null, null)
+                }
+            ])
+            .setTimestamp();
+
+        log({
+            event: LoggingEvent.MessageDelete,
+            message: { embeds: [embed] },
+            config,
+            member,
+            channel
+        });
     }
 }
