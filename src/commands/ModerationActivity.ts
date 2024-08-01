@@ -202,7 +202,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
             WHERE strftime(${format}, datetime(created_at / 1000, 'unixepoch')) = ${value}
               AND author_id = ${userId}
               AND guild_id = ${guildId}
-              AND status NOT IN (${BanRequestStatus.Approved}, ${BanRequestStatus.Denied})
+              AND status IN (${BanRequestStatus.Approved}, ${BanRequestStatus.Denied})
         `;
 
         const activity: ModerationActivity = {
