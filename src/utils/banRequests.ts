@@ -45,11 +45,11 @@ export default class BanRequestUtil {
         });
     }
 
-    static async setStatus(requestId: Snowflake, status: BanRequestStatus): Promise<BanRequest | null> {
+    static async setStatus(requestId: Snowflake, status: BanRequestStatus, reviewerId: Snowflake): Promise<BanRequest | null> {
         try {
             return await prisma.banRequest.update({
                 where: { id: requestId },
-                data: { status }
+                data: { status, reviewer_id: reviewerId }
             });
         } catch {
             return null;
@@ -278,7 +278,7 @@ export default class BanRequestUtil {
             return;
         }
 
-        const requestData = await BanRequestUtil.setStatus(request.id, BanRequestStatus.Denied);
+        const requestData = await BanRequestUtil.setStatus(request.id, BanRequestStatus.Denied, reviewer.id);
 
         if (!requestData) {
             config.sendNotification(`${reviewer} Failed to deny the ban request, the ban request was not found.`);

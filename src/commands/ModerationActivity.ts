@@ -233,8 +233,8 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
             }
         }
 
-        Moderation._evaluateRequestedMutes(muteRequests, activity);
-        Moderation._evaluateRequestedBans(banRequests, activity);
+        Moderation._evaluateMuteRequests(muteRequests, activity, userId);
+        Moderation._evaluateBanRequests(banRequests, activity, userId);
 
         return activity;
     }
@@ -291,32 +291,54 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
         }
     }
 
-    private static _evaluateRequestedMutes(muteRequests: MuteRequest[], activity: ModerationActivity): void {
+    private static _evaluateMuteRequests(muteRequests: MuteRequest[], activity: ModerationActivity, targetId: Snowflake): void {
         for (const muteRequest of muteRequests) {
+            const isReviewer = muteRequest.reviewer_id === targetId;
+            const isRequestAuthor = muteRequest.author_id === targetId;
+
             switch (muteRequest.status) {
                 case MuteRequestStatus.Approved: {
-                    activity.requested.approved.mutes++;
+                    if (isReviewer) {
+                        activity.reviewed.approved.mutes++;
+                    } else if (isRequestAuthor) {
+                        activity.requested.approved.mutes++;
+                    }
                     break;
                 }
 
                 case MuteRequestStatus.Denied: {
-                    activity.requested.denied.mutes++;
+                    if (isReviewer) {
+                        activity.reviewed.denied.mutes++;
+                    } else if (isRequestAuthor) {
+                        activity.requested.denied.mutes++;
+                    }
                     break;
                 }
             }
         }
     }
 
-    private static _evaluateRequestedBans(banRequests: BanRequest[], activity: ModerationActivity): void {
+    private static _evaluateBanRequests(banRequests: BanRequest[], activity: ModerationActivity, targetId: Snowflake): void {
         for (const banRequest of banRequests) {
+            const isReviewer = banRequest.reviewer_id === targetId;
+            const isRequestAuthor = banRequest.author_id === targetId;
+
             switch (banRequest.status) {
                 case BanRequestStatus.Approved: {
-                    activity.requested.approved.bans++;
+                    if (isReviewer) {
+                        activity.reviewed.approved.bans++;
+                    } else if (isRequestAuthor) {
+                        activity.requested.approved.bans++;
+                    }
                     break;
                 }
 
                 case BanRequestStatus.Denied: {
-                    activity.requested.denied.bans++;
+                    if (isReviewer) {
+                        activity.reviewed.denied.bans++;
+                    } else if (isRequestAuthor) {
+                        activity.requested.denied.bans++;
+                    }
                     break;
                 }
             }

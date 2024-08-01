@@ -37,11 +37,11 @@ export default class MuteRequestUtil {
         });
     }
 
-    static async setStatus(requestId: Snowflake, status: MuteRequestStatus): Promise<MuteRequest | null> {
+    static async setStatus(requestId: Snowflake, status: MuteRequestStatus, reviewerId: Snowflake): Promise<MuteRequest | null> {
         try {
             return await prisma.muteRequest.update({
                 where: { id: requestId },
-                data: { status }
+                data: { status, reviewer_id: reviewerId }
             });
         } catch {
             return null;
@@ -297,7 +297,7 @@ export default class MuteRequestUtil {
             return;
         }
 
-        const requestData = await MuteRequestUtil.setStatus(request.id, MuteRequestStatus.Denied);
+        const requestData = await MuteRequestUtil.setStatus(request.id, MuteRequestStatus.Denied, reviewer.id);
 
         if (!requestData) {
             config.sendNotification(`${reviewer} Failed to deny the request, the request was not found.`);

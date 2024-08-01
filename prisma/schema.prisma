@@ -9,26 +9,28 @@ datasource db {
 }
 
 model BanRequest {
-  id         String   @id
-  author_id  String
-  target_id  String
-  guild_id   String
-  reason     String
-  created_at DateTime @default(now())
-  status     Int      @default(1)
+  id          String   @id
+  author_id   String
+  target_id   String
+  guild_id    String
+  reason      String
+  created_at  DateTime @default(now())
+  status      Int      @default(1)
+  reviewer_id String?
   /// ID of the auto-mute infraction
-  mute_id    Int?
+  mute_id     Int?
 }
 
 model MuteRequest {
-  id         String   @id
-  author_id  String
-  target_id  String
-  guild_id   String
-  reason     String
-  created_at DateTime @default(now())
-  status     Int      @default(1)
-  duration   Int
+  id          String   @id
+  author_id   String
+  target_id   String
+  guild_id    String
+  reason      String
+  created_at  DateTime @default(now())
+  status      Int      @default(1)
+  duration    Int
+  reviewer_id String?
 }
 
 model Message {
