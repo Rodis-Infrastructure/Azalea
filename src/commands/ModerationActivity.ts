@@ -280,20 +280,12 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
     private static _evaluateReviewedInfraction(infraction: Infraction, activity: ModerationActivity): void {
         switch (infraction.action) {
             case InfractionAction.Ban: {
-                if (infraction.status === BanRequestStatus.Approved) {
-                    activity.reviewed.approved.bans++;
-                } else {
-                    activity.reviewed.denied.bans++;
-                }
+                activity.reviewed.approved.bans++;
                 break;
             }
 
             case InfractionAction.Mute: {
-                if (infraction.status === MuteRequestStatus.Approved) {
-                    activity.reviewed.approved.mutes++;
-                } else {
-                    activity.reviewed.denied.mutes++;
-                }
+                activity.reviewed.approved.mutes++;
                 break;
             }
         }
