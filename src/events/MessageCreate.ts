@@ -1,20 +1,23 @@
 import {
     ActionRowBuilder,
     ButtonBuilder,
-    ButtonStyle,
+    ButtonStyle, Colors,
     EmbedBuilder,
     Events,
     Message,
     PartialMessage,
+    PermissionFlagsBits,
     SelectMenuComponentOptionData,
     StringSelectMenuBuilder
 } from "discord.js";
 
-import { Messages, temporaryReply } from "@utils/messages";
-import { pluralize, userMentionWithId } from "@/utils";
+import { formatMessageContentForShortLog, Messages, temporaryReply } from "@utils/messages";
+import { getSurfaceName, pluralize, userMentionWithId } from "@/utils";
 import { RoleRequestNoteAction } from "@/components/RoleRequestNote";
-import { client } from "./..";
+import { client, prisma } from "./..";
 import { DEFAULT_EMBED_COLOR } from "@utils/constants";
+import { ChannelScoping } from "@managers/config/schema";
+import { HighlightChannelScopingType } from "@/commands/Highlight";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
@@ -60,6 +63,78 @@ export default class MessageCreate extends EventListener {
         // Handle role requests
         if (config.data.role_requests?.channel_id === message.channel.id && message.mentions.users.size) {
             MessageCreate._createRoleRequest(message, config);
+        }
+
+        // Handle message highlights
+        MessageCreate._highlightMessage(message, config);
+    }
+
+    private static async _highlightMessage(message: Message<true>, config: GuildConfig): Promise<void> {
+        const highlights = await prisma.highlight.findMany({
+            where: {
+                guild_id: message.guildId
+            },
+            select: {
+                user_id: true,
+                patterns: true,
+                channel_scoping: true
+            }
+        });
+
+        for (const highlight of highlights) {
+            // Ensure the user can view the channel
+            const userCanViewChannel = message.channel
+                .permissionsFor(highlight.user_id)?.has(PermissionFlagsBits.ViewChannel);
+
+            if (!userCanViewChannel) continue;
+
+            // Split the channel scoping into whitelisted and blacklisted channels
+            const channelScoping = highlight.channel_scoping.reduce<ChannelScoping>((acc, channel) => {
+                if (channel.type === HighlightChannelScopingType.Whitelist) {
+                    acc.include_channels.push(channel.channel_id);
+                } else {
+                    acc.exclude_channels.push(channel.channel_id);
+                }
+
+                return acc;
+            }, {
+                include_channels: [],
+                exclude_channels: []
+            });
+
+            if (!config.channelInScope(message.channel, channelScoping)) continue;
+
+            const matchedPattern = highlight.patterns.find(({ pattern }) => {
+                const parsedPattern = `\\b${pattern.replaceAll("*", "(\\n|\\r|.)*")}\\b`;
+                const re = new RegExp(parsedPattern, "i");
+
+                return re.test(message.content);
+            });
+
+            if (!matchedPattern) continue;
+
+            const user = await client.users.fetch(highlight.user_id).catch(() => null);
+            const formattedContent = await formatMessageContentForShortLog(message.content, null, message.url);
+
+            const embed = new EmbedBuilder()
+                .setColor(Colors.Yellow)
+                .setAuthor({
+                    name: `Message from ${getSurfaceName(message.member ?? message.author)}`,
+                    iconURL: message.author.displayAvatarURL()
+                })
+                .setFields([
+                    {
+                        name: `Highlight in ${message.channel}`,
+                        value: formattedContent
+                    },
+                    {
+                        name: "Pattern",
+                        value: `\`${matchedPattern.pattern}\``
+                    }
+                ])
+                .setTimestamp();
+
+            user?.send({ embeds: [embed] }).catch(() => null);
         }
     }
 

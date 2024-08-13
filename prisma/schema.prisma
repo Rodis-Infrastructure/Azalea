@@ -131,3 +131,32 @@ model PermissionOverwrites {
   /// Stringified JSON object of the permission overwrites
   overwrites String
 }
+
+model Highlight {
+  user_id         String
+  guild_id        String
+  patterns        HighlightPattern[]
+  channel_scoping HighlightChannelScoping[]
+
+  @@id([user_id, guild_id])
+}
+
+model HighlightPattern {
+  user_id   String
+  guild_id  String
+  pattern   String
+  highlight Highlight @relation(fields: [user_id, guild_id], references: [user_id, guild_id], onDelete: Cascade)
+
+  @@id([user_id, guild_id, pattern])
+}
+
+model HighlightChannelScoping {
+  user_id    String
+  guild_id   String
+  channel_id String
+  /// Whitelist [`0`] or Blacklist [`1`]
+  type       Int
+  highlight  Highlight @relation(fields: [user_id, guild_id], references: [user_id, guild_id], onDelete: Cascade)
+
+  @@id([user_id, guild_id, channel_id])
+}
