@@ -82,6 +82,9 @@ export default class MessageCreate extends EventListener {
         });
 
         for (const highlight of highlights) {
+            // Ignore messages from the highlight user
+            if (highlight.user_id === message.author.id) continue;
+
             // Ensure the user can view the channel
             const userCanViewChannel = message.channel
                 .permissionsFor(highlight.user_id)?.has(PermissionFlagsBits.ViewChannel);
