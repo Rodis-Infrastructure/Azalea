@@ -1,8 +1,13 @@
 import Command from "@managers/commands/Command";
+import safe from "safe-regex";
 
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, Colors, EmbedBuilder } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
+
+const PATTERN_LIMIT = 20;
+const PATTERN_CHAR_LIMIT = 45;
+const CHANNEL_LIMIT = 40;
 
 export default class Highlight extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -23,6 +28,7 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
                                 name: "pattern",
                                 description: "The pattern to add",
                                 type: ApplicationCommandOptionType.String,
+                                max_length: PATTERN_CHAR_LIMIT,
                                 required: true
                             }]
                         },
@@ -157,6 +163,31 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 
     private static async _addPattern(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
         const pattern = interaction.options.getString("pattern", true);
+        const patternCount = await prisma.highlightPattern.count({
+            where: {
+                user_id: interaction.user.id,
+                guild_id: interaction.guild.id
+            }
+        });
+
+        if (patternCount === PATTERN_LIMIT) {
+            return {
+                content: `You have reached the maximum of \`${PATTERN_LIMIT}\` patterns.`,
+                temporary: true,
+                ephemeral: true
+            };
+        }
+
+        const regexPattern = pattern.replaceAll("*", "(\n|\r|.)*");
+        const isSafePattern = safe(regexPattern);
+
+        if (!isSafePattern) {
+            return {
+                content: "Failed to add pattern. The pattern provided has been flagged as unsafe or it exceeds the repetition limit (`25`).",
+                ephemeral: true,
+                temporary: true
+            };
+        }
 
         try {
             await prisma.highlight.upsert({
@@ -187,7 +218,7 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
             };
         }
 
-        return `Successfully added \`${pattern}\` to your highlights.\n\n> Please make sure the bot can DM you`;
+        return `Successfully added \`${pattern}\` to your highlights (${patternCount + 1}/${PATTERN_LIMIT})`;
     }
 
     private static async _removePattern(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
@@ -229,6 +260,21 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
         const channel = interaction.options.getChannel("channel", true);
         const scopingType = interaction.options.getInteger("type", true);
         const stringifiedScopingType = scopingType === HighlightChannelScopingType.Whitelist ? "whitelist" : "blacklist";
+        const channelCount = await prisma.highlightChannelScoping.count({
+            where: {
+                user_id: interaction.user.id,
+                guild_id: interaction.guild.id,
+                type: scopingType
+            }
+        });
+
+        if (channelCount === CHANNEL_LIMIT) {
+            return {
+                content: `You have reached the maximum of \`${CHANNEL_LIMIT}\` ${stringifiedScopingType}ed channels.`,
+                ephemeral: true,
+                temporary: true
+            };
+        }
 
         try {
             await prisma.highlight.upsert({
@@ -265,7 +311,7 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
             };
         }
 
-        return `Successfully ${stringifiedScopingType}ed ${channel} for your highlights.`;
+        return `Successfully ${stringifiedScopingType}ed ${channel} for your highlights (${channelCount + 1}/${CHANNEL_LIMIT})`;
     }
 
     private static async _removeChannelScoping(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
@@ -317,7 +363,8 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
             }
         });
 
-        const patterns = highlights?.patterns.map(({ pattern }) => `\`${pattern}\``).join(",\n") || "None";
+        const patternCount = highlights?.patterns.length ?? 0;
+        const patterns = highlights?.patterns.map(({ pattern }) => `\`${pattern}\``).join("\n") || "None";
 
         const [whitelistedChannels, blacklistedChannels] = highlights?.channel_scoping.reduce<[string[], string[]]>((acc, channel) => {
             const index = channel.type === HighlightChannelScopingType.Whitelist ? 0 : 1;
@@ -333,17 +380,17 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
             })
             .setFields([
                 {
-                    name: "Patterns",
+                    name: `Patterns (${patternCount}/${PATTERN_LIMIT})`,
                     value: patterns
                 },
                 {
-                    name: "Whitelisted Channels",
-                    value: whitelistedChannels.join(",\n") || "None",
+                    name: `Whitelisted Channels (${whitelistedChannels.length}/${CHANNEL_LIMIT})`,
+                    value: whitelistedChannels.join("\n") || "None",
                     inline: true
                 },
                 {
-                    name: "Blacklisted Channels",
-                    value: blacklistedChannels.join(",\n") || "None",
+                    name: `Blacklisted Channels (${blacklistedChannels.length}/${CHANNEL_LIMIT})`,
+                    value: blacklistedChannels.join("\n") || "None",
                     inline: true
                 }
             ]);
