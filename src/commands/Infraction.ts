@@ -214,7 +214,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                 }
 
                 const user = member?.user ?? interaction.options.getUser("user", true);
-                const filter = (interaction.options.getString("filter") ?? InfractionSearchFilter.Infractions) as InfractionSearchFilter;
+                const filter = (interaction.options.getString("filter") ?? InfractionSearchFilter.All) as InfractionSearchFilter;
 
                 return Infraction.search({
                     guildId: interaction.guildId,
