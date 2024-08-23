@@ -226,9 +226,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
         };
 
         for (const infraction of infractions) {
-            if (infraction.request_author_id) {
-                Moderation._evaluateReviewedInfraction(infraction, activity);
-            } else {
+            if (!infraction.request_author_id) {
                 Moderation._evaluateDealtInfraction(infraction, activity);
             }
         }
@@ -272,20 +270,6 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 
             case InfractionAction.Warn: {
                 activity.executed.warns++;
-                break;
-            }
-        }
-    }
-
-    private static _evaluateReviewedInfraction(infraction: Infraction, activity: ModerationActivity): void {
-        switch (infraction.action) {
-            case InfractionAction.Ban: {
-                activity.reviewed.approved.bans++;
-                break;
-            }
-
-            case InfractionAction.Mute: {
-                activity.reviewed.approved.mutes++;
                 break;
             }
         }
