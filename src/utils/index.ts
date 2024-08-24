@@ -275,11 +275,18 @@ export function cleanContent(str: string, channel: TextBasedChannel): string {
  * @returns The user's surface name
  */
 export function getSurfaceName(member: GuildMember | User): string {
-    if (member instanceof GuildMember) {
-        return member.nickname ?? member.user.globalName ?? `@${member.user.username}`;
+    // The displayName getter works in the following order:
+    // guild nickname OR global name OR username
+    const displayName = member.displayName;
+    const username = member instanceof GuildMember
+        ? member.user.username
+        : member.username;
+
+    if (username === displayName) {
+        return `@${username}`;
     }
 
-    return member.globalName ?? `@${member.username}`;
+    return `@${username} (${displayName})`;
 }
 
 /**
