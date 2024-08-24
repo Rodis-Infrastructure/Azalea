@@ -30,6 +30,7 @@ export default class Ready extends EventListener {
         ConfigManager.guildConfigs.forEach(config => {
             config.startScheduledMessageCronJobs();
             config.startMuteRequestReviewReminderCronJobs();
+            config.startBanRequestReviewReminderCronJobs();
             config.startMessageReportReviewReminderCronJob();
             config.startMessageReportRemovalCronJob();
             config.startUserReportReviewReminderCronJob();
