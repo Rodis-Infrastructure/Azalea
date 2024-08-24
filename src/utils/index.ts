@@ -286,7 +286,7 @@ export function getSurfaceName(member: GuildMember | User): string {
         return `@${username}`;
     }
 
-    return `@${username} (${displayName})`;
+    return `@${username} | ${displayName}`;
 }
 
 /**
