@@ -16,6 +16,7 @@ import { client, prisma } from "./..";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { removeClientReactions, temporaryReply } from "./messages";
 import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
+import { SECONDS_IN_DAY } from "@/commands/Ban";
 import { userMentionWithId } from "./index";
 import { log } from "./logging";
 
@@ -247,7 +248,7 @@ export default class BanRequestUtil {
         try {
             await config.guild.members.ban(targetId, {
                 reason: data.reason,
-                deleteMessageSeconds: config.data.delete_message_seconds_on_ban
+                deleteMessageSeconds: config.data.delete_message_days_on_ban * SECONDS_IN_DAY
             });
         } catch {
             InfractionManager.deleteInfraction(infraction.id);

@@ -488,8 +488,8 @@ export const rawGuildConfigSchema = z.object({
     notification_channel: snowflakeSchema.optional(),
     lockdown: lockdownSchema.optional(),
     media_conversion_channel: snowflakeSchema.optional(),
-    // Period of time to delete messages on ban (in seconds) - Default: 0 (disabled)
-    delete_message_seconds_on_ban: z.number().max(604800).default(0),
+    // Period of time to delete messages on ban (in days) - Default: 0 (disabled)
+    delete_message_days_on_ban: z.number().max(7).default(0),
     nickname_censorship: nicknameCensorshipSchema.default({}),
     quick_responses: z.array(quickResponseSchema).max(25).default([]),
     role_requests: roleRequestsSchema.optional(),

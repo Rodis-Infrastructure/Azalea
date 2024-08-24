@@ -7,7 +7,7 @@ import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import Sentry from "@sentry/node";
 
-const SECONDS_IN_DAY = 86400;
+export const SECONDS_IN_DAY = 86400;
 
 /**
  * Bans a user from the server.
@@ -101,10 +101,9 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
             reason
         });
 
-        const deleteMessageDays = interaction.options.getInteger("delete_message_days");
-        const deleteMessageSeconds = deleteMessageDays
-            ? deleteMessageDays * SECONDS_IN_DAY
-            : config.data.delete_message_seconds_on_ban;
+        const deleteMessageDays = interaction.options.getInteger("delete_message_days")
+            ?? config.data.delete_message_days_on_ban;
+        const deleteMessageSeconds = deleteMessageDays * SECONDS_IN_DAY;
 
         try {
             await interaction.guild.members.ban(user, { reason, deleteMessageSeconds });
