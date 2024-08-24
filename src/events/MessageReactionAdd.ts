@@ -302,6 +302,10 @@ export default class MessageReactionAdd extends EventListener {
                     value: userMentionWithId(reporterId)
                 },
                 {
+                    name: "Source Channel",
+                    value: message.channel.toString()
+                },
+                {
                     name: "Target",
                     value: userMentionWithId(message.author.id)
                 },
