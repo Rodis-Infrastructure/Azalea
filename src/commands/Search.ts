@@ -38,10 +38,6 @@ export default class Search extends Command<ChatInputCommandInteraction<"cached"
                 : `${member.displayName} (${member.id})`;
 
             mappedUsers.push(surfaceName);
-
-            if (mappedUsers.length >= MAX_RESULTS) {
-                break;
-            }
         }
 
         const formattedResults = codeBlock(mappedUsers.join("\n"));
