@@ -245,10 +245,12 @@ export default class MuteRequestUtil {
             where: { id: request.id },
             create: {
                 ...data,
+                reviewer_id: reviewer.id,
                 status: MuteRequestStatus.Approved
             },
             update: {
                 status: MuteRequestStatus.Approved,
+                reviewer_id: reviewer.id,
                 target_id: data.target_id,
                 reason: data.reason,
                 duration: data.duration

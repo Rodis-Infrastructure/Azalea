@@ -227,10 +227,12 @@ export default class BanRequestUtil {
             where: { id: request.id },
             create: {
                 ...data,
+                reviewer_id: reviewer.id,
                 status: BanRequestStatus.Approved
             },
             update: {
                 status: BanRequestStatus.Approved,
+                reviewer_id: reviewer.id,
                 target_id: data.target_id,
                 reason: data.reason
             }
