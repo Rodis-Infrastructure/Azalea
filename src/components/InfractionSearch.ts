@@ -40,7 +40,7 @@ export default class InfractionSearch extends Component {
         }
 
         return Infraction.search({
-            filter: InfractionSearchFilter.Infractions,
+            filter: InfractionSearchFilter.All,
             guildId: interaction.guildId,
             page: 1,
             member,
