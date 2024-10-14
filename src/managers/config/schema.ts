@@ -385,19 +385,41 @@ const mediaChannelSchema = z.object({
 const nicknameCensorshipSchema = z.object({
     exclude_roles: z.array(snowflakeSchema).max(25).default([]),
     exclusion_response: messageContentSchema.default("You do not have permission to censor this user's nickname."),
-    // $RAND will be replaced with a random 5-digit number
+    /**
+     * The nickname to set when a user's nickname is censored
+     *
+     * ## Args
+     *
+     * - `$RAND`: A random 5-digit number
+     * - `$USER_ID`: The ID of the user
+     */
     nickname: placeholderString(["RAND", "USER_ID"], 1, 32).default("Censored User $RAND")
 });
 
 const infractionReasonsSchema = z.object({
     // Domains to blacklist in infraction reasons
     exclude_domains: z.object({
+        /**
+         * The message to send when a blacklisted domain is found in the reason
+         *
+         * ## Args
+         *
+         * - `$DOMAIN`: The blacklisted domain
+         */
         failure_message: messageContentSchema.default("The reason contains a blacklisted domain: `$DOMAIN`"),
         domains: z.array(domainSchema).default([])
     }).default({}),
     // Channels to blacklist in infraction reasons
     message_links: z.object({
         scoping: channelScopingSchema.default({}),
+        /**
+         * The message to send when a blacklisted channel is found in the reason
+         *
+         * ## Args
+         *
+         * - `$CHANNEL_ID`: The ID of the blacklisted channel
+         * - `$CHANNEL_NAME`: The name of the blacklisted channel
+         */
         failure_message: placeholderString(["CHANNEL_ID", "CHANNEL_NAME"], 1, 4000)
             .default("The reason contains a link to a message in a blacklisted channel: <#$CHANNEL_ID> (`$CHANNEL_NAME`)")
     }).default({})

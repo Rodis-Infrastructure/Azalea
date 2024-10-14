@@ -5,7 +5,7 @@ import { Snowflake } from "discord-api-types/v10";
 import { client, prisma } from "./..";
 import { log } from "./logging";
 import { LoggingEvent } from "@managers/config/schema";
-import { DEFAULT_INFRACTION_REASON } from "./constants";
+import { DEFAULT_INFRACTION_REASON, EMBED_FIELD_CHAR_LIMIT } from "./constants";
 import { TypedRegEx } from "typed-regex";
 import { Result } from "./types";
 
@@ -126,8 +126,25 @@ export class InfractionUtil {
             .join(" ");
     }
 
+    /**
+     * Validate an infraction reason. The following conditions must be met:
+     *
+     * - The reason must not contain any blacklisted domains
+     * - The reason must not contain links to messages in any out-of-scope channels
+     * - The reason does not exceed the character limit ({@link EMBED_FIELD_CHAR_LIMIT})
+     *
+     * @param reason
+     * @param config
+     */
     static async validateReason(reason: string, config: GuildConfig): Promise<Result> {
         const { exclude_domains, message_links } = config.data.infraction_reasons;
+
+        if (reason.length > EMBED_FIELD_CHAR_LIMIT) {
+            return {
+                success: false,
+                message: `The reason exceeds the character limit of \`${EMBED_FIELD_CHAR_LIMIT}\` characters.`
+            };
+        }
 
         const domainRegex = TypedRegEx(`https?://(?<domain>${exclude_domains.domains.join("|")})`, "i");
         const domainMatch = domainRegex.captures(reason);

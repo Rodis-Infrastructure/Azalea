@@ -22,8 +22,16 @@ import { log } from "./logging";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import StoreMediaCtx from "@/commands/StoreMediaCtx";
+import Sentry from "@sentry/node";
 
 export default class BanRequestUtil {
+    /**
+     * Create or update a ban request.
+     * See {@link BanRequestUtil._validate} for validation details.
+     *
+     * @param request - The request message.
+     * @param config - The guild configuration.
+     */
     static async upsert(request: Message<true>, config: GuildConfig): Promise<void> {
         const validationResult = await BanRequestUtil._validate(request, config);
 
@@ -46,6 +54,13 @@ export default class BanRequestUtil {
         });
     }
 
+    /**
+     * Update the status of a ban request in the database.
+     *
+     * @param requestId - The request's message ID.
+     * @param status - The new status.
+     * @param reviewerId - The reviewer's user ID.
+     */
     static async setStatus(requestId: Snowflake, status: BanRequestStatus, reviewerId: Snowflake): Promise<BanRequest | null> {
         try {
             return await prisma.banRequest.update({
@@ -58,16 +73,18 @@ export default class BanRequestUtil {
     }
 
     /**
-     * Perform validation on the ban request message.
+     * Perform validation on the ban request message. The following conditions must be met:
      *
-     * - Verify the request format.
-     * - Ensure the target is in the guild.
-     * - Ensure the target does not have a higher or equal role than the request author.
-     * - Create a new moderation request in the database.
+     * - Valid request format.
+     * - Target user exists.
+     * - Target user is not already banned.
+     * - Target user does not have a higher or equal role than the request author.
+     * - A request for the same user is not already pending.
+     * - The reason is valid. See {@link InfractionUtil.validateReason} for details.
      *
      * @param request - The request.
      * @param config - The guild configuration.
-     * @returns The target member and the request data: [targetMember, requestData]
+     * @returns The target user's ID and request data if the validation is successful. Otherwise, an error message.
      */
     private static async _validate(request: Message<true>, config: GuildConfig): Promise<Result<BanValidationResult>> {
         /**
@@ -101,6 +118,7 @@ export default class BanRequestUtil {
 
         const reasonValidationResult = await InfractionUtil.validateReason(args.reason, config);
 
+        // The infraction reason must be valid
         if (!reasonValidationResult.success) {
             return reasonValidationResult;
         }
@@ -113,6 +131,7 @@ export default class BanRequestUtil {
             .fetch(args.targetId)
             .catch(() => null);
 
+        // The target must user exist
         if (!target) {
             return {
                 success: false,
@@ -124,6 +143,7 @@ export default class BanRequestUtil {
             .then(() => true)
             .catch(() => false);
 
+        // The target user must not be banned
         if (isBanned) {
             return {
                 success: false,
@@ -131,7 +151,8 @@ export default class BanRequestUtil {
             };
         }
 
-        // Verify permissions
+        // Verify role hierarchy
+        // Request author must not be able to ban a member with a higher or equal role
         if (
             request.member &&
             targetMember &&
@@ -143,21 +164,26 @@ export default class BanRequestUtil {
             };
         }
 
-        // Check if the request is a duplicate
-        const originalRequest = await prisma.banRequest.findFirst({
-            select: { id: true },
-            where: {
-                NOT: { id: request.id },
-                target_id: args.targetId,
-                guild_id: config.guild.id,
-                status: BanRequestStatus.Pending
-            }
-        });
-
+        // Check whether a request for the same user is already pending
         // Ignore duplicate requests from bots
-        if (originalRequest && !request.author.bot) {
-            const requestURL = messageLink(request.channelId, originalRequest.id, request.guildId);
-            await temporaryReply(request, `A ban request for this user is already pending: ${requestURL}`, config.data.response_ttl);
+        if (!request.author.bot) {
+            const originalRequest = await prisma.banRequest.findFirst({
+                select: { id: true },
+                where: {
+                    NOT: { id: request.id },
+                    target_id: args.targetId,
+                    guild_id: config.guild.id,
+                    status: BanRequestStatus.Pending
+                }
+            });
+
+            if (originalRequest) {
+                const requestURL = messageLink(request.channelId, originalRequest.id, request.guildId);
+
+                // Notify the request author instead of rejecting the request
+                // since the duplication may be intentional
+                await temporaryReply(request, `A ban request for this user is already pending: ${requestURL}`, config.data.response_ttl);
+            }
         }
 
         return {
@@ -177,7 +203,12 @@ export default class BanRequestUtil {
     }
 
     /**
-     * Approve a moderation request.
+     * Approve a ban request by:
+     *
+     * - Logging the approval.
+     * - Ending any active mutes for the target user.
+     * - Storing the infraction in the database.
+     * - Banning the target user.
      *
      * @param request - The request message.
      * @param reviewer - The user approving the request.
@@ -200,7 +231,7 @@ export default class BanRequestUtil {
         const { targetId, data } = validationResult.data;
 
         // Log the approval
-        const embed = new EmbedBuilder()
+        const banRequestApproveEmbed = new EmbedBuilder()
             .setColor(Colors.Green)
             .setAuthor({ name: "Ban Request Approved" })
             .setFields([
@@ -217,12 +248,12 @@ export default class BanRequestUtil {
             channel: null,
             config,
             message: {
-                embeds: [embed]
+                embeds: [banRequestApproveEmbed]
             }
         });
 
-        const formattedReason = InfractionUtil.formatReason(data.reason);
-
+        // Store the ban request if it doesn't exist
+        // Update the reviewer and status if it does
         await prisma.banRequest.upsert({
             where: { id: request.id },
             create: {
@@ -247,20 +278,26 @@ export default class BanRequestUtil {
             action: InfractionAction.Ban
         });
 
+        // Try to ban the user
+        // if it fails, delete the infraction and notify the reviewer
         try {
             await config.guild.members.ban(targetId, {
                 reason: data.reason,
                 deleteMessageSeconds: config.data.delete_message_days_on_ban * SECONDS_IN_DAY
             });
-        } catch {
+        } catch (error) {
+            const sentryId = Sentry.captureException(error);
+
             InfractionManager.deleteInfraction(infraction.id);
-            config.sendNotification(`${reviewer} Failed to ban the user.`);
+            config.sendNotification(`${reviewer} An error occurred while banning the user (\`${sentryId}\`)`);
             return;
         }
 
         removeClientReactions(request);
         InfractionManager.endActiveMutes(config.guild.id, targetId);
         InfractionManager.logInfraction(infraction, reviewer, config);
+
+        const formattedReason = InfractionUtil.formatReason(data.reason);
 
         config.sendNotification(
             `${userMention(data.author_id)}'s ban request against ${userMention(data.target_id)} has been approved by ${reviewer} - \`#${infraction.id}\` ${formattedReason}`,
@@ -269,13 +306,18 @@ export default class BanRequestUtil {
     }
 
     /**
-     * Deny a moderation request.
+     * Deny a ban request by:
+     *
+     * - Logging the denial.
+     * - Ending any active mutes for the target user.
+     * - Notifying the request author.
      *
      * @param request - The request message.
      * @param reviewer - The user denying the request.
      * @param config - The guild configuration.
      */
     static async deny(request: Message<true>, reviewer: GuildMember, config: GuildConfig): Promise<void> {
+        // Verify permissions
         if (!config.hasPermission(reviewer, Permission.ManageBanRequests)) {
             config.sendNotification(`${reviewer} You do not have permission to manage ban requests.`);
             return;
@@ -288,14 +330,17 @@ export default class BanRequestUtil {
             return;
         }
 
+        // End the target user's timeout if they are in the guild
         await config.guild.members.fetch(requestData.target_id)
-            .then(target => target.timeout(null, "Ban request denial"))
+            .then(target => {
+                target.timeout(null, `Ban request denied by @${reviewer.user.username} (${reviewer.id})\n${request.url}`);
+            })
             .catch(() => null);
 
         InfractionManager.endActiveMutes(config.guild.id, requestData.target_id);
 
         // Log the denial
-        const embed = new EmbedBuilder()
+        const banRequestDenyEmbed = new EmbedBuilder()
             .setColor(Colors.Red)
             .setAuthor({ name: "Ban Request Denied" })
             .setFields([
@@ -312,16 +357,15 @@ export default class BanRequestUtil {
             channel: null,
             config,
             message: {
-                embeds: [embed]
+                embeds: [banRequestDenyEmbed]
             }
         });
 
-        const reviewerName = reviewer.nickname ?? reviewer.displayName;
         const targetMention = userMention(requestData.target_id);
         const requestHyperlink = hyperlink("Your ban request", request.url);
 
         removeClientReactions(request);
-        config.sendNotification(`${request.author} ${requestHyperlink} against ${targetMention} has been denied by \`${reviewerName}\`.`);
+        config.sendNotification(`${request.author} ${requestHyperlink} against ${targetMention} has been denied by \`${reviewer.displayName}\`.`);
     }
 }
 
@@ -331,9 +375,14 @@ interface BanValidationResult {
 }
 
 export enum BanRequestStatus {
+    /** The request is pending review. */
     Pending = 1,
+    /** The request has been approved and the user has been banned. */
     Approved = 2,
+    /** The request has been denied and the user has been unmuted. */
     Denied = 3,
+    /** The request has been deleted. */
     Deleted = 4,
+    /** An unsupported reaction has been added to the request. */
     Unknown = 5
 }
