@@ -115,6 +115,9 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
                     action: InfractionAction.Ban,
                     target_id: user.id,
                     guild_id: config.guild.id
+                },
+                orderBy: {
+                    created_at: "desc"
                 }
             }) ?? {
                 reason: DEFAULT_INFRACTION_REASON
