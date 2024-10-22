@@ -99,31 +99,32 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             });
         }
 
-        const isBanned = await config.guild.bans
+        const [isBanned, banReason] = await config.guild.bans
             .fetch(user.id)
-            .then(() => true)
-            .catch(() => false);
+            .then(ban => [true, ban.reason] as const)
+            .catch(() => [false, null] as const);
 
-        if (isBanned) {
-            // Fetch the infraction from the database
-            // in order to get the most up-to-date reason
-            const { reason } = await prisma.infraction.findFirst({
-                select: {
-                    reason: true
-                },
+        // Fetch the infraction from the database
+        // in order to get the most up-to-date reason
+        // @formatter:off
+        const ban = !isBanned
+            ? null
+            : await prisma.infraction.findFirst({
+                select: { reason: true, id: true },
                 where: {
                     action: InfractionAction.Ban,
                     target_id: user.id,
                     guild_id: config.guild.id
                 },
-                orderBy: {
-                    created_at: "desc"
-                }
+                orderBy: { created_at: "desc" }
             }) ?? {
-                reason: DEFAULT_INFRACTION_REASON
+                reason: banReason ?? DEFAULT_INFRACTION_REASON,
+                id: -1
             };
+        // @formatter:on
 
-            const reasonPreview = InfractionUtil.formatReasonPreview(reason ?? DEFAULT_INFRACTION_REASON);
+        if (ban && ban.id !== -1) {
+            const reasonPreview = InfractionUtil.formatReasonPreview(ban.reason ?? DEFAULT_INFRACTION_REASON);
 
             embed.setColor(Colors.Red);
             embed.setTitle("Banned");
@@ -160,24 +161,13 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             await UserInfo._getReceivedInfractions(embed, user.id, config.guild.id);
             const buttonRow = new ActionRowBuilder<ButtonBuilder>();
 
-            if (isBanned) {
-                const ban = await prisma.infraction.findFirst({
-                    select: { id: true },
-                    where: {
-                        action: InfractionAction.Ban,
-                        target_id: user.id,
-                        guild_id: config.guild.id
-                    }
-                });
+            if (ban) {
+                const banInfoButton = new ButtonBuilder()
+                    .setLabel("Ban Info")
+                    .setStyle(ButtonStyle.Danger)
+                    .setCustomId(`infraction-info-${ban.id}`);
 
-                if (ban) {
-                    const banInfoButton = new ButtonBuilder()
-                        .setLabel("Ban Info")
-                        .setStyle(ButtonStyle.Danger)
-                        .setCustomId(`infraction-info-${ban.id}`);
-
-                    buttonRow.addComponents(banInfoButton);
-                }
+                buttonRow.addComponents(banInfoButton);
             }
 
             const infractionSearchButton = new ButtonBuilder()
