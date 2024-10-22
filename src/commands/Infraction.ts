@@ -869,7 +869,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
         const skipMultiplier = page - 1;
         const queryConditions = Infraction._parseSearchFilter(filter);
 
-        const [infractions, infractionCount] = await prisma.$transaction([
+        const [infractions, infractionCount, archivedInfractionCount] = await prisma.$transaction([
             prisma.infraction.findMany({
                 skip: skipMultiplier * RESULTS_PER_PAGE,
                 take: RESULTS_PER_PAGE,
@@ -888,6 +888,13 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
                     guild_id: guildId,
                     ...queryConditions
                 }
+            }),
+            prisma.infraction.count({
+                where: {
+                    target_id: user.id,
+                    guild_id: guildId,
+                    ...Infraction._parseSearchFilter(InfractionSearchFilter.Archived)
+                }
             })
         ]);
 
@@ -902,6 +909,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
             })
             // InfractionSearchNext.ts relies on this format
             .setFooter({ text: `User ID: ${user.id}` });
+
+        if (archivedInfractionCount) {
+            embed.data.footer!.text = `Archived: ${archivedInfractionCount} | ${embed.data.footer!.text}`;
+        }
 
         const fields = Infraction._formatInfractionSearchFields(infractions);
 

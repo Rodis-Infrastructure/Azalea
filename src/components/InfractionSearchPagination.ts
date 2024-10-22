@@ -56,8 +56,8 @@ export async function handleInfractionSearchPagination(interaction: ButtonIntera
 
     const [embed] = interaction.message.embeds;
 
-    // Format: "User ID: {user_id}"
-    const targetId = embed.footer!.text.split(": ")[1];
+    // Format: "User ID: {user_id}" or "Archived: {n} | User ID: {user_id}"
+    const targetId = embed.footer!.text.split(" ").pop()!;
     const targetMember = await interaction.guild.members.fetch(targetId)
         .catch(() => null);
 
