@@ -22,7 +22,10 @@ export class InfractionManager {
 
     static async getInfractionCountMessage(targetId: Snowflake, guildId: Snowflake): Promise<string> {
         const infractions = await prisma.infraction.findMany({
-            select: { flag: true },
+            select: {
+                flag: true,
+                action: true
+            },
             where: {
                 target_id: targetId,
                 guild_id: guildId,
@@ -31,10 +34,22 @@ export class InfractionManager {
             }
         });
 
-        const autoInfCount = infractions.filter(infraction => infraction.flag & InfractionFlag.Automatic).length;
-        const manualInfCount = infractions.length - autoInfCount;
+        const infCount = infractions.filter(infraction => infraction.action !== InfractionAction.Note).length;
+        const noteCount = infractions.length - infCount;
 
-        return `\n\n-# This user has \`${infractions.length}\` ${pluralize(infractions.length, "infraction")} now (\`${manualInfCount}\` manual, \`${autoInfCount}\` automatic)`;
+        // Notes can't be automatic, so we can assume that all automatic infractions are not notes
+        const autoInfCount = infractions.filter(infraction => infraction.flag & InfractionFlag.Automatic).length;
+        const manualInfCount = infCount - autoInfCount;
+        const messageBuilder: string[] = ["\n\n-# This user has"];
+
+        if (noteCount) {
+            messageBuilder.push(`\`${noteCount}\` ${pluralize(noteCount, "note")} and`);
+        }
+
+        messageBuilder.push(`\`${infCount}\` ${pluralize(infCount, "infraction")} now`);
+        messageBuilder.push(`(\`${manualInfCount}\` manual, \`${autoInfCount}\` automatic)`);
+
+        return messageBuilder.join(" ");
     }
 
     static logInfraction(infraction: Infraction, executor: GuildMember | null, config: GuildConfig): void {
