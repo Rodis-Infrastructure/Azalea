@@ -197,12 +197,12 @@ export async function handleQuickMute(data: {
 
     if (targetMember) {
         return {
-            data: `Successfully ${message}\n\n${infractionCountMessage}`,
+            data: `Successfully ${message}${infractionCountMessage}`,
             success: true
         };
     } else {
         return {
-            data: `User not in server, I will try to ${message.replace("-", "if they join -")}\n\n${infractionCountMessage}`,
+            data: `User not in server, I will try to ${message.replace("-", "if they join -")}${infractionCountMessage}`,
             success: true
         };
     }

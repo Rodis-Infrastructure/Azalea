@@ -182,12 +182,12 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
 
         if (member) {
             return {
-                content: `Successfully ${message}\n\n${infractionCountMessage}`,
+                content: `Successfully ${message}${infractionCountMessage}`,
                 temporary: true
             };
         } else {
             return {
-                content: `User not in server, I will try to ${message.replace("-", "if they rejoin -")}\n\n${infractionCountMessage}`,
+                content: `User not in server, I will try to ${message.replace("-", "if they rejoin -")}${infractionCountMessage}`,
                 temporary: true
             };
         }

@@ -1,4 +1,4 @@
-import { humanizeTimestamp, userMentionWithId } from "./index";
+import { humanizeTimestamp, pluralize, userMentionWithId } from "./index";
 import { Infraction, Prisma } from "@prisma/client";
 import { ColorResolvable, Colors, EmbedBuilder, GuildMember } from "discord.js";
 import { Snowflake } from "discord-api-types/v10";
@@ -34,7 +34,7 @@ export class InfractionManager {
         const autoInfCount = infractions.filter(infraction => infraction.flag & InfractionFlag.Automatic).length;
         const manualInfCount = infractions.length - autoInfCount;
 
-        return `This user has \`${infractions.length}\` infractions now (\`${manualInfCount}\` manual, \`${autoInfCount}\` automatic)`;
+        return `\n\n-# This user has \`${infractions.length}\` ${pluralize(infractions.length, "infraction")} now (\`${manualInfCount}\` manual, \`${autoInfCount}\` automatic)`;
     }
 
     static logInfraction(infraction: Infraction, executor: GuildMember | null, config: GuildConfig): void {
