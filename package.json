@@ -11,7 +11,9 @@
     "url": "https://github.com/archasion"
   },
   "scripts": {
-    "start": "bun ./src/index.ts"
+    "start": "bun ./src/index.ts",
+    "db:migrate": "prisma migrate deploy",
+    "db:generate": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "5.13.0",
