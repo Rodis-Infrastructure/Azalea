@@ -193,14 +193,16 @@ export async function handleQuickMute(data: {
         config.sendNotification(`${executor} ${message}`, mention);
     }
 
+    const infractionCountMessage = await InfractionManager.getInfractionCountMessage(targetUserId, executor.guild.id);
+
     if (targetMember) {
         return {
-            data: `Successfully ${message}`,
+            data: `Successfully ${message}\n\n${infractionCountMessage}`,
             success: true
         };
     } else {
         return {
-            data: `User not in server, I will try to ${message.replace("-", "if they join -")}`,
+            data: `User not in server, I will try to ${message.replace("-", "if they join -")}\n\n${infractionCountMessage}`,
             success: true
         };
     }

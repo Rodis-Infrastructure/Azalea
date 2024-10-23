@@ -20,6 +20,23 @@ export class InfractionManager {
         await prisma.infraction.delete({ where: { id: infractionId } });
     }
 
+    static async getInfractionCountMessage(targetId: Snowflake, guildId: Snowflake): Promise<string> {
+        const infractions = await prisma.infraction.findMany({
+            select: { flag: true },
+            where: {
+                target_id: targetId,
+                guild_id: guildId,
+                archived_at: null,
+                archived_by: null
+            }
+        });
+
+        const autoInfCount = infractions.filter(infraction => infraction.flag & InfractionFlag.Automatic).length;
+        const manualInfCount = infractions.length - autoInfCount;
+
+        return `This user has \`${infractions.length}\` infractions now (\`${manualInfCount}\` manual, \`${autoInfCount}\` automatic)`;
+    }
+
     static logInfraction(infraction: Infraction, executor: GuildMember | null, config: GuildConfig): void {
         const embedColor = InfractionUtil.mapActionToEmbedColor(infraction.action);
         const formattedAction = InfractionUtil.formatAction(infraction.action, infraction.flag);

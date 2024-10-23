@@ -13,13 +13,14 @@ import {
     DURATION_FORMAT
 } from "@utils/constants";
 
-import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
+import { InfractionAction, InfractionFlag, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import ms from "ms";
 import Sentry from "@sentry/node";
+import { prisma } from "@/index";
 
 /**
  * Mute a member in the server.
@@ -177,14 +178,16 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             config.sendNotification(`${interaction.user} ${message}`, false);
         }
 
+        const infractionCountMessage = await InfractionManager.getInfractionCountMessage(user.id, interaction.guildId);
+
         if (member) {
             return {
-                content: `Successfully ${message}`,
+                content: `Successfully ${message}\n\n${infractionCountMessage}`,
                 temporary: true
             };
         } else {
             return {
-                content: `User not in server, I will try to ${message.replace("-", "if they rejoin -")}`,
+                content: `User not in server, I will try to ${message.replace("-", "if they rejoin -")}\n\n${infractionCountMessage}`,
                 temporary: true
             };
         }

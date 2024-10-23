@@ -71,8 +71,10 @@ export default class Warn extends Command<ChatInputCommandInteraction<"cached">>
             config.sendNotification(`${interaction.user} ${message}`, false);
         }
 
+        const infractionCountMessage = await InfractionManager.getInfractionCountMessage(user.id, interaction.guildId);
+
         return {
-            content: `Successfully ${message}`,
+            content: `Successfully ${message}\n\n${infractionCountMessage}`,
             temporary: true
         };
     }
