@@ -204,15 +204,33 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
               AND archived_by IS NULL;
         `;
 
+        const infractionList: [string, bigint | null][] = [
+            ["Bans", infractions.ban_count],
+            ["Kicks", infractions.kick_count],
+            ["Mutes", infractions.mute_count],
+            ["Warns", infractions.warn_count],
+            ["Notes", infractions.note_count]
+        ];
+
         embed.addFields({
             name: "Infractions Received",
             inline: embed.data.fields!.length >= 3,
-            value: `Bans: \`${infractions.ban_count ?? 0}\`\n`
-                + `Kicks: \`${infractions.kick_count ?? 0}\`\n`
-                + `Mutes: \`${infractions.mute_count ?? 0}\`\n`
-                + `Warns: \`${infractions.warn_count ?? 0}\`\n`
-                + `Notes: \`${infractions.note_count ?? 0}\``
+            value: UserInfo._formatInfractionList(infractionList)
         });
+    }
+
+    /**
+     * Formats a list of infractions
+     *
+     * @param list - The list of infractions to format. [name, count]
+     * @returns The formatted list
+     * @private
+     */
+    private static _formatInfractionList(list: [string, bigint | null][]): string {
+        return list
+            .filter(([, count]) => Boolean(count))
+            .map(([name, count]) => `${name}: \`${count}\``)
+            .join("\n") || "None";
     }
 
     /**
