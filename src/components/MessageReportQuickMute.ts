@@ -103,20 +103,8 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
         data: { status }
     });
 
-    if (typeof result.data === "string") {
-        await interaction.reply({
-            content: result.data,
-            ephemeral: true
-        });
-    } else {
-        delete result.data?.temporary;
-        await interaction.reply(result.data as Omit<InteractionReplyData, "temporary">);
-    }
-
-    setTimeout(() => {
-        interaction.deleteReply().catch(() => null);
-    }, config.data.response_ttl);
-
-    await interaction.message.delete();
+    // Delete the report
+    await interaction.deferUpdate();
+    await interaction.deleteReply();
     return null;
 }

@@ -27,7 +27,7 @@ export default class UserReportResolve extends Component {
         }
 
         // Returns null if the report is not found
-        const report = await prisma.userReport.update({
+        await prisma.userReport.update({
             where: { id: interaction.message.id },
             data: {
                 status: MessageReportStatus.Resolved,
@@ -35,24 +35,11 @@ export default class UserReportResolve extends Component {
             }
         }).catch(() => null);
 
-        if (!report) {
-            await interaction.reply({
-                content: "Failed to find the report. Deleting without modifying the database.",
-                ephemeral: true
-            });
-        } else {
-            await interaction.reply({
-                content: "The report has been resolved.",
-                ephemeral: true
-            });
-        }
-
-        setTimeout(() => {
-            interaction.deleteReply().catch(() => null);
-        }, config.data.response_ttl);
-
         UserReportResolve._log(interaction, config);
-        await interaction.message.delete();
+
+        // Delete the report
+        await interaction.deferUpdate();
+        await interaction.deleteReply();
         return null;
     }
 
