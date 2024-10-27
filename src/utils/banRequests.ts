@@ -61,7 +61,7 @@ export default class BanRequestUtil {
      * @param status - The new status.
      * @param reviewerId - The reviewer's user ID.
      */
-    static async setStatus(requestId: Snowflake, status: BanRequestStatus, reviewerId: Snowflake): Promise<BanRequest | null> {
+    static async setStatus(requestId: Snowflake, status: BanRequestStatus, reviewerId: Snowflake | null): Promise<BanRequest | null> {
         try {
             return await prisma.banRequest.update({
                 where: { id: requestId },

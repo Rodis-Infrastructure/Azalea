@@ -60,12 +60,12 @@ export default class MessageDelete extends EventListener {
 
         // Handle mute request deletion
         if (message.channel_id === config.data.mute_requests?.channel_id) {
-            await MuteRequestUtil.setStatus(message.id, MuteRequestStatus.Deleted);
+            await MuteRequestUtil.setStatus(message.id, MuteRequestStatus.Deleted, null);
         }
 
         // Handle ban request deletion
         if (message.channel_id === config.data.ban_requests?.channel_id) {
-            await BanRequestUtil.setStatus(message.id, BanRequestStatus.Deleted);
+            await BanRequestUtil.setStatus(message.id, BanRequestStatus.Deleted, null);
         }
 
         MessageDelete.handleMessageDeleteLog(message, config).catch(() => null);

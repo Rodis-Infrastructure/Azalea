@@ -52,7 +52,7 @@ export default class MuteRequestUtil {
      * @param status - The new status.
      * @param reviewerId - The reviewer's user ID.
      */
-    static async setStatus(requestId: Snowflake, status: MuteRequestStatus, reviewerId: Snowflake): Promise<MuteRequest | null> {
+    static async setStatus(requestId: Snowflake, status: MuteRequestStatus, reviewerId: Snowflake | null): Promise<MuteRequest | null> {
         try {
             return await prisma.muteRequest.update({
                 where: { id: requestId },
