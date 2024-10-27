@@ -158,7 +158,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 
         // Executor has permission to view infractions and the target does not have permission to view infractions
         if (config.hasPermission(executor, Permission.ViewInfractions) && (!member || !config.hasPermission(member, Permission.ViewInfractions))) {
-            await UserInfo._getReceivedInfractions(embed, user.id, config.guild.id);
+            const hasInfractions = await UserInfo._getReceivedInfractions(embed, user.id, config.guild.id);
             const buttonRow = new ActionRowBuilder<ButtonBuilder>();
 
             if (ban) {
@@ -170,13 +170,18 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
                 buttonRow.addComponents(banInfoButton);
             }
 
-            const infractionSearchButton = new ButtonBuilder()
-                .setLabel("Infractions")
-                .setCustomId(`infraction-search-${user.id}`)
-                .setStyle(ButtonStyle.Secondary);
+            if (hasInfractions) {
+                const infractionSearchButton = new ButtonBuilder()
+                    .setLabel("Infractions")
+                    .setCustomId(`infraction-search-${user.id}`)
+                    .setStyle(ButtonStyle.Secondary);
 
-            buttonRow.addComponents(infractionSearchButton);
-            components.push(buttonRow);
+                buttonRow.addComponents(infractionSearchButton);
+            }
+
+            if (buttonRow.components.length) {
+                components.push(buttonRow);
+            }
         }
 
         return { embeds: [embed], components };
@@ -188,9 +193,10 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
      * @param embed - The embed to append the field to
      * @param userId - ID of the user to count infractions for
      * @param guildId - The source guild's ID
+     * @returns Whether the user has any infractions
      * @private
      */
-    private static async _getReceivedInfractions(embed: EmbedBuilder, userId: Snowflake, guildId: Snowflake): Promise<void> {
+    private static async _getReceivedInfractions(embed: EmbedBuilder, userId: Snowflake, guildId: Snowflake): Promise<boolean> {
         const [infractions] = await prisma.$queryRaw<InfractionCount[]>`
             SELECT SUM(action = ${InfractionAction.Ban})  as ban_count,
                    SUM(action = ${InfractionAction.Kick}) as kick_count,
@@ -212,11 +218,15 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
             ["Notes", infractions.note_count]
         ];
 
+        const formattedInfractionList = UserInfo._formatInfractionList(infractionList);
+
         embed.addFields({
             name: "Infractions Received",
             inline: embed.data.fields!.length >= 3,
-            value: UserInfo._formatInfractionList(infractionList)
+            value: formattedInfractionList
         });
+
+        return formattedInfractionList !== "None";
     }
 
     /**
