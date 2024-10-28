@@ -3,9 +3,7 @@
   "prHourlyLimit": 0,
   "prConcurrentLimit": 0,
   "dependencyDashboard": false,
-  "reviewers": [
-	"archasion"
-  ],
+  "reviewersFromCodeOwners": true,
   "extends": [
 	"config:best-practices",
 	":rebaseStalePrs"
