@@ -111,6 +111,7 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 
         if (!subcommandGroup) {
             switch (subcommand as HighlightSubcommand) {
+                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
                 case HighlightSubcommand.List:
                     return Highlight._listHighlights(interaction);
                 default:

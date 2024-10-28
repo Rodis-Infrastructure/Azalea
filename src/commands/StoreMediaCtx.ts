@@ -80,7 +80,7 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
                 member: executor,
                 config
             });
-        } catch (error) {
+        } catch {
             return {
                 success: false,
                 message: "Failed to send the media log."
