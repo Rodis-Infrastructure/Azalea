@@ -88,7 +88,7 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
 		executor: interaction.member,
 		targetMessage: reportedMessage,
 		duration
-	});
+	}, true);
 
 	if (!result.success) {
 		return result.message;
