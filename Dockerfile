@@ -1,6 +1,6 @@
 # use the official Bun image
 # see all versions at https://hub.docker.com/r/oven/bun/tags
-FROM oven/bun:1.0.36 as base
+FROM oven/bun:1.1.33 as base
 WORKDIR /usr/src/app
 
 # set environment variables
