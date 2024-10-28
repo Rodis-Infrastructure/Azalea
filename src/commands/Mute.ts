@@ -13,14 +13,13 @@ import {
     DURATION_FORMAT
 } from "@utils/constants";
 
-import { InfractionAction, InfractionFlag, InfractionManager, InfractionUtil } from "@utils/infractions";
+import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import ms from "ms";
 import Sentry from "@sentry/node";
-import { prisma } from "@/index";
 
 /**
  * Mute a member in the server.
