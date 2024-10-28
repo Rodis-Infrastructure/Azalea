@@ -8,30 +8,30 @@ import Infraction from "@/commands/Infraction";
 import ConfigManager from "@managers/config/ConfigManager";
 
 export default class InfractionActivePagination extends Component {
-    constructor() {
-        super({ matches: /^infraction-active-(next|back|last|first)$/m });
-    }
+	constructor() {
+		super({ matches: /^infraction-active-(next|back|last|first)$/m });
+	}
 
-    execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
-        const direction = interaction.customId.split("-")[2] as InfractionSearchPaginationDirection;
+	execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+		const direction = interaction.customId.split("-")[2] as InfractionSearchPaginationDirection;
 
-        switch (direction) {
-            case InfractionSearchPaginationDirection.Next:
-                return handleInfractionActivePagination(interaction, { pageOffset: 1 });
+		switch (direction) {
+			case InfractionSearchPaginationDirection.Next:
+				return handleInfractionActivePagination(interaction, { pageOffset: 1 });
 
-            case InfractionSearchPaginationDirection.Back:
-                return handleInfractionActivePagination(interaction, { pageOffset: -1 });
+			case InfractionSearchPaginationDirection.Back:
+				return handleInfractionActivePagination(interaction, { pageOffset: -1 });
 
-            case InfractionSearchPaginationDirection.First:
-                return handleInfractionActivePagination(interaction, { page: 1 });
+			case InfractionSearchPaginationDirection.First:
+				return handleInfractionActivePagination(interaction, { page: 1 });
 
-            case InfractionSearchPaginationDirection.Last:
-                return handleInfractionActivePagination(interaction, { page: 0 });
+			case InfractionSearchPaginationDirection.Last:
+				return handleInfractionActivePagination(interaction, { page: 0 });
 
-            default:
-                return Promise.resolve("Unknown direction.");
-        }
-    }
+			default:
+				return Promise.resolve("Unknown direction.");
+		}
+	}
 }
 
 /**
@@ -43,37 +43,37 @@ export default class InfractionActivePagination extends Component {
  * @param options.pageOffset - The page offset (e.g. `-1` goes back and `1` goes forward)
  */
 export async function handleInfractionActivePagination(interaction: ButtonInteraction<"cached">, options: PageOptions): Promise<InteractionReplyData> {
-    const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+	const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
-    if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
-        return {
-            content: "You do not have permission to view infractions.",
-            ephemeral: true,
-            temporary: true
-        };
-    }
+	if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
+		return {
+			content: "You do not have permission to view infractions.",
+			ephemeral: true,
+			temporary: true
+		};
+	}
 
-    const buttons = interaction.message.components[0].components as ButtonComponent[];
-    // Get the middle component
-    const pageCountButton = buttons[Math.floor(buttons.length / 2)];
-    // Format: "{current_page} / {total_pages}"
-    const [strCurrentPage, strTotalPages] = pageCountButton.label!.split(" / ");
-    const page = parsePageOptions(options, parseInt(strCurrentPage), parseInt(strTotalPages));
+	const buttons = interaction.message.components[0].components as ButtonComponent[];
+	// Get the middle component
+	const pageCountButton = buttons[Math.floor(buttons.length / 2)];
+	// Format: "{current_page} / {total_pages}"
+	const [strCurrentPage, strTotalPages] = pageCountButton.label!.split(" / ");
+	const page = parsePageOptions(options, parseInt(strCurrentPage), parseInt(strTotalPages));
 
-    // We can cast InteractionReplyOptions to InteractionUpdateOptions
-    // because they share the same properties
-    const updatedResult = await Infraction.listActive(page) as InteractionUpdateOptions;
-    await interaction.update(updatedResult);
+	// We can cast InteractionReplyOptions to InteractionUpdateOptions
+	// because they share the same properties
+	const updatedResult = await Infraction.listActive(page) as InteractionUpdateOptions;
+	await interaction.update(updatedResult);
 
-    return null;
+	return null;
 }
 
 export function parsePageOptions(options: PageOptions, currentPage: number, totalPages: number): number {
-    if ("pageOffset" in options) {
-        return currentPage + options.pageOffset;
-    } else {
-        return options.page < 1 ? totalPages + options.page : options.page;
-    }
+	if ("pageOffset" in options) {
+		return currentPage + options.pageOffset;
+	} else {
+		return options.page < 1 ? totalPages + options.page : options.page;
+	}
 }
 
 export type PageOptions = Record<"pageOffset", number> | Record<"page", number>;

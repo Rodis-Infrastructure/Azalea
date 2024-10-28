@@ -201,7 +201,7 @@ export default [...compat.extends(
 			allowArrowFunctions: true
 		}],
 
-		indent: ["error", 4, {
+		indent: ["error", "tab", {
 			SwitchCase: 1
 		}],
 

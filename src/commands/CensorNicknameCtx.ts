@@ -6,15 +6,15 @@ import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 
 export default class CensorNicknameCtx extends Command<UserContextMenuCommandInteraction<"cached">> {
-    constructor() {
-        super({
-            name: "Censor nickname",
-            type: ApplicationCommandType.User
-        });
-    }
+	constructor() {
+		super({
+			name: "Censor nickname",
+			type: ApplicationCommandType.User
+		});
+	}
 
-    execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
-        const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-        return CensorNickname.handle(interaction.member, interaction.targetMember, config);
-    }
+	execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+		return CensorNickname.handle(interaction.member, interaction.targetMember, config);
+	}
 }

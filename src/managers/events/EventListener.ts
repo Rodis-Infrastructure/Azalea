@@ -2,17 +2,17 @@ import { ClientEvents, Events } from "discord.js";
 
 // The base class for all event listeners.
 export default abstract class EventListener {
-    /**
+	/**
      * @param event The event to handle.
      * @param options The options for the event.
      * @param options.once Whether the event should only be handled once.
      * @protected
      */
-    protected constructor(
+	protected constructor(
         public readonly event: Extract<Events, keyof ClientEvents>,
         public readonly options?: { once: boolean }
-    ) {
-    }
+	) {
+	}
 
     /**
      * Handles the event.

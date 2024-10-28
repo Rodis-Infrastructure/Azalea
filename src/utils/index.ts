@@ -1,11 +1,11 @@
 import {
-    GuildBasedChannel,
-    Role,
-    ThreadChannel,
-    TextBasedChannel,
-    cleanContent as djsCleanContent,
-    User,
-    GuildMember
+	GuildBasedChannel,
+	Role,
+	ThreadChannel,
+	TextBasedChannel,
+	cleanContent as djsCleanContent,
+	User,
+	GuildMember
 } from "discord.js";
 
 import { Snowflake } from "discord-api-types/v10";
@@ -30,7 +30,7 @@ import fs from "fs";
  * @returns The pluralized word
  */
 export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
-    return count === 1 ? singular : plural;
+	return count === 1 ? singular : plural;
 }
 
 /**
@@ -41,8 +41,8 @@ export function pluralize(count: number, singular: string, plural = `${singular}
  * @returns {T} The parsed content of the YAML file
  */
 export function readYamlFile<T>(path: string): T {
-    const raw = fs.readFileSync(path, "utf-8");
-    return YAML.parse(raw);
+	const raw = fs.readFileSync(path, "utf-8");
+	return YAML.parse(raw);
 }
 
 /**
@@ -55,17 +55,17 @@ export function readYamlFile<T>(path: string): T {
  * @returns The cropped string
  */
 export function cropLines(str: string, maxLines: number): string {
-    const lines = str.split("\n");
-    const diff = lines.length - maxLines;
+	const lines = str.split("\n");
+	const diff = lines.length - maxLines;
 
-    if (diff > 0) {
-        const croppedLines = lines.slice(0, maxLines - 1);
-        croppedLines.push(`(${diff} more ${pluralize(diff, "line")})`);
+	if (diff > 0) {
+		const croppedLines = lines.slice(0, maxLines - 1);
+		croppedLines.push(`(${diff} more ${pluralize(diff, "line")})`);
 
-        return croppedLines.join("\n");
-    }
+		return croppedLines.join("\n");
+	}
 
-    return str;
+	return str;
 }
 
 /**
@@ -78,36 +78,36 @@ export function cropLines(str: string, maxLines: number): string {
  * @param event - The event that triggered the cleanup operations
  */
 export async function startCleanupOperations(event: string): Promise<void> {
-    Logger.log(event, "Starting cleanup operations...", {
-        color: AnsiColor.Red,
-        full: true
-    });
+	Logger.log(event, "Starting cleanup operations...", {
+		color: AnsiColor.Red,
+		full: true
+	});
 
-    try {
-        await Messages.store();
-        await terminateDbConnection();
-    } catch (error) {
-        Logger.log(event, `Cleanup operations failed: ${error}`, {
-            color: AnsiColor.Red,
-            full: true
-        });
-    } finally {
-        Logger.log(event, "Successfully completed cleanup operations", {
-            color: AnsiColor.Red,
-            full: true
-        });
-    }
+	try {
+		await Messages.store();
+		await terminateDbConnection();
+	} catch (error) {
+		Logger.log(event, `Cleanup operations failed: ${error}`, {
+			color: AnsiColor.Red,
+			full: true
+		});
+	} finally {
+		Logger.log(event, "Successfully completed cleanup operations", {
+			color: AnsiColor.Red,
+			full: true
+		});
+	}
 
-    process.exit(0);
+	process.exit(0);
 }
 
 async function terminateDbConnection(): Promise<void> {
-    Logger.info("Terminating database connection...");
+	Logger.info("Terminating database connection...");
 
-    await prisma.$disconnect()
-        .then(() => {
-            Logger.info("Successfully disconnected from database");
-        });
+	await prisma.$disconnect()
+		.then(() => {
+			Logger.info("Successfully disconnected from database");
+		});
 }
 
 /**
@@ -120,38 +120,38 @@ async function terminateDbConnection(): Promise<void> {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getObjectDiff(oldObject: any, newObject: any): ObjectDiff {
-    const paramsAreObjects = typeof oldObject === "object" && typeof newObject === "object";
-    const paramsAreNotNull = oldObject !== null && newObject !== null;
+	const paramsAreObjects = typeof oldObject === "object" && typeof newObject === "object";
+	const paramsAreNotNull = oldObject !== null && newObject !== null;
 
-    if (!paramsAreObjects || !paramsAreNotNull) {
-        throw new Error("Both parameters must be non-null objects");
-    }
+	if (!paramsAreObjects || !paramsAreNotNull) {
+		throw new Error("Both parameters must be non-null objects");
+	}
 
-    const differences: ObjectDiff = {};
-    const keys = Object.keys(oldObject);
+	const differences: ObjectDiff = {};
+	const keys = Object.keys(oldObject);
 
-    for (const key of keys) {
-        if (!_.isEqual(oldObject[key], newObject[key])) {
-            differences[key] = {
-                old: oldObject[key],
-                new: newObject[key]
-            };
-        }
-    }
+	for (const key of keys) {
+		if (!_.isEqual(oldObject[key], newObject[key])) {
+			differences[key] = {
+				old: oldObject[key],
+				new: newObject[key]
+			};
+		}
+	}
 
-    return differences;
+	return differences;
 }
 
 export function userMentionWithId(id: Snowflake): `<@${Snowflake}> (\`${Snowflake}\`)` {
-    return `<@${id}> (\`${id}\`)`;
+	return `<@${id}> (\`${id}\`)`;
 }
 
 export function channelMentionWithName(channel: GuildBasedChannel | ThreadChannel): `<#${Snowflake}> (\`#${string}\`)` {
-    return `<#${channel.id}> (\`#${channel.name}\`)`;
+	return `<#${channel.id}> (\`#${channel.name}\`)`;
 }
 
 export function roleMentionWithName(role: Role): `<@&${Snowflake}> (\`@${string}\`)` {
-    return `<@&${role.id}> (\`@${role.name}\`)`;
+	return `<@&${role.id}> (\`@${role.name}\`)`;
 }
 
 /**
@@ -165,21 +165,21 @@ export function roleMentionWithName(role: Role): `<@&${Snowflake}> (\`@${string}
  * @returns The string representation of the given number of milliseconds (e.g. 300000 = "5 minutes")
  */
 export function humanizeTimestamp(ms: number): string {
-    const units = [
-        { unit: "day", value: 24 * 60 * 60 * 1000 },
-        { unit: "hour", value: 60 * 60 * 1000 },
-        { unit: "minute", value: 60 * 1000 }
-    ];
+	const units = [
+		{ unit: "day", value: 24 * 60 * 60 * 1000 },
+		{ unit: "hour", value: 60 * 60 * 1000 },
+		{ unit: "minute", value: 60 * 1000 }
+	];
 
-    return units
-        .map(({ unit, value }) => {
-            const count = Math.floor(ms / value);
-            const isInRange = count > 0 && count < 60;
-            ms %= value;
-            return isInRange && `${count} ${pluralize(count, unit)}`;
-        })
-        .filter(Boolean)
-        .join(" ") || "< 1 minute";
+	return units
+		.map(({ unit, value }) => {
+			const count = Math.floor(ms / value);
+			const isInRange = count > 0 && count < 60;
+			ms %= value;
+			return isInRange && `${count} ${pluralize(count, unit)}`;
+		})
+		.filter(Boolean)
+		.join(" ") || "< 1 minute";
 }
 
 /**
@@ -190,12 +190,12 @@ export function humanizeTimestamp(ms: number): string {
  * @returns The cropped string (if it exceeds the maximum length)
  */
 export function elipsify(str: string, maxLength: number): string {
-    if (str.length > maxLength) {
-        const croppedStr = str.slice(0, maxLength - 23);
-        return `${croppedStr}…(${str.length - croppedStr.length} more characters)`;
-    }
+	if (str.length > maxLength) {
+		const croppedStr = str.slice(0, maxLength - 23);
+		return `${croppedStr}…(${str.length - croppedStr.length} more characters)`;
+	}
 
-    return str;
+	return str;
 }
 
 /**
@@ -210,27 +210,27 @@ export function elipsify(str: string, maxLength: number): string {
  * @param onTick - The function to run on each tick
  */
 export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronTime"], onTick: () => Promise<void> | void): void {
-    const cronJobWithCheckIn = cron.instrumentCron(CronJob, monitorSlug);
+	const cronJobWithCheckIn = cron.instrumentCron(CronJob, monitorSlug);
 
-    cronJobWithCheckIn.from({
-        cronTime,
-        timeZone: DEFAULT_TIMEZONE,
-        onTick: async () => {
-            Logger.log(monitorSlug, "Running cron job...", {
-                color: AnsiColor.Orange
-            });
+	cronJobWithCheckIn.from({
+		cronTime,
+		timeZone: DEFAULT_TIMEZONE,
+		onTick: async () => {
+			Logger.log(monitorSlug, "Running cron job...", {
+				color: AnsiColor.Orange
+			});
 
-            await onTick();
+			await onTick();
 
-            Logger.log(monitorSlug, "Successfully ran cron job", {
-                color: AnsiColor.Orange
-            });
-        }
-    }).start();
+			Logger.log(monitorSlug, "Successfully ran cron job", {
+				color: AnsiColor.Orange
+			});
+		}
+	}).start();
 
-    Logger.log(monitorSlug, `Cron job started: ${cronTime}`, {
-        color: AnsiColor.Orange
-    });
+	Logger.log(monitorSlug, `Cron job started: ${cronTime}`, {
+		color: AnsiColor.Orange
+	});
 }
 
 /**
@@ -241,7 +241,7 @@ export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronT
  * @returns The URL to preview the file content
  */
 export function getFilePreviewURL(url: string): string {
-    return `https://discord-fv.vercel.app/?url=${encodeURIComponent(url)}`;
+	return `https://discord-fv.vercel.app/?url=${encodeURIComponent(url)}`;
 }
 
 /**
@@ -252,15 +252,15 @@ export function getFilePreviewURL(url: string): string {
  * @returns A random integer between the given range
  */
 export function randInt(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+	return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 export function cleanContent(str: string, channel: TextBasedChannel): string {
-    // Escape custom emojis
-    str = str.replace(/<(a?):([^:\n\r]+):(\d{17,19})>/g, "<$1\\:$2\\:$3>");
-    // Add IDs to mentions
-    str = str.replace(/<@!?(\d{17,19})>/g, `<@$1> ($1)`);
-    return djsCleanContent(str, channel);
+	// Escape custom emojis
+	str = str.replace(/<(a?):([^:\n\r]+):(\d{17,19})>/g, "<$1\\:$2\\:$3>");
+	// Add IDs to mentions
+	str = str.replace(/<@!?(\d{17,19})>/g, `<@$1> ($1)`);
+	return djsCleanContent(str, channel);
 }
 
 /**
@@ -275,18 +275,18 @@ export function cleanContent(str: string, channel: TextBasedChannel): string {
  * @returns The user's surface name
  */
 export function getSurfaceName(member: GuildMember | User): string {
-    // The displayName getter works in the following order:
-    // guild nickname OR global name OR username
-    const displayName = member.displayName;
-    const username = member instanceof GuildMember
-        ? member.user.username
-        : member.username;
+	// The displayName getter works in the following order:
+	// guild nickname OR global name OR username
+	const displayName = member.displayName;
+	const username = member instanceof GuildMember
+		? member.user.username
+		: member.username;
 
-    if (username === displayName) {
-        return `@${username}`;
-    }
+	if (username === displayName) {
+		return `@${username}`;
+	}
 
-    return `@${username} | ${displayName}`;
+	return `@${username} | ${displayName}`;
 }
 
 /**
@@ -297,7 +297,7 @@ export function getSurfaceName(member: GuildMember | User): string {
  * @returns The JSON stringified object
  */
 export function stringifyJSON(obj: unknown, space = 2): string {
-    return JSON.stringify(obj, (_, v) => {
-        return typeof v === "bigint" ? v.toString() : v;
-    }, space);
+	return JSON.stringify(obj, (_, v) => {
+		return typeof v === "bigint" ? v.toString() : v;
+	}, space);
 }

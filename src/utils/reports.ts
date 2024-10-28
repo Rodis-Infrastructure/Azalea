@@ -1,32 +1,32 @@
 import { EmbedBuilder, Message } from "discord.js";
 
 export class MessageReportUtil {
-    static async updateFlags(report: Message<true>, flags: MessageReportFlag, edit = false): Promise<EmbedBuilder> {
-        const embed = new EmbedBuilder(report.embeds[0].toJSON());
-        const mappedFlags = MessageReportUtil.formatFlags(flags);
-        const flagFieldIdx = embed.data.fields!.findIndex(field => field.name === "Flags");
-        const deleteCount = flagFieldIdx !== -1 ? 1 : 0;
+	static async updateFlags(report: Message<true>, flags: MessageReportFlag, edit = false): Promise<EmbedBuilder> {
+		const embed = new EmbedBuilder(report.embeds[0].toJSON());
+		const mappedFlags = MessageReportUtil.formatFlags(flags);
+		const flagFieldIdx = embed.data.fields!.findIndex(field => field.name === "Flags");
+		const deleteCount = flagFieldIdx !== -1 ? 1 : 0;
 
-        embed.spliceFields(flagFieldIdx, deleteCount, {
-            name: "Flags",
-            value: mappedFlags
-        });
+		embed.spliceFields(flagFieldIdx, deleteCount, {
+			name: "Flags",
+			value: mappedFlags
+		});
 
-        if (edit) {
-            await report.edit({ embeds: [embed] });
-        }
+		if (edit) {
+			await report.edit({ embeds: [embed] });
+		}
 
-        return embed;
-    }
+		return embed;
+	}
 
-    static formatFlags(flags: MessageReportFlag): string {
-        const entries = Object.entries(MessageReportFlag)
-            .filter((entry): entry is [string, MessageReportFlag] => {
-                return typeof entry[1] !== "string" && Boolean(flags & entry[1]);
-            });
+	static formatFlags(flags: MessageReportFlag): string {
+		const entries = Object.entries(MessageReportFlag)
+			.filter((entry): entry is [string, MessageReportFlag] => {
+				return typeof entry[1] !== "string" && Boolean(flags & entry[1]);
+			});
 
-        return entries.map(entry => `\`${entry[0]}\``).join(", ");
-    }
+		return entries.map(entry => `\`${entry[0]}\``).join(", ");
+	}
 }
 
 /** The status of a message report. */

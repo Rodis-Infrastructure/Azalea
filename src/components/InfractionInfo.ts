@@ -7,22 +7,22 @@ import ConfigManager from "@managers/config/ConfigManager";
 import { Permission } from "@managers/config/schema";
 
 export default class InfractionInfo extends Component {
-    constructor() {
-        super({ matches: /^infraction-info-\d+$/m });
-    }
+	constructor() {
+		super({ matches: /^infraction-info-\d+$/m });
+	}
 
-    execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
-        const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+	execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
-        if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
-            return Promise.resolve({
-                content: "You do not have permission to view infractions",
-                ephemeral: true,
-                temporary: true
-            });
-        }
+		if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
+			return Promise.resolve({
+				content: "You do not have permission to view infractions",
+				ephemeral: true,
+				temporary: true
+			});
+		}
 
-        const infractionId = parseInt(interaction.customId.split("-")[2]);
-        return Infraction.info(infractionId, interaction.guildId);
-    }
+		const infractionId = parseInt(interaction.customId.split("-")[2]);
+		return Infraction.info(infractionId, interaction.guildId);
+	}
 }

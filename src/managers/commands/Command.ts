@@ -4,11 +4,11 @@ import { InteractionReplyData } from "@utils/types";
 
 // The base class for all commands.
 export default abstract class Command<T extends CommandInteraction> {
-    /**
+	/**
      * @param data The data for the command.
      * @protected
      */
-    protected constructor(public readonly data: ApplicationCommandData) {}
+	protected constructor(public readonly data: ApplicationCommandData) {}
 
     /**
      * Handles the command interaction. Mentions are disabled by default.
@@ -23,9 +23,9 @@ export default abstract class Command<T extends CommandInteraction> {
     autocomplete?(interaction: AutocompleteInteraction): Promise<void> | void;
 
     build(): ApplicationCommandData {
-        this.data.defaultMemberPermissions ??= DEFAULT_COMMAND_PERMISSIONS;
-        this.data.dmPermission ??= DEFAULT_DM_PERMISSION;
+    	this.data.defaultMemberPermissions ??= DEFAULT_COMMAND_PERMISSIONS;
+    	this.data.dmPermission ??= DEFAULT_DM_PERMISSION;
 
-        return this.data;
+    	return this.data;
     }
 }

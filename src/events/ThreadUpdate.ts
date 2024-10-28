@@ -8,60 +8,60 @@ import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
 
 export default class ThreadUpdate extends EventListener {
-    constructor() {
-        super(Events.ThreadUpdate);
-    }
+	constructor() {
+		super(Events.ThreadUpdate);
+	}
 
-    execute(oldThread: ThreadChannel, newThread: ThreadChannel): void {
-        const config = ConfigManager.getGuildConfig(newThread.guildId);
-        if (!config) return;
+	execute(oldThread: ThreadChannel, newThread: ThreadChannel): void {
+		const config = ConfigManager.getGuildConfig(newThread.guildId);
+		if (!config) return;
 
-        ThreadUpdate._log(oldThread, newThread, config);
-    }
+		ThreadUpdate._log(oldThread, newThread, config);
+	}
 
-    private static async _log(oldThread: ThreadChannel, newThread: ThreadChannel, config: GuildConfig): Promise<void> {
-        if (!newThread.ownerId || !newThread.parent) return;
+	private static async _log(oldThread: ThreadChannel, newThread: ThreadChannel, config: GuildConfig): Promise<void> {
+		if (!newThread.ownerId || !newThread.parent) return;
 
-        const difference = getObjectDiff(oldThread, newThread);
-        const changes: string[] = [];
+		const difference = getObjectDiff(oldThread, newThread);
+		const changes: string[] = [];
 
-        for (const [prop, diff] of Object.entries(difference)) {
-            changes.push(`> ${prop}\n> \`${diff.old}\` → \`${diff.new}\`\n`);
-        }
+		for (const [prop, diff] of Object.entries(difference)) {
+			changes.push(`> ${prop}\n> \`${diff.old}\` → \`${diff.new}\`\n`);
+		}
 
-        if (!changes.length) return;
+		if (!changes.length) return;
 
-        const embed = new EmbedBuilder()
-            .setColor(Colors.Yellow)
-            .setAuthor({ name: "Thread Updated" })
-            .setFields([
-                {
-                    name: "Owner",
-                    value: userMentionWithId(newThread.ownerId)
-                },
-                {
-                    name: "Parent Channel",
-                    value: channelMentionWithName(newThread.parent)
-                },
-                {
-                    name: "Thread",
-                    value: channelMentionWithName(newThread)
-                },
-                {
-                    name: "Changes",
-                    value: changes.join("\n")
-                }
-            ])
-            .setTimestamp();
+		const embed = new EmbedBuilder()
+			.setColor(Colors.Yellow)
+			.setAuthor({ name: "Thread Updated" })
+			.setFields([
+				{
+					name: "Owner",
+					value: userMentionWithId(newThread.ownerId)
+				},
+				{
+					name: "Parent Channel",
+					value: channelMentionWithName(newThread.parent)
+				},
+				{
+					name: "Thread",
+					value: channelMentionWithName(newThread)
+				},
+				{
+					name: "Changes",
+					value: changes.join("\n")
+				}
+			])
+			.setTimestamp();
 
-        const owner = await newThread.fetchOwner();
+		const owner = await newThread.fetchOwner();
 
-        log({
-            event: LoggingEvent.ThreadUpdate,
-            message: { embeds: [embed] },
-            channel: newThread.parent,
-            member: owner?.guildMember ?? null,
-            config
-        });
-    }
+		log({
+			event: LoggingEvent.ThreadUpdate,
+			message: { embeds: [embed] },
+			channel: newThread.parent,
+			member: owner?.guildMember ?? null,
+			config
+		});
+	}
 }

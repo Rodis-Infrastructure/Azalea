@@ -1,10 +1,10 @@
 import {
-    AttachmentBuilder,
-    GuildBasedChannel,
-    GuildMember,
-    GuildTextBasedChannel,
-    Message,
-    MessageCreateOptions
+	AttachmentBuilder,
+	GuildBasedChannel,
+	GuildMember,
+	GuildTextBasedChannel,
+	Message,
+	MessageCreateOptions
 } from "discord.js";
 
 import { LoggingEvent, Scoping } from "@managers/config/schema";
@@ -24,23 +24,23 @@ export async function log(data: {
     channel: GuildBasedChannel | null,
     message: string | MessageCreateOptions
 }): Promise<Message<true>[] | null> {
-    const { event, config, channel, message, member } = data;
+	const { event, config, channel, message, member } = data;
 
-    try {
-        const channels = await getLoggingChannels({ event, config, member, channel });
+	try {
+		const channels = await getLoggingChannels({ event, config, member, channel });
 
-        // Send the content in parallel to all logging channels
-        return Promise.all(channels.map(c => c.send(message)));
-    } catch (error) {
-        captureException(error, {
-            extra: {
-                event,
-                channel: channel?.id
-            }
-        });
-    }
+		// Send the content in parallel to all logging channels
+		return Promise.all(channels.map(c => c.send(message)));
+	} catch (error) {
+		captureException(error, {
+			extra: {
+				event,
+				channel: channel?.id
+			}
+		});
+	}
 
-    return null;
+	return null;
 }
 
 /**
@@ -57,45 +57,45 @@ async function getLoggingChannels(data: {
     member: GuildMember | null,
     channel: GuildBasedChannel | null
 }): Promise<GuildTextBasedChannel[]> {
-    const { event, config, member, channel } = data;
+	const { event, config, member, channel } = data;
 
-    const inLoggingScope = (logScoping: Scoping): boolean => {
-        if (!logScoping.include_roles.length && !logScoping.exclude_roles.length) {
-            logScoping.include_roles = config.data.logging.default_scoping.include_roles;
-            logScoping.exclude_roles = config.data.logging.default_scoping.exclude_roles;
-        }
+	const inLoggingScope = (logScoping: Scoping): boolean => {
+		if (!logScoping.include_roles.length && !logScoping.exclude_roles.length) {
+			logScoping.include_roles = config.data.logging.default_scoping.include_roles;
+			logScoping.exclude_roles = config.data.logging.default_scoping.exclude_roles;
+		}
 
-        // If there is no channel, the event is in scope
-        if (!channel && member) {
-            return config.roleInScope(member, logScoping);
-        } else if (!channel) {
-            return true;
-        }
+		// If there is no channel, the event is in scope
+		if (!channel && member) {
+			return config.roleInScope(member, logScoping);
+		} else if (!channel) {
+			return true;
+		}
 
-        // Resort to the default scoping if there is no override for the event
-        if (!logScoping.include_channels.length && !logScoping.exclude_channels.length) {
-            logScoping.include_channels = config.data.logging.default_scoping.include_channels;
-            logScoping.exclude_channels = config.data.logging.default_scoping.exclude_channels;
-        }
+		// Resort to the default scoping if there is no override for the event
+		if (!logScoping.include_channels.length && !logScoping.exclude_channels.length) {
+			logScoping.include_channels = config.data.logging.default_scoping.include_channels;
+			logScoping.exclude_channels = config.data.logging.default_scoping.exclude_channels;
+		}
 
-        // Check against event-specific scoping
-        return config.inScope(channel, member, logScoping);
-    };
+		// Check against event-specific scoping
+		return config.inScope(channel, member, logScoping);
+	};
 
-    // Fetch all logging channels for this event that are in scope
-    const loggingChannelPromises = config.data.logging.logs
-        .filter(log => log.events.includes(event))
-        .filter(log => inLoggingScope(log.scoping))
-        .map(log => config.guild.channels.fetch(log.channel_id));
+	// Fetch all logging channels for this event that are in scope
+	const loggingChannelPromises = config.data.logging.logs
+		.filter(log => log.events.includes(event))
+		.filter(log => inLoggingScope(log.scoping))
+		.map(log => config.guild.channels.fetch(log.channel_id));
 
-    const loggingChannels = await Promise.all(loggingChannelPromises);
+	const loggingChannels = await Promise.all(loggingChannelPromises);
 
-    // Filter out any non-text-based channels
-    return loggingChannels.filter((loggingChannel): loggingChannel is GuildTextBasedChannel => {
-        return loggingChannel !== null
+	// Filter out any non-text-based channels
+	return loggingChannels.filter((loggingChannel): loggingChannel is GuildTextBasedChannel => {
+		return loggingChannel !== null
             && !loggingChannel.isDMBased()
             && loggingChannel.isTextBased();
-    });
+	});
 }
 
 /**
@@ -104,6 +104,6 @@ async function getLoggingChannels(data: {
  * @param entries - The message entries to log
  */
 export function mapLogEntriesToFile(entries: string[]): AttachmentBuilder {
-    const buffer = Buffer.from(entries.join("\n\n"), "utf-8");
-    return new AttachmentBuilder(buffer, { name: "data.txt" });
+	const buffer = Buffer.from(entries.join("\n\n"), "utf-8");
+	return new AttachmentBuilder(buffer, { name: "data.txt" });
 }

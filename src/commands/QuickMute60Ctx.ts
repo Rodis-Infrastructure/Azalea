@@ -6,27 +6,27 @@ import { QuickMuteDuration } from "@utils/infractions";
 import Command from "@managers/commands/Command";
 
 export default class QuickMute60Ctx extends Command<MessageContextMenuCommandInteraction<"cached">> {
-    constructor() {
-        super({
-            name: "Quick mute (1h)",
-            type: ApplicationCommandType.Message
-        });
-    }
+	constructor() {
+		super({
+			name: "Quick mute (1h)",
+			type: ApplicationCommandType.Message
+		});
+	}
 
-    async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
-        const result = await handleQuickMute({
-            executor: interaction.member,
-            targetMessage: interaction.targetMessage,
-            duration: QuickMuteDuration.Long
-        });
+	async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+		const result = await handleQuickMute({
+			executor: interaction.member,
+			targetMessage: interaction.targetMessage,
+			duration: QuickMuteDuration.Long
+		});
 
-        if (!result.success) {
-            return {
-                content: result.message,
-                temporary: true
-            };
-        }
+		if (!result.success) {
+			return {
+				content: result.message,
+				temporary: true
+			};
+		}
 
-        return result.data;
-    }
+		return result.data;
+	}
 }

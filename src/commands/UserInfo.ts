@@ -1,18 +1,18 @@
 import {
-    ApplicationCommandOptionType,
-    ButtonBuilder,
-    ActionRowBuilder,
-    ButtonStyle,
-    ChatInputCommandInteraction,
-    Colors,
-    EmbedBuilder,
-    GuildMember,
-    inlineCode,
-    time,
-    TimestampStyles,
-    User,
-    Snowflake,
-    InteractionReplyOptions
+	ApplicationCommandOptionType,
+	ButtonBuilder,
+	ActionRowBuilder,
+	ButtonStyle,
+	ChatInputCommandInteraction,
+	Colors,
+	EmbedBuilder,
+	GuildMember,
+	inlineCode,
+	time,
+	TimestampStyles,
+	User,
+	Snowflake,
+	InteractionReplyOptions
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
@@ -27,38 +27,38 @@ import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 
 export default class UserInfo extends Command<ChatInputCommandInteraction<"cached">> {
-    constructor() {
-        super({
-            name: "user",
-            description: "Get information about a user",
-            options: [{
-                name: "info",
-                description: "Get information about a user",
-                type: ApplicationCommandOptionType.Subcommand,
-                options: [{
-                    name: "user",
-                    type: ApplicationCommandOptionType.User,
-                    description: "The user to get information about",
-                    required: true
-                }]
-            }]
-        });
-    }
+	constructor() {
+		super({
+			name: "user",
+			description: "Get information about a user",
+			options: [{
+				name: "info",
+				description: "Get information about a user",
+				type: ApplicationCommandOptionType.Subcommand,
+				options: [{
+					name: "user",
+					type: ApplicationCommandOptionType.User,
+					description: "The user to get information about",
+					required: true
+				}]
+			}]
+		});
+	}
 
-    execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
-        const member = interaction.options.getMember("user");
-        const user = member?.user ?? interaction.options.getUser("user", true);
-        const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+	execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+		const member = interaction.options.getMember("user");
+		const user = member?.user ?? interaction.options.getUser("user", true);
+		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
-        return UserInfo.get({
-            executor: interaction.member,
-            config,
-            member,
-            user
-        });
-    }
+		return UserInfo.get({
+			executor: interaction.member,
+			config,
+			member,
+			user
+		});
+	}
 
-    /**
+	/**
      * Get information about a user
      *
      * @param data.member - The target member (for role checks)
@@ -68,126 +68,126 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
      * @param data.executor - The executor of the command
      * @returns An interaction reply with the user's information
      */
-    static async get(data: {
+	static async get(data: {
         member: GuildMember | null;
         user: User;
         config: GuildConfig;
         executor: GuildMember;
     }): Promise<InteractionReplyOptions> {
-        const { member, user, config, executor } = data;
-        const surfaceName = getSurfaceName(member ?? user);
+		const { member, user, config, executor } = data;
+		const surfaceName = getSurfaceName(member ?? user);
 
-        const embed = new EmbedBuilder()
-            .setColor(DEFAULT_EMBED_COLOR)
-            .setAuthor({
-                name: surfaceName,
-                iconURL: user.displayAvatarURL(),
-                url: user.displayAvatarURL()
-            })
-            .setFields({
-                name: "Account Created",
-                value: time(user.createdAt, TimestampStyles.RelativeTime),
-                inline: true
-            })
-            .setFooter({ text: `User ID: ${user.id}` });
+		const embed = new EmbedBuilder()
+			.setColor(DEFAULT_EMBED_COLOR)
+			.setAuthor({
+				name: surfaceName,
+				iconURL: user.displayAvatarURL(),
+				url: user.displayAvatarURL()
+			})
+			.setFields({
+				name: "Account Created",
+				value: time(user.createdAt, TimestampStyles.RelativeTime),
+				inline: true
+			})
+			.setFooter({ text: `User ID: ${user.id}` });
 
-        if (member?.joinedAt) {
-            embed.addFields({
-                name: "Joined",
-                value: time(member.joinedAt, TimestampStyles.RelativeTime),
-                inline: true
-            });
-        }
+		if (member?.joinedAt) {
+			embed.addFields({
+				name: "Joined",
+				value: time(member.joinedAt, TimestampStyles.RelativeTime),
+				inline: true
+			});
+		}
 
-        const [isBanned, banReason] = await config.guild.bans
-            .fetch(user.id)
-            .then(ban => [true, ban.reason] as const)
-            .catch(() => [false, null] as const);
+		const [isBanned, banReason] = await config.guild.bans
+			.fetch(user.id)
+			.then(ban => [true, ban.reason] as const)
+			.catch(() => [false, null] as const);
 
-        // Fetch the infraction from the database
-        // in order to get the most up-to-date reason
-        // @formatter:off
-        const ban = !isBanned
-            ? null
-            : await prisma.infraction.findFirst({
-                select: { reason: true, id: true },
-                where: {
-                    action: InfractionAction.Ban,
-                    target_id: user.id,
-                    guild_id: config.guild.id
-                },
-                orderBy: { created_at: "desc" }
-            }) ?? {
-                reason: banReason ?? DEFAULT_INFRACTION_REASON,
-                id: -1
-            };
-        // @formatter:on
+		// Fetch the infraction from the database
+		// in order to get the most up-to-date reason
+		// @formatter:off
+		const ban = !isBanned
+			? null
+			: await prisma.infraction.findFirst({
+				select: { reason: true, id: true },
+				where: {
+					action: InfractionAction.Ban,
+					target_id: user.id,
+					guild_id: config.guild.id
+				},
+				orderBy: { created_at: "desc" }
+			}) ?? {
+				reason: banReason ?? DEFAULT_INFRACTION_REASON,
+				id: -1
+			};
+		// @formatter:on
 
-        if (ban && ban.id !== -1) {
-            const reasonPreview = InfractionUtil.formatReasonPreview(ban.reason ?? DEFAULT_INFRACTION_REASON);
+		if (ban && ban.id !== -1) {
+			const reasonPreview = InfractionUtil.formatReasonPreview(ban.reason ?? DEFAULT_INFRACTION_REASON);
 
-            embed.setColor(Colors.Red);
-            embed.setTitle("Banned");
-            embed.setDescription(reasonPreview);
-        } else if (!member) {
-            embed.setColor(Colors.Red);
-            embed.setTitle("Not in server");
-        }
+			embed.setColor(Colors.Red);
+			embed.setTitle("Banned");
+			embed.setDescription(reasonPreview);
+		} else if (!member) {
+			embed.setColor(Colors.Red);
+			embed.setTitle("Not in server");
+		}
 
-        const flags = UserInfo._getFlags(member, user, config);
+		const flags = UserInfo._getFlags(member, user, config);
 
-        if (flags.length) {
-            const formattedFlags = flags
-                .map(inlineCode)
-                .join("\n");
+		if (flags.length) {
+			const formattedFlags = flags
+				.map(inlineCode)
+				.join("\n");
 
-            embed.addFields({
-                name: "Flags",
-                value: formattedFlags,
-                inline: true
-            });
-        }
+			embed.addFields({
+				name: "Flags",
+				value: formattedFlags,
+				inline: true
+			});
+		}
 
-        // Add empty fields to complete row (for a better layout)
-        const blankFields = Array(3 - embed.data.fields!.length)
-            .fill(BLANK_EMBED_FIELD);
+		// Add empty fields to complete row (for a better layout)
+		const blankFields = Array(3 - embed.data.fields!.length)
+			.fill(BLANK_EMBED_FIELD);
 
-        embed.addFields(blankFields);
+		embed.addFields(blankFields);
 
-        const components: ActionRowBuilder<ButtonBuilder>[] = [];
+		const components: ActionRowBuilder<ButtonBuilder>[] = [];
 
-        // Executor has permission to view infractions and the target does not have permission to view infractions
-        if (config.hasPermission(executor, Permission.ViewInfractions) && (!member || !config.hasPermission(member, Permission.ViewInfractions))) {
-            const hasInfractions = await UserInfo._getReceivedInfractions(embed, user.id, config.guild.id);
-            const buttonRow = new ActionRowBuilder<ButtonBuilder>();
+		// Executor has permission to view infractions and the target does not have permission to view infractions
+		if (config.hasPermission(executor, Permission.ViewInfractions) && (!member || !config.hasPermission(member, Permission.ViewInfractions))) {
+			const hasInfractions = await UserInfo._getReceivedInfractions(embed, user.id, config.guild.id);
+			const buttonRow = new ActionRowBuilder<ButtonBuilder>();
 
-            if (ban) {
-                const banInfoButton = new ButtonBuilder()
-                    .setLabel("Ban Info")
-                    .setStyle(ButtonStyle.Danger)
-                    .setCustomId(`infraction-info-${ban.id}`);
+			if (ban) {
+				const banInfoButton = new ButtonBuilder()
+					.setLabel("Ban Info")
+					.setStyle(ButtonStyle.Danger)
+					.setCustomId(`infraction-info-${ban.id}`);
 
-                buttonRow.addComponents(banInfoButton);
-            }
+				buttonRow.addComponents(banInfoButton);
+			}
 
-            if (hasInfractions) {
-                const infractionSearchButton = new ButtonBuilder()
-                    .setLabel("Infractions")
-                    .setCustomId(`infraction-search-${user.id}`)
-                    .setStyle(ButtonStyle.Secondary);
+			if (hasInfractions) {
+				const infractionSearchButton = new ButtonBuilder()
+					.setLabel("Infractions")
+					.setCustomId(`infraction-search-${user.id}`)
+					.setStyle(ButtonStyle.Secondary);
 
-                buttonRow.addComponents(infractionSearchButton);
-            }
+				buttonRow.addComponents(infractionSearchButton);
+			}
 
-            if (buttonRow.components.length) {
-                components.push(buttonRow);
-            }
-        }
+			if (buttonRow.components.length) {
+				components.push(buttonRow);
+			}
+		}
 
-        return { embeds: [embed], components };
-    }
+		return { embeds: [embed], components };
+	}
 
-    /**
+	/**
      * Appends an infraction count field to the passed embed
      *
      * @param embed - The embed to append the field to
@@ -196,8 +196,8 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
      * @returns Whether the user has any infractions
      * @private
      */
-    private static async _getReceivedInfractions(embed: EmbedBuilder, userId: Snowflake, guildId: Snowflake): Promise<boolean> {
-        const [infractions] = await prisma.$queryRaw<InfractionCount[]>`
+	private static async _getReceivedInfractions(embed: EmbedBuilder, userId: Snowflake, guildId: Snowflake): Promise<boolean> {
+		const [infractions] = await prisma.$queryRaw<InfractionCount[]>`
             SELECT SUM(action = ${InfractionAction.Ban})  as ban_count,
                    SUM(action = ${InfractionAction.Kick}) as kick_count,
                    SUM(action = ${InfractionAction.Mute}) as mute_count,
@@ -210,40 +210,40 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
               AND archived_by IS NULL;
         `;
 
-        const infractionList: [string, bigint | null][] = [
-            ["Bans", infractions.ban_count],
-            ["Kicks", infractions.kick_count],
-            ["Mutes", infractions.mute_count],
-            ["Warns", infractions.warn_count],
-            ["Notes", infractions.note_count]
-        ];
+		const infractionList: [string, bigint | null][] = [
+			["Bans", infractions.ban_count],
+			["Kicks", infractions.kick_count],
+			["Mutes", infractions.mute_count],
+			["Warns", infractions.warn_count],
+			["Notes", infractions.note_count]
+		];
 
-        const formattedInfractionList = UserInfo._formatInfractionList(infractionList);
+		const formattedInfractionList = UserInfo._formatInfractionList(infractionList);
 
-        embed.addFields({
-            name: "Infractions Received",
-            inline: embed.data.fields!.length >= 3,
-            value: formattedInfractionList
-        });
+		embed.addFields({
+			name: "Infractions Received",
+			inline: embed.data.fields!.length >= 3,
+			value: formattedInfractionList
+		});
 
-        return formattedInfractionList !== "None";
-    }
+		return formattedInfractionList !== "None";
+	}
 
-    /**
+	/**
      * Formats a list of infractions
      *
      * @param list - The list of infractions to format. [name, count]
      * @returns The formatted list
      * @private
      */
-    private static _formatInfractionList(list: [string, bigint | null][]): string {
-        return list
-            .filter(([, count]) => Boolean(count))
-            .map(([name, count]) => `${name}: \`${count}\``)
-            .join("\n") || "None";
-    }
+	private static _formatInfractionList(list: [string, bigint | null][]): string {
+		return list
+			.filter(([, count]) => Boolean(count))
+			.map(([name, count]) => `${name}: \`${count}\``)
+			.join("\n") || "None";
+	}
 
-    /**
+	/**
      * Get all flags for a user
      *
      * @param member - The member instance (for role checks)
@@ -252,30 +252,30 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
      * @returns An array of flags
      * @private
      */
-    private static _getFlags(member: GuildMember | null, user: User, config: GuildConfig): string[] {
-        const flags: string[] = [];
+	private static _getFlags(member: GuildMember | null, user: User, config: GuildConfig): string[] {
+		const flags: string[] = [];
 
-        if (member) {
-            if (member.isCommunicationDisabled()) {
-                flags.push("Muted");
-            }
+		if (member) {
+			if (member.isCommunicationDisabled()) {
+				flags.push("Muted");
+			}
 
-            const hasFlag = (flag: UserFlag): boolean => {
-                return flag.roles.some(role => member.roles.cache.has(role));
-            };
+			const hasFlag = (flag: UserFlag): boolean => {
+				return flag.roles.some(role => member.roles.cache.has(role));
+			};
 
-            // Check if the user has any custom flags, return all applicable ones
-            config.data.user_flags
-                .filter(hasFlag)
-                .forEach(flag => flags.push(flag.label));
-        }
+			// Check if the user has any custom flags, return all applicable ones
+			config.data.user_flags
+				.filter(hasFlag)
+				.forEach(flag => flags.push(flag.label));
+		}
 
-        if (user.bot) {
-            flags.push("Bot");
-        }
+		if (user.bot) {
+			flags.push("Bot");
+		}
 
-        return flags;
-    }
+		return flags;
+	}
 }
 
 

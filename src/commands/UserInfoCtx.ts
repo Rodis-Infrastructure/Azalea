@@ -6,21 +6,21 @@ import UserInfo from "./UserInfo";
 import ConfigManager from "@managers/config/ConfigManager";
 
 export default class UserInfoCtx extends Command<UserContextMenuCommandInteraction> {
-    constructor() {
-        super({
-            name: "User info",
-            type: ApplicationCommandType.User
-        });
-    }
+	constructor() {
+		super({
+			name: "User info",
+			type: ApplicationCommandType.User
+		});
+	}
 
-    execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
-        const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+	execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
-        return UserInfo.get({
-            member: interaction.targetMember,
-            user: interaction.targetUser,
-            executor: interaction.member,
-            config
-        });
-    }
+		return UserInfo.get({
+			member: interaction.targetMember,
+			user: interaction.targetUser,
+			executor: interaction.member,
+			config
+		});
+	}
 }

@@ -3,12 +3,12 @@ import { InteractionReplyData } from "@utils/types";
 
 // The base class for all component interactions.
 export default abstract class Component {
-    /**
+	/**
      * @param customId The custom ID of the component.
      * @protected
      */
-    protected constructor(public readonly customId: CustomID) {
-    }
+	protected constructor(public readonly customId: CustomID) {
+	}
 
     /**
      * Handles the component interaction. Mentions are disabled by default.

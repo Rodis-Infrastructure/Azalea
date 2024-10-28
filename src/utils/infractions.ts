@@ -12,153 +12,153 @@ import { Result } from "./types";
 import GuildConfig from "@managers/config/GuildConfig";
 
 export class InfractionManager {
-    static storeInfraction(data: Prisma.InfractionCreateInput): Promise<Infraction> {
-        return prisma.infraction.create({ data });
-    }
+	static storeInfraction(data: Prisma.InfractionCreateInput): Promise<Infraction> {
+		return prisma.infraction.create({ data });
+	}
 
-    static async deleteInfraction(infractionId: number): Promise<void> {
-        await prisma.infraction.delete({ where: { id: infractionId } });
-    }
+	static async deleteInfraction(infractionId: number): Promise<void> {
+		await prisma.infraction.delete({ where: { id: infractionId } });
+	}
 
-    static async getInfractionCountMessage(targetId: Snowflake, guildId: Snowflake): Promise<string> {
-        const infractions = await prisma.infraction.findMany({
-            select: {
-                flag: true,
-                action: true
-            },
-            where: {
-                target_id: targetId,
-                guild_id: guildId,
-                archived_at: null,
-                archived_by: null
-            }
-        });
+	static async getInfractionCountMessage(targetId: Snowflake, guildId: Snowflake): Promise<string> {
+		const infractions = await prisma.infraction.findMany({
+			select: {
+				flag: true,
+				action: true
+			},
+			where: {
+				target_id: targetId,
+				guild_id: guildId,
+				archived_at: null,
+				archived_by: null
+			}
+		});
 
-        const infCount = infractions.filter(infraction => infraction.action !== InfractionAction.Note).length;
-        const noteCount = infractions.length - infCount;
+		const infCount = infractions.filter(infraction => infraction.action !== InfractionAction.Note).length;
+		const noteCount = infractions.length - infCount;
 
-        // Notes can't be automatic, so we can assume that all automatic infractions are not notes
-        const autoInfCount = infractions.filter(infraction => infraction.flag & InfractionFlag.Automatic).length;
-        const manualInfCount = infCount - autoInfCount;
-        const messageBuilder: string[] = ["\n\n-# This user has"];
+		// Notes can't be automatic, so we can assume that all automatic infractions are not notes
+		const autoInfCount = infractions.filter(infraction => infraction.flag & InfractionFlag.Automatic).length;
+		const manualInfCount = infCount - autoInfCount;
+		const messageBuilder: string[] = ["\n\n-# This user has"];
 
-        if (noteCount) {
-            messageBuilder.push(`\`${noteCount}\` ${pluralize(noteCount, "note")} and`);
-        }
+		if (noteCount) {
+			messageBuilder.push(`\`${noteCount}\` ${pluralize(noteCount, "note")} and`);
+		}
 
-        messageBuilder.push(`\`${infCount}\` ${pluralize(infCount, "infraction")} now`);
-        messageBuilder.push(`(\`${manualInfCount}\` manual, \`${autoInfCount}\` automatic)`);
+		messageBuilder.push(`\`${infCount}\` ${pluralize(infCount, "infraction")} now`);
+		messageBuilder.push(`(\`${manualInfCount}\` manual, \`${autoInfCount}\` automatic)`);
 
-        return messageBuilder.join(" ");
-    }
+		return messageBuilder.join(" ");
+	}
 
-    static logInfraction(infraction: Infraction, executor: GuildMember | null, config: GuildConfig): void {
-        const embedColor = InfractionUtil.mapActionToEmbedColor(infraction.action);
-        const formattedAction = InfractionUtil.formatAction(infraction.action, infraction.flag);
+	static logInfraction(infraction: Infraction, executor: GuildMember | null, config: GuildConfig): void {
+		const embedColor = InfractionUtil.mapActionToEmbedColor(infraction.action);
+		const formattedAction = InfractionUtil.formatAction(infraction.action, infraction.flag);
 
-        const embed = new EmbedBuilder()
-            .setColor(embedColor)
-            .setAuthor({ name: `${formattedAction} Executed` })
-            .setFields([
-                { name: "Executor", value: userMentionWithId(infraction.executor_id) },
-                { name: "Offender", value: userMentionWithId(infraction.target_id) },
-                { name: "Reason", value: infraction.reason ?? DEFAULT_INFRACTION_REASON }
-            ])
-            .setFooter({ text: `#${infraction.id}` })
-            .setTimestamp();
+		const embed = new EmbedBuilder()
+			.setColor(embedColor)
+			.setAuthor({ name: `${formattedAction} Executed` })
+			.setFields([
+				{ name: "Executor", value: userMentionWithId(infraction.executor_id) },
+				{ name: "Offender", value: userMentionWithId(infraction.target_id) },
+				{ name: "Reason", value: infraction.reason ?? DEFAULT_INFRACTION_REASON }
+			])
+			.setFooter({ text: `#${infraction.id}` })
+			.setTimestamp();
 
-        if (infraction.expires_at) {
-            // Since the infraction is new, we can assume that the expiration date is in the future.
-            const msDuration = infraction.expires_at.getTime() - infraction.created_at.getTime();
-            const humanizedDuration = humanizeTimestamp(msDuration);
+		if (infraction.expires_at) {
+			// Since the infraction is new, we can assume that the expiration date is in the future.
+			const msDuration = infraction.expires_at.getTime() - infraction.created_at.getTime();
+			const humanizedDuration = humanizeTimestamp(msDuration);
 
-            // Insert the duration field after the target field
-            embed.spliceFields(2, 0, {
-                name: "Duration",
-                value: humanizedDuration
-            });
-        }
+			// Insert the duration field after the target field
+			embed.spliceFields(2, 0, {
+				name: "Duration",
+				value: humanizedDuration
+			});
+		}
 
-        log({
-            event: LoggingEvent.InfractionCreate,
-            message: { embeds: [embed] },
-            channel: null,
-            member: executor,
-            config
-        });
-    }
+		log({
+			event: LoggingEvent.InfractionCreate,
+			message: { embeds: [embed] },
+			channel: null,
+			member: executor,
+			config
+		});
+	}
 
-    static async endActiveMutes(guildId: Snowflake, targetId: Snowflake): Promise<void> {
-        const now = new Date();
+	static async endActiveMutes(guildId: Snowflake, targetId: Snowflake): Promise<void> {
+		const now = new Date();
 
-        await prisma.infraction.updateMany({
-            where: {
-                expires_at: { gt: now },
-                guild_id: guildId,
-                target_id: targetId
-            },
-            data: {
-                expires_at: now,
-                updated_at: now,
-                updated_by: client.user.id
-            }
-        });
-    }
+		await prisma.infraction.updateMany({
+			where: {
+				expires_at: { gt: now },
+				guild_id: guildId,
+				target_id: targetId
+			},
+			data: {
+				expires_at: now,
+				updated_at: now,
+				updated_by: client.user.id
+			}
+		});
+	}
 
-    static getActiveMute(targetId: Snowflake, guildId: Snowflake): Promise<Infraction | null> {
-        return prisma.infraction.findFirst({
-            where: {
-                target_id: targetId,
-                guild_id: guildId,
-                action: InfractionAction.Mute,
-                expires_at: { gt: new Date() }
-            }
-        });
-    }
+	static getActiveMute(targetId: Snowflake, guildId: Snowflake): Promise<Infraction | null> {
+		return prisma.infraction.findFirst({
+			where: {
+				target_id: targetId,
+				guild_id: guildId,
+				action: InfractionAction.Mute,
+				expires_at: { gt: new Date() }
+			}
+		});
+	}
 }
 
 export class InfractionUtil {
-    /**
+	/**
      * Get the embed color for an infraction log based on its action
      *
      * @param action - The action associated with the infraction
      * @returns The hexadecimal embed color
      */
-    static mapActionToEmbedColor(action: InfractionAction): ColorResolvable {
-        switch (action) {
-            case InfractionAction.Ban:
-                return Colors.Blue;
-            case InfractionAction.Unban:
-                return Colors.Green;
-            case InfractionAction.Kick:
-                return Colors.Red;
-            case InfractionAction.Mute:
-                return Colors.Orange;
-            case InfractionAction.Unmute:
-                return Colors.Green;
-            case InfractionAction.Warn:
-                return Colors.Yellow;
-            case InfractionAction.Note:
-                return Colors.Purple;
-            default:
-                return Colors.NotQuiteBlack;
-        }
-    }
+	static mapActionToEmbedColor(action: InfractionAction): ColorResolvable {
+		switch (action) {
+			case InfractionAction.Ban:
+				return Colors.Blue;
+			case InfractionAction.Unban:
+				return Colors.Green;
+			case InfractionAction.Kick:
+				return Colors.Red;
+			case InfractionAction.Mute:
+				return Colors.Orange;
+			case InfractionAction.Unmute:
+				return Colors.Green;
+			case InfractionAction.Warn:
+				return Colors.Yellow;
+			case InfractionAction.Note:
+				return Colors.Purple;
+			default:
+				return Colors.NotQuiteBlack;
+		}
+	}
 
-    /**
+	/**
      * Get a parsed string representing the infraction type
      *
      * @param action - The action associated with the infraction
      * @param flag - The flag associated with the infraction
      * @returns A string combining the string representation of the action and flag
      */
-    static formatAction(action: InfractionAction, flag: InfractionFlag): string {
-        return [InfractionFlag[flag], InfractionAction[action]]
-            .filter(Boolean)
-            .join(" ");
-    }
+	static formatAction(action: InfractionAction, flag: InfractionFlag): string {
+		return [InfractionFlag[flag], InfractionAction[action]]
+			.filter(Boolean)
+			.join(" ");
+	}
 
-    /**
+	/**
      * Validate an infraction reason. The following conditions must be met:
      *
      * - The reason must not contain any blacklisted domains
@@ -168,59 +168,59 @@ export class InfractionUtil {
      * @param reason
      * @param config
      */
-    static async validateReason(reason: string, config: GuildConfig): Promise<Result> {
-        const { exclude_domains, message_links } = config.data.infraction_reasons;
+	static async validateReason(reason: string, config: GuildConfig): Promise<Result> {
+		const { exclude_domains, message_links } = config.data.infraction_reasons;
 
-        if (reason.length > EMBED_FIELD_CHAR_LIMIT) {
-            return {
-                success: false,
-                message: `The reason exceeds the character limit of \`${EMBED_FIELD_CHAR_LIMIT}\` characters.`
-            };
-        }
+		if (reason.length > EMBED_FIELD_CHAR_LIMIT) {
+			return {
+				success: false,
+				message: `The reason exceeds the character limit of \`${EMBED_FIELD_CHAR_LIMIT}\` characters.`
+			};
+		}
 
-        const domainRegex = TypedRegEx(`https?://(?<domain>${exclude_domains.domains.join("|")})`, "i");
-        const domainMatch = domainRegex.captures(reason);
+		const domainRegex = TypedRegEx(`https?://(?<domain>${exclude_domains.domains.join("|")})`, "i");
+		const domainMatch = domainRegex.captures(reason);
 
-        if (exclude_domains.domains.length && domainMatch) {
-            const parsedFailureMessage = exclude_domains.failure_message
-                .replace("$DOMAIN", domainMatch.domain);
+		if (exclude_domains.domains.length && domainMatch) {
+			const parsedFailureMessage = exclude_domains.failure_message
+				.replace("$DOMAIN", domainMatch.domain);
 
-            return {
-                success: false,
-                message: parsedFailureMessage
-            };
-        }
+			return {
+				success: false,
+				message: parsedFailureMessage
+			};
+		}
 
-        const channelIdRegex = TypedRegEx(`channels/${config.guild.id}/(?<channelId>\\d{17,19})`, "g");
-        const channelIdMatches = channelIdRegex.captureAll(reason)
-            .filter((match): match is { channelId: string } => Boolean(match))
-            .map(({ channelId }) => channelId);
+		const channelIdRegex = TypedRegEx(`channels/${config.guild.id}/(?<channelId>\\d{17,19})`, "g");
+		const channelIdMatches = channelIdRegex.captureAll(reason)
+			.filter((match): match is { channelId: string } => Boolean(match))
+			.map(({ channelId }) => channelId);
 
-        const channels = await Promise.all(
-            channelIdMatches.map(channelId => config.guild.channels.fetch(channelId).catch(() => null))
-        );
+		const channels = await Promise.all(
+			channelIdMatches.map(channelId => config.guild.channels.fetch(channelId).catch(() => null))
+		);
 
-        for (const channel of channels) {
-            if (!channel) continue;
+		for (const channel of channels) {
+			if (!channel) continue;
 
-            const inScope = config.channelInScope(channel, message_links.scoping);
+			const inScope = config.channelInScope(channel, message_links.scoping);
 
-            if (!inScope) {
-                const parsedFailureMessage = message_links.failure_message
-                    .replace("$CHANNEL_ID", channel.id)
-                    .replace("$CHANNEL_NAME", channel.name);
+			if (!inScope) {
+				const parsedFailureMessage = message_links.failure_message
+					.replace("$CHANNEL_ID", channel.id)
+					.replace("$CHANNEL_NAME", channel.name);
 
-                return {
-                    success: false,
-                    message: parsedFailureMessage
-                };
-            }
-        }
+				return {
+					success: false,
+					message: parsedFailureMessage
+				};
+			}
+		}
 
-        return { success: true };
-    }
+		return { success: true };
+	}
 
-    /**
+	/**
      * Formats the infraction reason to appended to a confirmation response
      *
      * - Removes backticks since they cannot be escaped and clash with the applied format
@@ -228,12 +228,12 @@ export class InfractionUtil {
      *
      * @param reason - The reason to format
      */
-    static formatReason(reason: string): `(\`${string}\`)` {
-        const cleanReason = reason.replaceAll("`", "");
-        return `(\`${cleanReason}\`)`;
-    }
+	static formatReason(reason: string): `(\`${string}\`)` {
+		const cleanReason = reason.replaceAll("`", "");
+		return `(\`${cleanReason}\`)`;
+	}
 
-    /**
+	/**
      * Cleans the reason by removing...
      *
      * - Links
@@ -243,16 +243,16 @@ export class InfractionUtil {
      * @param reason - The reason to clean
      * @returns The clean reason
      */
-    static formatReasonPreview(reason: string): string {
-        return reason
-            // Remove links
-            .replaceAll(/https?:\/\/[^\s\n\r]+/gi, "")
-            // Remove purge log
-            .replace(/ \(Purge log:.*/gi, "")
-            // Remove unnecessary whitespace
-            .replaceAll(/\s{2,}/g, " ")
-            .trim();
-    }
+	static formatReasonPreview(reason: string): string {
+		return reason
+		// Remove links
+			.replaceAll(/https?:\/\/[^\s\n\r]+/gi, "")
+		// Remove purge log
+			.replace(/ \(Purge log:.*/gi, "")
+		// Remove unnecessary whitespace
+			.replaceAll(/\s{2,}/g, " ")
+			.trim();
+	}
 }
 
 export enum InfractionAction {

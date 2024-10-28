@@ -3,14 +3,14 @@ import { Colors, EmbedField, GatewayIntentBits, Partials, PermissionFlagsBits } 
 export const DEFAULT_TIMEZONE = "UTC";
 
 export const LOG_ENTRY_DATE_FORMAT: Intl.DateTimeFormatOptions = {
-    month: "2-digit",
-    day: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    timeZone: DEFAULT_TIMEZONE,
-    hour12: false
+	month: "2-digit",
+	day: "2-digit",
+	year: "numeric",
+	hour: "2-digit",
+	minute: "2-digit",
+	second: "2-digit",
+	timeZone: DEFAULT_TIMEZONE,
+	hour12: false
 };
 
 export const EMPTY_MESSAGE_CONTENT = "No message content";
@@ -39,24 +39,24 @@ export const DEFAULT_DM_PERMISSION: boolean = false;
 
 // The default intents for the Discord client.
 export const CLIENT_INTENTS: readonly GatewayIntentBits[] = [
-    GatewayIntentBits.GuildMessageReactions,
-    GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.GuildModeration,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.Guilds
+	GatewayIntentBits.GuildMessageReactions,
+	GatewayIntentBits.GuildVoiceStates,
+	GatewayIntentBits.GuildModeration,
+	GatewayIntentBits.MessageContent,
+	GatewayIntentBits.GuildMessages,
+	GatewayIntentBits.GuildMembers,
+	GatewayIntentBits.Guilds
 ];
 
 // The default partials for the Discord client.
 export const CLIENT_PARTIALS: Partials[] = [
-    Partials.Reaction,
-    Partials.Message
+	Partials.Reaction,
+	Partials.Message
 ];
 
 // An empty embed field. Typically used for layout purposes.
 export const BLANK_EMBED_FIELD: EmbedField = {
-    name: "\u200b",
-    value: "\u200b",
-    inline: true
+	name: "\u200b",
+	value: "\u200b",
+	inline: true
 };
