@@ -15,11 +15,11 @@ import {
 
 import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
+import { captureException } from "@sentry/node";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import ms from "ms";
-import Sentry from "@sentry/node";
 
 /**
  * Mute a member in the server.
@@ -158,7 +158,7 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
             try {
                 await member.timeout(msDuration, reason);
             } catch (error) {
-                const sentryId = Sentry.captureException(error);
+                const sentryId = captureException(error);
                 InfractionManager.deleteInfraction(infraction.id);
 
                 return {

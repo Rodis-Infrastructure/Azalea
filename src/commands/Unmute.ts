@@ -2,10 +2,10 @@ import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infr
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { InteractionReplyData } from "@utils/types";
+import { captureException } from "@sentry/node";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
-import Sentry from "@sentry/node";
 
 export default class Unmute extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -80,7 +80,7 @@ export default class Unmute extends Command<ChatInputCommandInteraction<"cached"
             try {
                 await member.timeout(null, reason);
             } catch (error) {
-                const sentryId = Sentry.captureException(error);
+                const sentryId = captureException(error);
                 InfractionManager.deleteInfraction(infraction.id);
 
                 return {

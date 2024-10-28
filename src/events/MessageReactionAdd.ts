@@ -11,7 +11,8 @@ import {
     MessageCreateOptions,
     MessageReaction,
     PartialMessage,
-    PartialMessageReaction, PermissionFlagsBits,
+    PartialMessageReaction,
+    PermissionFlagsBits,
     ReactionEmoji,
     roleMention,
     User,
@@ -34,13 +35,13 @@ import { client, prisma } from "./..";
 import { MessageReportFlag, MessageReportStatus, MessageReportUtil } from "@utils/reports";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { QuickMuteDuration } from "@utils/infractions";
+import { captureException } from "@sentry/node";
 
 import MuteRequestUtil, { MuteRequestStatus } from "@utils/muteRequests";
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import Purge from "@/commands/Purge";
-import Sentry from "@sentry/node";
 import BanRequestUtil from "@utils/banRequests";
 
 export default class MessageReactionAdd extends EventListener {
@@ -159,7 +160,7 @@ export default class MessageReactionAdd extends EventListener {
                 config.sendNotification(`${executor} ${result.message}`);
             }
         } catch (error) {
-            const sentryId = Sentry.captureException(error);
+            const sentryId = captureException(error);
             config.sendNotification(`${executor} An error occurred while trying to execute the quick mute (\`${sentryId}\`)`);
         }
     }

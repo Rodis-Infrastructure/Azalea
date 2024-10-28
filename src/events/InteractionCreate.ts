@@ -14,13 +14,13 @@ import { log } from "@utils/logging";
 import { LoggingEvent } from "@managers/config/schema";
 import { channelMentionWithName, pluralize, roleMentionWithName, userMentionWithId } from "@/utils";
 import { formatMessageContentForShortLog } from "@utils/messages";
+import { captureException } from "@sentry/node";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ComponentManager from "@managers/components/ComponentManager";
 import CommandManager from "@managers/commands/CommandManager";
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
-import Sentry from "@sentry/node";
 
 export default class InteractionCreate extends EventListener {
     constructor() {
@@ -54,7 +54,7 @@ export default class InteractionCreate extends EventListener {
         try {
             await InteractionCreate._handle(interaction, config);
         } catch (error) {
-            const sentryId = Sentry.captureException(error, {
+            const sentryId = captureException(error, {
                 user: {
                     id: interaction.user.id,
                     username: interaction.user.username

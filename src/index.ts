@@ -3,8 +3,8 @@ import { CLIENT_INTENTS, CLIENT_PARTIALS, EXIT_EVENTS } from "@utils/constants";
 import { PrismaClient } from "@prisma/client";
 import { startCleanupOperations } from "./utils";
 import { Client, Events, Options } from "discord.js";
+import { captureException, init as initSentry } from "@sentry/node";
 
-import Sentry from "@sentry/node";
 import CommandManager from "./managers/commands/CommandManager";
 import EventListenerManager from "./managers/events/EventListenerManager";
 import ComponentManager from "./managers/components/ComponentManager";
@@ -56,7 +56,7 @@ async function main(): Promise<void> {
     }
 
     // Initialize Sentry
-    Sentry.init({
+    initSentry({
         dsn: process.env.SENTRY_DSN,
         environment: process.env.NODE_ENV,
         profilesSampleRate: 1,
@@ -90,7 +90,7 @@ if (process.env.NODE_ENV !== "test") {
     // Perform closing operations on error
     main()
         .catch(error => {
-            const sentryId = Sentry.captureException(error);
+            const sentryId = captureException(error);
 
             Logger.error(`An unhandled error occurred: ${sentryId}`);
             Logger.error(error);

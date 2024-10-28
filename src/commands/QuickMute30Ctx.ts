@@ -21,12 +21,12 @@ import {
 import { InteractionReplyData, Result } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { cleanContent, cropLines, elipsify } from "@/utils";
+import { captureException } from "@sentry/node";
 import { Message } from "@prisma/client";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import Purge from "./Purge";
-import Sentry from "@sentry/node";
 
 export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInteraction<"cached">> {
     constructor() {
@@ -174,7 +174,7 @@ export async function handleQuickMute(data: {
         try {
             await targetMember.timeout(duration, reason);
         } catch (error) {
-            const sentryId = Sentry.captureException(error);
+            const sentryId = captureException(error);
             InfractionManager.deleteInfraction(infraction.id);
 
             return {

@@ -1,9 +1,9 @@
 import { client } from "@/index";
 import { pluralize } from "@/utils";
+import { captureException } from "@sentry/node";
 
 import Logger, { AnsiColor } from "@utils/logger";
 import EventListener from "./EventListener";
-import Sentry from "@sentry/node";
 import path from "path";
 import fs from "fs";
 
@@ -58,7 +58,7 @@ export default class EventListenerManager {
                 eventListenerCount++;
             }
         } catch (error) {
-            Sentry.captureException(error);
+            captureException(error);
         }
 
         Logger.info(`Mounted ${eventListenerCount} ${pluralize(eventListenerCount, "event listener")}`);

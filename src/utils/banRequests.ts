@@ -19,10 +19,10 @@ import { InfractionAction, InfractionManager, InfractionUtil } from "./infractio
 import { SECONDS_IN_DAY } from "@/commands/Ban";
 import { userMentionWithId } from "./index";
 import { log } from "./logging";
+import { captureException } from "@sentry/node";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import StoreMediaCtx from "@/commands/StoreMediaCtx";
-import Sentry from "@sentry/node";
 
 export default class BanRequestUtil {
     /**
@@ -286,7 +286,7 @@ export default class BanRequestUtil {
                 deleteMessageSeconds: config.data.delete_message_days_on_ban * SECONDS_IN_DAY
             });
         } catch (error) {
-            const sentryId = Sentry.captureException(error);
+            const sentryId = captureException(error);
 
             InfractionManager.deleteInfraction(infraction.id);
             config.sendNotification(`${reviewer} An error occurred while banning the user (\`${sentryId}\`)`);

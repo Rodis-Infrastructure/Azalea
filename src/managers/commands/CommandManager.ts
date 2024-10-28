@@ -2,9 +2,9 @@ import { Collection, CommandInteraction, Snowflake } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
 import { pluralize } from "@/utils";
 import { client } from "@/index";
+import { captureException } from "@sentry/node";
 
 import Logger, { AnsiColor } from "@utils/logger";
-import Sentry from "@sentry/node";
 import Command from "./Command";
 import path from "path";
 import fs from "fs";
@@ -39,7 +39,7 @@ export default class CommandManager {
             const filepath = path.resolve(dirpath, filename);
 
             // Import and initiate the command
-            const commandModule = await import(filepath).catch(Sentry.captureException);
+            const commandModule = await import(filepath).catch(captureException);
             if (!commandModule) continue;
 
             const commandClass = commandModule.default;
@@ -113,7 +113,7 @@ export default class CommandManager {
             const publishedCommands = await guild.commands.set(commands).catch(() => null);
 
             if (!publishedCommands) {
-                Sentry.captureException(new Error("Failed to publish guild commands"));
+                captureException(new Error("Failed to publish guild commands"));
                 return;
             }
 
@@ -132,7 +132,7 @@ export default class CommandManager {
         const publishedCommands = await client.application.commands.set(globalCommands).catch(() => null);
 
         if (!publishedCommands) {
-            Sentry.captureException(new Error("Failed to publish global commands"));
+            captureException(new Error("Failed to publish global commands"));
             return;
         }
 

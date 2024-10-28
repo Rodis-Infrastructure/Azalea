@@ -1,10 +1,10 @@
 import { InteractionReplyData } from "@utils/types";
 import { Collection } from "discord.js";
 import { pluralize } from "@/utils";
+import { captureException } from "@sentry/node";
 
 import Component, { ComponentInteraction, CustomID } from "./Component";
 import Logger, { AnsiColor } from "@utils/logger";
-import Sentry from "@sentry/node";
 import path from "path";
 import fs from "fs";
 
@@ -52,7 +52,7 @@ export default class ComponentManager {
                 componentCount++;
             }
         } catch (error) {
-            Sentry.captureException(error);
+            captureException(error);
         }
 
         Logger.info(`Cached ${componentCount} ${pluralize(componentCount, "component")}`);

@@ -2,10 +2,10 @@ import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "disco
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { InteractionReplyData } from "@utils/types";
+import { captureException } from "@sentry/node";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
-import Sentry from "@sentry/node";
 
 export default class Unban extends Command<ChatInputCommandInteraction<"cached">> {
     constructor() {
@@ -64,7 +64,7 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
         try {
             await interaction.guild.members.unban(user, reason);
         } catch (error) {
-            const sentryId = Sentry.captureException(error);
+            const sentryId = captureException(error);
             InfractionManager.deleteInfraction(infraction.id);
 
             return {

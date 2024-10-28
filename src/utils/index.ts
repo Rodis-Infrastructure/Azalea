@@ -3,23 +3,23 @@ import {
     Role,
     ThreadChannel,
     TextBasedChannel,
-    cleanContent as djsCleanContent, User, GuildMember
+    cleanContent as djsCleanContent,
+    User,
+    GuildMember
 } from "discord.js";
 
 import { Snowflake } from "discord-api-types/v10";
-import { CronJobParams } from "@sentry/node/types/cron/cron";
 import { Messages } from "./messages";
 import { ObjectDiff } from "./types";
-import { CronJob } from "cron";
+import { CronJob, CronJobParams } from "cron";
 import { prisma } from "./..";
 import { DEFAULT_TIMEZONE } from "./constants";
+import { cron } from "@sentry/node";
 
 import Logger, { AnsiColor } from "./logger";
-
 import YAML from "yaml";
 import _ from "lodash";
 import fs from "fs";
-import Sentry from "@sentry/node";
 
 /**
  * Pluralizes a word based on the given count
@@ -210,7 +210,7 @@ export function elipsify(str: string, maxLength: number): string {
  * @param onTick - The function to run on each tick
  */
 export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronTime"], onTick: () => Promise<void> | void): void {
-    const cronJobWithCheckIn = Sentry.cron.instrumentCron(CronJob, monitorSlug);
+    const cronJobWithCheckIn = cron.instrumentCron(CronJob, monitorSlug);
 
     cronJobWithCheckIn.from({
         cronTime,

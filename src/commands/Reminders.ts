@@ -15,11 +15,11 @@ import { DEFAULT_EMBED_COLOR, DURATION_FORMAT, EMBED_FIELD_CHAR_LIMIT } from "@u
 import { client, prisma } from "./..";
 import { pluralize } from "@/utils";
 import { InfractionUtil } from "@utils/infractions";
+import { captureException } from "@sentry/node";
 
 import Command from "@managers/commands/Command";
 import ConfigManager from "@managers/config/ConfigManager";
 import ms from "ms";
-import Sentry from "@sentry/node";
 import Logger, { AnsiColor } from "@utils/logger";
 
 export default class Reminders extends Command<ChatInputCommandInteraction<"cached">> {
@@ -157,7 +157,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
                 ]);
             }, msExpiresAt - Date.now());
         } catch (error) {
-            const sentryId = Sentry.captureException(error);
+            const sentryId = captureException(error);
             return `An error occurred while creating the reminder (\`${sentryId}\`)`;
         }
 

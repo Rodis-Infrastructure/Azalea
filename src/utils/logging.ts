@@ -8,9 +8,9 @@ import {
 } from "discord.js";
 
 import { LoggingEvent, Scoping } from "@managers/config/schema";
+import { captureException } from "@sentry/node";
 
 import GuildConfig from "@managers/config/GuildConfig";
-import Sentry from "@sentry/node";
 
 /**
  * Logs an event to the appropriate logging channels
@@ -32,7 +32,7 @@ export async function log(data: {
         // Send the content in parallel to all logging channels
         return Promise.all(channels.map(c => c.send(message)));
     } catch (error) {
-        Sentry.captureException(error, {
+        captureException(error, {
             extra: {
                 event,
                 channel: channel?.id
