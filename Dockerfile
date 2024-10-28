@@ -1,6 +1,6 @@
 # use the official Bun image
 # see all versions at https://hub.docker.com/r/oven/bun/tags
-FROM oven/bun:1.1.33 as base
+FROM oven/bun:1.1.33@sha256:834c4756a0eb0dd6adc8372d60eeda77cd981171149c26012a8dc00b57fc3556 as base
 WORKDIR /usr/src/app
 
 # set environment variables
@@ -13,7 +13,7 @@ ENV DISCORD_TOKEN=$DISCORD_TOKEN
 ENV SENTRY_DSN=$SENTRY_DSN
 
 # copy node binary from official node image
-COPY --from=node:20.18-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:20.18-slim@sha256:ec35a66c9a0a275b027debde05247c081f8b2f0c43d7399d3a6ad5660cee2f6a /usr/local/bin/node /usr/local/bin/node
 
 # install dependencies into temp directory
 # this will cache them and speed up future builds
