@@ -1,7 +1,6 @@
 import {
 	ActionRowBuilder,
 	ApplicationCommandOptionType,
-	ApplicationIntegrationType,
 	ButtonBuilder,
 	ButtonStyle,
 	ChatInputCommandInteraction,
@@ -9,7 +8,6 @@ import {
 	EmbedBuilder,
 	GuildMember,
 	inlineCode,
-	InteractionContextType,
 	InteractionReplyOptions,
 	Snowflake,
 	time,
@@ -27,14 +25,13 @@ import { getSurfaceName } from "@/utils";
 import Command from "@managers/commands/Command";
 import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
+import RobloxInfo from "@/components/RobloxInfo";
 
 export default class UserInfo extends Command<ChatInputCommandInteraction<"cached">> {
 	constructor() {
 		super({
 			name: "user",
 			description: "Get information about a user",
-			integrationTypes: [ApplicationIntegrationType.GuildInstall],
-			contexts: [InteractionContextType.Guild],
 			options: [{
 				name: "info",
 				description: "Get information about a user",
@@ -147,19 +144,16 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 
 		const buttonRow = new ActionRowBuilder<ButtonBuilder>();
 
+		// Append a 'Roblox Info' button if a RoVer API key is set
+		// and the target user is linked to a Roblox account
 		if (process.env.ROVER_API_KEY) {
-			const response = await fetch(`https://registry.rover.link/api/guilds/${executor.guild.id}/discord-to-roblox/${user.id}`, {
-				// eslint-disable-next-line @typescript-eslint/naming-convention
-				headers: { Authorization: `Bearer ${process.env.ROVER_API_KEY}` }
-			});
+			const result = await RobloxInfo.getLinkedRobloxUser(config.guild.id, user.id, process.env.ROVER_API_KEY);
 
-			if (response.ok) {
-				const { robloxId } = await response.json() as RoverRobloxResponse;
-
+			if (result.success) {
 				const robloxInfoButton = new ButtonBuilder()
 					.setStyle(ButtonStyle.Danger)
 					.setLabel("Roblox Info")
-					.setCustomId(`roblox-info-${robloxId}`);
+					.setCustomId(`roblox-info-${result.data.robloxId}`);
 
 				buttonRow.addComponents(robloxInfoButton);
 			}
@@ -306,11 +300,4 @@ export interface InfractionCount {
 	mute_count: bigint | null;
 	warn_count: bigint | null;
 	note_count: bigint | null;
-}
-
-interface RoverRobloxResponse {
-	robloxId: number;
-	cachedUsername: string;
-	discordId: string;
-	guildId: string;
 }

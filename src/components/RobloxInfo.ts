@@ -6,9 +6,9 @@ import {
 	Colors,
 	EmbedBuilder,
 	GuildMember,
+	Snowflake,
 	time,
-	TimestampStyles,
-	Snowflake
+	TimestampStyles
 } from "discord.js";
 
 import { InteractionReplyData, Result } from "@utils/types";
@@ -18,12 +18,25 @@ import Component from "@managers/components/Component";
 
 export default class RobloxInfo extends Component {
 	constructor() {
+		// Format: `roblox-info-<robloxId>`
 		super({ startsWith: "roblox-info" });
 	}
 
-	private static async _getLinkedDiscordUser(guildId: Snowflake, robloxId: string, apiKey: string): Promise<Result<RoverDiscordResponse>> {
-		const roverDiscordEndpoint = `https://registry.rover.link/api/guilds/${guildId}/roblox-to-discord/${robloxId}`;
-		const response = await fetch(roverDiscordEndpoint, {
+	/**
+	 * Fetches a list of Discord users linked to a Roblox account
+	 *
+	 * @param guildId - ID of the guild to search in
+	 * @param discordId - ID of the Discord user
+	 * @param apiKey - RoVer API key
+	 * @returns The Roblox user linked to the Discord account
+	 * @private
+	 */
+	static async getLinkedRobloxUser(guildId: Snowflake, discordId: Snowflake, apiKey: string): Promise<Result<RoverRobloxResponse>> {
+		const endpoint = Endpoint.DiscordToRoblox
+			.replace(":guildId", guildId)
+			.replace(":discordId", discordId);
+
+		const response = await fetch(endpoint, {
 			method: "GET",
 			headers: {
 				// eslint-disable-next-line @typescript-eslint/naming-convention
@@ -34,7 +47,42 @@ export default class RobloxInfo extends Component {
 		if (!response.ok) {
 			return {
 				success: false,
-				message: `An error occurred while fetching the user's Discord account: \`${response.status} ${response.statusText}\``
+				message: `An error occurred while fetching the user's Roblox account: \`${response.status} ${response.statusText}\``
+			};
+		}
+
+		return {
+			success: true,
+			data: await response.json() as RoverRobloxResponse
+		};
+	}
+
+	/**
+	 * Fetches a list of Discord users linked to a Roblox account
+	 *
+	 * @param guildId - ID of the guild to search in
+	 * @param robloxId - ID of the Roblox user
+	 * @param apiKey - RoVer API key
+	 * @returns A list of Discord users linked to the Roblox account
+	 * @private
+	 */
+	private static async _getLinkedDiscordUsers(guildId: Snowflake, robloxId: string, apiKey: string): Promise<Result<RoverDiscordResponse>> {
+		const endpoint = Endpoint.RobloxToDiscord
+			.replace(":guildId", guildId)
+			.replace(":robloxId", robloxId);
+
+		const response = await fetch(endpoint, {
+			method: "GET",
+			headers: {
+				// eslint-disable-next-line @typescript-eslint/naming-convention
+				Authorization: `Bearer ${apiKey}`
+			}
+		});
+
+		if (!response.ok) {
+			return {
+				success: false,
+				message: `An error occurred while fetching the user's Discord accounts: \`${response.status} ${response.statusText}\``
 			};
 		}
 
@@ -44,9 +92,18 @@ export default class RobloxInfo extends Component {
 		};
 	}
 
+	/**
+	 * Fetches a Roblox user by their ID
+	 *
+	 * @param robloxId - ID of the Roblox user
+	 * @returns The Roblox user
+	 * @private
+	 */
 	private static async _getRobloxUser(robloxId: string): Promise<Result<RobloxUser>> {
-		const robloxUserEndpoint = `https://users.roblox.com/v1/users/${robloxId}`;
-		const response = await fetch(robloxUserEndpoint, {
+		const endpoint = Endpoint.RobloxUser
+			.replace(":robloxId", robloxId);
+
+		const response = await fetch(endpoint, {
 			method: "GET",
 			headers: {
 				// eslint-disable-next-line @typescript-eslint/naming-convention
@@ -72,35 +129,35 @@ export default class RobloxInfo extends Component {
 
 		if (!apiKey) {
 			return {
-				content: "No RoVer API key found",
+				content: "Missing RoVer API key, it must be set in the `ROVER_API_KEY` environment variable.",
 				temporary: true,
 				ephemeral: true
 			};
 		}
 
 		const robloxId = interaction.customId.split("-")[2];
-		const robloxUserResponse = await RobloxInfo._getRobloxUser(robloxId);
+		const robloxUserResult = await RobloxInfo._getRobloxUser(robloxId);
 
-		if (!robloxUserResponse.success) {
+		if (!robloxUserResult.success) {
 			return {
-				content: robloxUserResponse.message,
+				content: robloxUserResult.message,
 				temporary: true,
 				ephemeral: true
 			};
 		}
 
-		const robloxUser = robloxUserResponse.data;
-		const discordUserResponse = await RobloxInfo._getLinkedDiscordUser(interaction.guildId, robloxId, apiKey);
+		const robloxUser = robloxUserResult.data;
+		const discordUserResult = await RobloxInfo._getLinkedDiscordUsers(interaction.guildId, robloxId, apiKey);
 
-		if (!discordUserResponse.success) {
+		if (!discordUserResult.success) {
 			return {
-				content: discordUserResponse.message,
+				content: discordUserResult.message,
 				temporary: true,
 				ephemeral: true
 			};
 		}
 
-		const discordUsers = discordUserResponse.data.discordUsers;
+		const discordUsers = discordUserResult.data.discordUsers;
 		const mappedDiscordUsers = discordUsers.map(member => {
 			return `<@${member.user.id}> (\`${member.user.id}\`)`;
 		}).join("\n");
@@ -108,7 +165,7 @@ export default class RobloxInfo extends Component {
 		const robloxUserCreatedAt = new Date(robloxUser.created);
 		const robloxUserCreatedAtTimestamp = time(robloxUserCreatedAt, TimestampStyles.ShortDateTime);
 
-		const embed = new EmbedBuilder()
+		const robloxInfoEmbed = new EmbedBuilder()
 			.setColor(Colors.Red)
 			.setTitle(robloxUser.name)
 			.setThumbnail(`https://roblox-avatar.eryn.io/${robloxUser.id}`)
@@ -145,17 +202,27 @@ export default class RobloxInfo extends Component {
 			.setComponents(openRobloxProfileButton);
 
 		return {
-			embeds: [embed],
+			embeds: [robloxInfoEmbed],
 			components: [buttonRow],
 			ephemeral: true
 		};
 	}
 }
 
+/** Response format of {@link Endpoint.RobloxToDiscord} */
 interface RoverDiscordResponse {
 	discordUsers: GuildMember[];
 }
 
+/** Response format of {@link Endpoint.DiscordToRoblox} */
+interface RoverRobloxResponse {
+	robloxId: number;
+	cachedUsername: string;
+	discordId: string;
+	guildId: string;
+}
+
+/** Response format of {@link Endpoint.RobloxUser} */
 interface RobloxUser {
 	id: number;
 	name: string;
@@ -165,4 +232,33 @@ interface RobloxUser {
 	isBanned: boolean;
 	created: string;
 	description: string;
+}
+
+enum Endpoint {
+	/**
+	 * Returns a list of Discord users linked to a Roblox account.
+	 * See {@link RoverDiscordResponse} for the response format
+	 *
+	 * ## Args
+	 * - `:guildId` - ID of the guild to search in
+	 * - `:robloxId` - ID of the Roblox user
+	 */
+	RobloxToDiscord = "https://registry.rover.link/api/guilds/:guildId/roblox-to-discord/:robloxId",
+	/**
+	 * Returns the Roblox user linked to a Discord account.
+	 * See {@link RoverRobloxResponse} for the response format
+	 *
+	 * ## Args
+	 * - `:guildId` - ID of the guild to search in
+	 * - `:discordId` - ID of the Discord user
+	 */
+	DiscordToRoblox = "https://registry.rover.link/api/guilds/:guildId/discord-to-roblox/:discordId",
+	/**
+	 * Returns the Roblox user by their ID.
+	 * See {@link RobloxUser} for the response format
+	 *
+	 * ## Args
+	 * - `:robloxId` - ID of the Roblox user
+	 */
+	RobloxUser = "https://users.roblox.com/v1/users/:robloxId"
 }
