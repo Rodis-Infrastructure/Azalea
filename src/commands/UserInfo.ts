@@ -1,18 +1,20 @@
 import {
-	ApplicationCommandOptionType,
-	ButtonBuilder,
 	ActionRowBuilder,
+	ApplicationCommandOptionType,
+	ApplicationIntegrationType,
+	ButtonBuilder,
 	ButtonStyle,
 	ChatInputCommandInteraction,
 	Colors,
 	EmbedBuilder,
 	GuildMember,
 	inlineCode,
+	InteractionContextType,
+	InteractionReplyOptions,
+	Snowflake,
 	time,
 	TimestampStyles,
-	User,
-	Snowflake,
-	InteractionReplyOptions
+	User
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
@@ -31,6 +33,8 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 		super({
 			name: "user",
 			description: "Get information about a user",
+			integrationTypes: [ApplicationIntegrationType.GuildInstall],
+			contexts: [InteractionContextType.Guild],
 			options: [{
 				name: "info",
 				description: "Get information about a user",
@@ -45,35 +49,22 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 		});
 	}
 
-	execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
-		const member = interaction.options.getMember("user");
-		const user = member?.user ?? interaction.options.getUser("user", true);
-		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-
-		return UserInfo.get({
-			executor: interaction.member,
-			config,
-			member,
-			user
-		});
-	}
-
 	/**
-     * Get information about a user
-     *
-     * @param data.member - The target member (for role checks)
-     * @param data.user - The target user
-     * @param data.config - The guild configuration
-     * @param data.channel - The channel the command was executed in
-     * @param data.executor - The executor of the command
-     * @returns An interaction reply with the user's information
-     */
+	 * Get information about a user
+	 *
+	 * @param data.member - The target member (for role checks)
+	 * @param data.user - The target user
+	 * @param data.config - The guild configuration
+	 * @param data.channel - The channel the command was executed in
+	 * @param data.executor - The executor of the command
+	 * @returns An interaction reply with the user's information
+	 */
 	static async get(data: {
-        member: GuildMember | null;
-        user: User;
-        config: GuildConfig;
-        executor: GuildMember;
-    }): Promise<InteractionReplyOptions> {
+		member: GuildMember | null;
+		user: User;
+		config: GuildConfig;
+		executor: GuildMember;
+	}): Promise<InteractionReplyOptions> {
 		const { member, user, config, executor } = data;
 		const surfaceName = getSurfaceName(member ?? user);
 
@@ -154,12 +145,29 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 
 		embed.addFields(blankFields);
 
-		const components: ActionRowBuilder<ButtonBuilder>[] = [];
+		const buttonRow = new ActionRowBuilder<ButtonBuilder>();
+
+		if (process.env.ROVER_API_KEY) {
+			const response = await fetch(`https://registry.rover.link/api/guilds/${executor.guild.id}/discord-to-roblox/${user.id}`, {
+				// eslint-disable-next-line @typescript-eslint/naming-convention
+				headers: { Authorization: `Bearer ${process.env.ROVER_API_KEY}` }
+			});
+
+			if (response.ok) {
+				const { robloxId } = await response.json() as RoverRobloxResponse;
+
+				const robloxInfoButton = new ButtonBuilder()
+					.setStyle(ButtonStyle.Danger)
+					.setLabel("Roblox Info")
+					.setCustomId(`roblox-info-${robloxId}`);
+
+				buttonRow.addComponents(robloxInfoButton);
+			}
+		}
 
 		// Executor has permission to view infractions and the target does not have permission to view infractions
 		if (config.hasPermission(executor, Permission.ViewInfractions) && (!member || !config.hasPermission(member, Permission.ViewInfractions))) {
 			const hasInfractions = await UserInfo._getReceivedInfractions(embed, user.id, config.guild.id);
-			const buttonRow = new ActionRowBuilder<ButtonBuilder>();
 
 			if (ban) {
 				const banInfoButton = new ButtonBuilder()
@@ -178,24 +186,24 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 
 				buttonRow.addComponents(infractionSearchButton);
 			}
-
-			if (buttonRow.components.length) {
-				components.push(buttonRow);
-			}
 		}
 
-		return { embeds: [embed], components };
+		if (buttonRow.components.length) {
+			return { embeds: [embed], components: [buttonRow] };
+		} else {
+			return { embeds: [embed] };
+		}
 	}
 
 	/**
-     * Appends an infraction count field to the passed embed
-     *
-     * @param embed - The embed to append the field to
-     * @param userId - ID of the user to count infractions for
-     * @param guildId - The source guild's ID
-     * @returns Whether the user has any infractions
-     * @private
-     */
+	 * Appends an infraction count field to the passed embed
+	 *
+	 * @param embed - The embed to append the field to
+	 * @param userId - ID of the user to count infractions for
+	 * @param guildId - The source guild's ID
+	 * @returns Whether the user has any infractions
+	 * @private
+	 */
 	private static async _getReceivedInfractions(embed: EmbedBuilder, userId: Snowflake, guildId: Snowflake): Promise<boolean> {
 		const [infractions] = await prisma.$queryRaw<InfractionCount[]>`
             SELECT SUM(action = ${InfractionAction.Ban})  as ban_count,
@@ -208,7 +216,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
               AND guild_id = ${guildId}
               AND archived_at IS NULL
               AND archived_by IS NULL;
-        `;
+		`;
 
 		const infractionList: [string, bigint | null][] = [
 			["Bans", infractions.ban_count],
@@ -230,12 +238,12 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 	}
 
 	/**
-     * Formats a list of infractions
-     *
-     * @param list - The list of infractions to format. [name, count]
-     * @returns The formatted list
-     * @private
-     */
+	 * Formats a list of infractions
+	 *
+	 * @param list - The list of infractions to format. [name, count]
+	 * @returns The formatted list
+	 * @private
+	 */
 	private static _formatInfractionList(list: [string, bigint | null][]): string {
 		return list
 			.filter(([, count]) => Boolean(count))
@@ -244,14 +252,14 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 	}
 
 	/**
-     * Get all flags for a user
-     *
-     * @param member - The member instance (for role checks)
-     * @param user - The user instance (for default flags)
-     * @param config - The guild configuration
-     * @returns An array of flags
-     * @private
-     */
+	 * Get all flags for a user
+	 *
+	 * @param member - The member instance (for role checks)
+	 * @param user - The user instance (for default flags)
+	 * @param config - The guild configuration
+	 * @returns An array of flags
+	 * @private
+	 */
 	private static _getFlags(member: GuildMember | null, user: User, config: GuildConfig): string[] {
 		const flags: string[] = [];
 
@@ -276,13 +284,33 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 
 		return flags;
 	}
+
+	execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+		const member = interaction.options.getMember("user");
+		const user = member?.user ?? interaction.options.getUser("user", true);
+		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+
+		return UserInfo.get({
+			executor: interaction.member,
+			config,
+			member,
+			user
+		});
+	}
 }
 
 
 export interface InfractionCount {
-    ban_count: bigint | null;
-    kick_count: bigint | null;
-    mute_count: bigint | null;
-    warn_count: bigint | null;
-    note_count: bigint | null;
+	ban_count: bigint | null;
+	kick_count: bigint | null;
+	mute_count: bigint | null;
+	warn_count: bigint | null;
+	note_count: bigint | null;
+}
+
+interface RoverRobloxResponse {
+	robloxId: number;
+	cachedUsername: string;
+	discordId: string;
+	guildId: string;
 }
