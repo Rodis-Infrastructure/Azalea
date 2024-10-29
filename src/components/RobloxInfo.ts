@@ -167,9 +167,8 @@ export default class RobloxInfo extends Component {
 
 		const robloxInfoEmbed = new EmbedBuilder()
 			.setColor(Colors.Red)
-			.setTitle(robloxUser.name)
+			.setTitle(`@${robloxUser.name}`)
 			.setThumbnail(`https://roblox-avatar.eryn.io/${robloxUser.id}`)
-			.setDescription(robloxUser.description)
 			.setFields([
 				{
 					name: "Roblox Display Name",
@@ -192,6 +191,10 @@ export default class RobloxInfo extends Component {
 				}
 			])
 			.setFooter({ text: `Roblox ID: ${robloxUser.id}` });
+
+		if (robloxUser.description.length) {
+			robloxInfoEmbed.setDescription(robloxUser.description);
+		}
 
 		const openRobloxProfileButton = new ButtonBuilder()
 			.setLabel("Open Roblox Profile")
