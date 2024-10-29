@@ -3,7 +3,8 @@ import {
 	Collection,
 	Colors,
 	EmbedBuilder,
-	escapeCodeBlock, GuildTextBasedChannel,
+	escapeCodeBlock,
+	GuildTextBasedChannel,
 	hyperlink,
 	Message as DiscordMessage,
 	messageLink,
@@ -27,13 +28,13 @@ import Logger from "./logger";
 import ConfigManager from "@managers/config/ConfigManager";
 
 export class Messages {
-	// Cache for messages that haven't been stored in the database yet
-	private static readonly _dbQueue = new Collection<Snowflake, Message>();
-	// The most recent message deletion audit log.
-	// Used to improve the accuracy of blaming
-	private static _messageDeleteAuditLog?: MessageDeleteAuditLog;
 	// Queue for messages that need to be purged
 	static purgeQueue: PurgeOptions[] = [];
+	// The most recent message deletion audit log.
+	// Cache for messages that haven't been stored in the database yet
+	private static readonly _dbQueue = new Collection<Snowflake, Message>();
+	// Used to improve the accuracy of blaming
+	private static _messageDeleteAuditLog?: MessageDeleteAuditLog;
 
 	static async get(id: Snowflake): Promise<Message | null> {
 		let message = Messages._dbQueue.get(id) ?? null;
@@ -49,9 +50,9 @@ export class Messages {
 	static getBlame(data: MessageDeleteAuditLog): Snowflake | null {
 		const log = Messages._messageDeleteAuditLog;
 		const logHasChanged = !log
-            || log.channelId !== data.channelId
-            || log.targetId !== data.targetId
-            || log.executorId !== data.executorId;
+			|| log.channelId !== data.channelId
+			|| log.targetId !== data.targetId
+			|| log.executorId !== data.executorId;
 
 		// A new audit log has been created
 		// Meaning the count of the previous log was reset and is no longer needed
@@ -76,14 +77,38 @@ export class Messages {
 		return null;
 	}
 
+	// @returns The number of messages sent by the user in the guild
+	static async count(userId: Snowflake, guildId: Snowflake): Promise<MessageCount> {
+		const [storedCount] = await prisma.$queryRaw<MessageCount[]>`
+            SELECT COUNT(*) as total, SUM(deleted = true) as deleted
+            FROM Message
+            WHERE author_id = ${userId}
+              AND guild_id = ${guildId};
+		`;
+
+		const cachedCount = Messages._dbQueue.reduce((acc, message) => {
+			if (message.author_id === userId && message.guild_id === guildId) {
+				acc.total++;
+				if (message.deleted) acc.deleted++;
+			}
+
+			return acc;
+		}, { total: 0n, deleted: 0n });
+
+		return {
+			total: storedCount.total + cachedCount.total,
+			deleted: (storedCount.deleted ?? 0n) + cachedCount.deleted
+		};
+	}
+
 	/**
-     * Get a user's messages from cache or the database
-     *
-     * @param userId - The target user's ID
-     * @param channelId - The source channel's ID
-     * @param period - The period over which to remove the messages (in milliseconds)
-     * @param limit - The maximum number of messages to return
-     */
+	 * Get a user's messages from cache or the database
+	 *
+	 * @param userId - The target user's ID
+	 * @param channelId - The source channel's ID
+	 * @param period - The period over which to remove the messages (in milliseconds)
+	 * @param limit - The maximum number of messages to return
+	 */
 	static async deleteMessagesByUser(userId: Snowflake, channelId: Snowflake, limit: number, period?: number): Promise<Message[]> {
 		const messages = [];
 
@@ -95,8 +120,8 @@ export class Messages {
 		for (const message of Messages._dbQueue.values()) {
 			if (
 				message.author_id !== userId ||
-                message.channel_id !== channelId ||
-                message.deleted
+				message.channel_id !== channelId ||
+				message.deleted
 			) continue;
 
 			if (messages.length === limit) break;
@@ -143,9 +168,9 @@ export class Messages {
 	}
 
 	/**
-     * Update the deletion state of a message
-     * @param id - ID of the message to delete
-     */
+	 * Update the deletion state of a message
+	 * @param id - ID of the message to delete
+	 */
 	static async delete(id: Snowflake): Promise<Message | null> {
 		// Try to get the message form cache
 		let message = Messages._dbQueue.get(id) ?? null;
@@ -165,10 +190,10 @@ export class Messages {
 	}
 
 	/**
-     * Update the deletion state of multiple messages in bulk
-     *
-     * @param messageCollection - The messages to delete
-     */
+	 * Update the deletion state of multiple messages in bulk
+	 *
+	 * @param messageCollection - The messages to delete
+	 */
 	static async deleteMany(messageCollection: Collection<Snowflake, PartialMessage | DiscordMessage<true>>): Promise<Message[]> {
 		const ids = Array.from(messageCollection.keys());
 
@@ -189,7 +214,7 @@ export class Messages {
                 UPDATE Message
                 SET deleted = true
                 WHERE id IN (${ids.join(",")}) RETURNING *;
-            `;
+			`;
 
 			// Merge the cached and stored messages
 			return deletedMessages.concat(dbDeletedMessages);
@@ -199,11 +224,11 @@ export class Messages {
 	}
 
 	/**
-     * Update the content of a message in cache and/or the database
-     *
-     * @param id - ID of the message to update
-     * @param newContent - The new content of the message
-     */
+	 * Update the content of a message in cache and/or the database
+	 *
+	 * @param id - ID of the message to update
+	 * @param newContent - The new content of the message
+	 */
 	static async updateContent(id: Snowflake, newContent: string): Promise<string> {
 		// Try to get the message from cache
 		const message = Messages._dbQueue.get(id);
@@ -431,21 +456,28 @@ export function removeClientReactions(message: DiscordMessage): void {
 }
 
 interface PurgeOptions {
-    // The channel messages were purged from
-    channelId: Snowflake;
-    // The purged messages
-    messages: Message[];
+	// The channel messages were purged from
+	channelId: Snowflake;
+	// The purged messages
+	messages: Message[];
 }
 
 interface MessageDeleteAuditLog {
-    // The user responsible for deleting the message
-    executorId: Snowflake;
-    // The author of the deleted message
-    targetId: Snowflake;
-    // The channel the message was deleted from
-    channelId: Snowflake;
-    // The time the message was deleted
-    createdAt: Date;
-    // The number of messages that were deleted
-    count: number;
+	// The user responsible for deleting the message
+	executorId: Snowflake;
+	// The author of the deleted message
+	targetId: Snowflake;
+	// The channel the message was deleted from
+	channelId: Snowflake;
+	// The time the message was deleted
+	createdAt: Date;
+	// The number of messages that were deleted
+	count: number;
+}
+
+interface MessageCount {
+	// The total number of messages sent by the user
+	total: bigint;
+	// The number of deleted messages sent by the user
+	deleted: bigint | null;
 }

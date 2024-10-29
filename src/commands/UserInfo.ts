@@ -21,6 +21,7 @@ import { prisma } from "./..";
 import { Permission, UserFlag } from "@managers/config/schema";
 import { InfractionAction, InfractionUtil } from "@utils/infractions";
 import { getSurfaceName } from "@/utils";
+import { Messages } from "@utils/messages";
 
 import Command from "@managers/commands/Command";
 import GuildConfig from "@managers/config/GuildConfig";
@@ -141,6 +142,21 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 			.fill(BLANK_EMBED_FIELD);
 
 		embed.addFields(blankFields);
+
+		// Add message count
+		const messageCount = await Messages.count(user.id, config.guild.id);
+		const msMessageLifetime = ConfigManager.globalConfig.database.messages.ttl;
+
+		const dateTo = Math.floor(new Date().getTime() / 1000);
+		const dateFrom = Math.floor(dateTo - (msMessageLifetime / 1000));
+
+		const dateFromTimestamp = time(dateFrom, TimestampStyles.ShortDate);
+		const dateToTimestamp = time(dateTo, TimestampStyles.ShortDate);
+
+		embed.addFields({
+			name: `Messages Sent (${dateFromTimestamp} → ${dateToTimestamp})`,
+			value: `Total: \`${messageCount.total}\`\nDeleted: \`${messageCount.deleted}\``
+		});
 
 		const buttonRow = new ActionRowBuilder<ButtonBuilder>();
 
