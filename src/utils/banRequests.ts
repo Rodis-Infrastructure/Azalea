@@ -101,7 +101,7 @@ export default class BanRequestUtil {
 		// Validate the request format
 		if (!args) {
 			return {
-				success: false,
+				ok: false,
 				message: "Invalid ban request format."
 			};
 		}
@@ -134,7 +134,7 @@ export default class BanRequestUtil {
 		// The target must user exist
 		if (!target) {
 			return {
-				success: false,
+				ok: false,
 				message: "Invalid user."
 			};
 		}
@@ -146,7 +146,7 @@ export default class BanRequestUtil {
 		// The target user must not be banned
 		if (isBanned) {
 			return {
-				success: false,
+				ok: false,
 				message: "This user is already banned."
 			};
 		}
@@ -159,7 +159,7 @@ export default class BanRequestUtil {
             targetMember.roles.highest.position >= request.member.roles.highest.position
 		) {
 			return {
-				success: false,
+				ok: false,
 				message: "You cannot ban a member with a higher or equal role."
 			};
 		}
@@ -187,7 +187,7 @@ export default class BanRequestUtil {
 		}
 
 		return {
-			success: true,
+			ok: true,
 			data: {
 				targetId: args.targetId,
 				data: {

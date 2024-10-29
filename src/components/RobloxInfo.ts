@@ -46,13 +46,13 @@ export default class RobloxInfo extends Component {
 
 		if (!response.ok) {
 			return {
-				success: false,
+				ok: false,
 				message: `An error occurred while fetching the user's Roblox account: \`${response.status} ${response.statusText}\``
 			};
 		}
 
 		return {
-			success: true,
+			ok: true,
 			data: await response.json() as RoverRobloxResponse
 		};
 	}
@@ -81,13 +81,13 @@ export default class RobloxInfo extends Component {
 
 		if (!response.ok) {
 			return {
-				success: false,
+				ok: false,
 				message: `An error occurred while fetching the user's Discord accounts: \`${response.status} ${response.statusText}\``
 			};
 		}
 
 		return {
-			success: true,
+			ok: true,
 			data: await response.json() as RoverDiscordResponse
 		};
 	}
@@ -113,13 +113,13 @@ export default class RobloxInfo extends Component {
 
 		if (!response.ok) {
 			return {
-				success: false,
+				ok: false,
 				message: `An error occurred while fetching the user's Roblox account: \`${response.status} ${response.statusText}\``
 			};
 		}
 
 		return {
-			success: true,
+			ok: true,
 			data: await response.json() as RobloxUser
 		};
 	}

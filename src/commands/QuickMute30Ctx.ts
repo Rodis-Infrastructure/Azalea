@@ -74,7 +74,7 @@ export async function handleQuickMute(data: {
 	if (!targetMessage.content) {
 		return {
 			message: "This action can't be performed on messages with no message content.",
-			success: false
+			ok: false
 		};
 	}
 
@@ -98,7 +98,7 @@ export async function handleQuickMute(data: {
 	if (!channel) {
 		return {
 			message: "Failed to fetch the source channel. Unable to perform quick mute",
-			success: false
+			ok: false
 		};
 	}
 
@@ -108,21 +108,21 @@ export async function handleQuickMute(data: {
 		if (targetMember.roles.highest.position >= executor.roles.highest.position) {
 			return {
 				message: "You can't mute someone with the same or higher role than you",
-				success: false
+				ok: false
 			};
 		}
 
 		if (!targetMember.manageable) {
 			return {
 				message: "I do not have permission to mute this user",
-				success: false
+				ok: false
 			};
 		}
 
 		if (targetMember.isCommunicationDisabled()) {
 			return {
 				message: "You can't mute someone who is already muted",
-				success: false
+				ok: false
 			};
 		}
 	} else {
@@ -131,7 +131,7 @@ export async function handleQuickMute(data: {
 		if (isMuted) {
 			return {
 				message: "You can't mute someone who is already muted",
-				success: false
+				ok: false
 			};
 		}
 	}
@@ -143,7 +143,7 @@ export async function handleQuickMute(data: {
 	if (isBanned) {
 		return {
 			message: "You can't mute a banned user.",
-			success: false
+			ok: false
 		};
 	}
 
@@ -179,7 +179,7 @@ export async function handleQuickMute(data: {
 
 			return {
 				message: `An error occurred while quick muting the member (\`${sentryId}\`)`,
-				success: false
+				ok: false
 			};
 		}
 	}
@@ -198,12 +198,12 @@ export async function handleQuickMute(data: {
 	if (targetMember) {
 		return {
 			data: `Successfully ${message}${infractionCountMessage}`,
-			success: true
+			ok: true
 		};
 	} else {
 		return {
 			data: `User not in server, I will try to ${message.replace("-", "if they join -")}${infractionCountMessage}`,
-			success: true
+			ok: true
 		};
 	}
 }

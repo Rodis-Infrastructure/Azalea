@@ -173,7 +173,7 @@ export class InfractionUtil {
 
 		if (reason.length > EMBED_FIELD_CHAR_LIMIT) {
 			return {
-				success: false,
+				ok: false,
 				message: `The reason exceeds the character limit of \`${EMBED_FIELD_CHAR_LIMIT}\` characters.`
 			};
 		}
@@ -186,7 +186,7 @@ export class InfractionUtil {
 				.replace("$DOMAIN", domainMatch.domain);
 
 			return {
-				success: false,
+				ok: false,
 				message: parsedFailureMessage
 			};
 		}
@@ -211,13 +211,13 @@ export class InfractionUtil {
 					.replace("$CHANNEL_NAME", channel.name);
 
 				return {
-					success: false,
+					ok: false,
 					message: parsedFailureMessage
 				};
 			}
 		}
 
-		return { success: true };
+		return { ok: true };
 	}
 
 	/**

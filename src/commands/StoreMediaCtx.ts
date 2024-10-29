@@ -61,7 +61,7 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
 
 		if (size > 10_000_000) {
 			return {
-				success: false,
+				ok: false,
 				message: "Cannot store media larger than 10MB."
 			};
 		}
@@ -82,20 +82,20 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
 			});
 		} catch {
 			return {
-				success: false,
+				ok: false,
 				message: "Failed to send the media log."
 			};
 		}
 
 		if (!loggedMessages?.length) {
 			return {
-				success: false,
+				ok: false,
 				message: "Couldn't find any logging channels to store the media in."
 			};
 		}
 
 		return {
-			success: true,
+			ok: true,
 			data: loggedMessages.map(message => message.url)
 		};
 	}

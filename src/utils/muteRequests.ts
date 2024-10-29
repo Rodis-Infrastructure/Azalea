@@ -96,7 +96,7 @@ export default class MuteRequestUtil {
 		// Validate the request format
 		if (!args) {
 			return {
-				success: false,
+				ok: false,
 				message: "Invalid mute request format."
 			};
 		}
@@ -129,7 +129,7 @@ export default class MuteRequestUtil {
 		// The target user must exist
 		if (!target) {
 			return {
-				success: false,
+				ok: false,
 				message: "Invalid user."
 			};
 		}
@@ -141,7 +141,7 @@ export default class MuteRequestUtil {
 		// The target user must not be banned
 		if (isBanned) {
 			return {
-				success: false,
+				ok: false,
 				message: "You cannot request a mute for a banned user."
 			};
 		}
@@ -153,7 +153,7 @@ export default class MuteRequestUtil {
             targetMember.roles.highest.position >= request.member.roles.highest.position
 		) {
 			return {
-				success: false,
+				ok: false,
 				message: "You cannot mute a member with a higher or equal role."
 			};
 		}
@@ -196,7 +196,7 @@ export default class MuteRequestUtil {
 			: config.data.default_mute_duration_seconds;
 
 		return {
-			success: true,
+			ok: true,
 			data: {
 				targetMember,
 				data: {
