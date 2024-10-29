@@ -40,7 +40,7 @@ export default class Note extends Command<ChatInputCommandInteraction<"cached">>
 		const member = interaction.options.getMember("user");
 		const validationResult = await InfractionUtil.validateReason(note, config);
 
-		if (!validationResult.success) {
+		if (!validationResult.ok) {
 			return {
 				content: validationResult.message,
 				temporary: true

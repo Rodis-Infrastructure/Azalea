@@ -138,7 +138,7 @@ export default class RobloxInfo extends Component {
 		const robloxId = interaction.customId.split("-")[2];
 		const robloxUserResult = await RobloxInfo._getRobloxUser(robloxId);
 
-		if (!robloxUserResult.success) {
+		if (!robloxUserResult.ok) {
 			return {
 				content: robloxUserResult.message,
 				temporary: true,
@@ -149,7 +149,7 @@ export default class RobloxInfo extends Component {
 		const robloxUser = robloxUserResult.data;
 		const discordUserResult = await RobloxInfo._getLinkedDiscordUsers(interaction.guildId, robloxId, apiKey);
 
-		if (!discordUserResult.success) {
+		if (!discordUserResult.ok) {
 			return {
 				content: discordUserResult.message,
 				temporary: true,

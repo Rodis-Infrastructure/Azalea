@@ -788,7 +788,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
 		const validationResult = await InfractionUtil.validateReason(reason, config);
 
-		if (!validationResult.success) {
+		if (!validationResult.ok) {
 			return validationResult.message;
 		}
 

@@ -71,7 +71,7 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
 		const user = member?.user ?? interaction.options.getUser("user", true);
 		const validationResult = await InfractionUtil.validateReason(reason, config);
 
-		if (!validationResult.success) {
+		if (!validationResult.ok) {
 			return {
 				content: validationResult.message,
 				temporary: true

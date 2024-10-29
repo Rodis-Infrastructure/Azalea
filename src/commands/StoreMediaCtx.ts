@@ -37,7 +37,7 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
 
 		const result = await StoreMediaCtx.storeMedia(interaction.member, interaction.targetMessage.author.id, files, config);
 
-		if (!result.success) {
+		if (!result.ok) {
 			return {
 				content: result.message,
 				temporary: true

@@ -9,5 +9,5 @@ interface ObjectPropDiff {
 
 export type InteractionReplyData = InteractionReplyOptions & Partial<Record<"temporary", boolean>> | string | null;
 export type Result<T = undefined> =
-    | { success: false, message: string }
-    | { success: true } & (T extends undefined ? { data?: never } : { data: T });
+    | { ok: false, message: string }
+    | { ok: true } & (T extends undefined ? { data?: never } : { data: T });

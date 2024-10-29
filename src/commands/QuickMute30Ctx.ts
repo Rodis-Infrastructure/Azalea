@@ -43,7 +43,7 @@ export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInt
 			duration: QuickMuteDuration.Short
 		});
 
-		if (!result.success) {
+		if (!result.ok) {
 			return {
 				content: result.message,
 				temporary: true

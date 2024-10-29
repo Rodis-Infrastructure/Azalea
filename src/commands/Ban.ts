@@ -57,7 +57,7 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
 		const member = interaction.options.getMember("user");
 		const validationResult = await InfractionUtil.validateReason(reason, config);
 
-		if (!validationResult.success) {
+		if (!validationResult.ok) {
 			return {
 				content: validationResult.message,
 				temporary: true

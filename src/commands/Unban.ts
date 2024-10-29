@@ -35,7 +35,7 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
 		const user = interaction.options.getUser("user", true);
 		const validationResult = await InfractionUtil.validateReason(reason, config);
 
-		if (!validationResult.success) {
+		if (!validationResult.ok) {
 			return {
 				content: validationResult.message,
 				temporary: true

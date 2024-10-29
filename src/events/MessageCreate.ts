@@ -194,7 +194,7 @@ export default class MessageCreate extends EventListener {
 		const media = Array.from(message.attachments.values());
 		const result = await StoreMediaCtx.storeMedia(message.member, message.author.id, media, config);
 
-		if (!result.success) {
+		if (!result.ok) {
 			await temporaryReply(message, result.message, config.data.response_ttl);
 			return;
 		}

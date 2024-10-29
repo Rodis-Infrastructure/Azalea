@@ -25,7 +25,7 @@ export default class MuteRequestUtil {
 	static async upsert(request: Message<true>, config: GuildConfig): Promise<void> {
 		const validationResult = await MuteRequestUtil._validate(request, config);
 
-		if (!validationResult.success) {
+		if (!validationResult.ok) {
 			await temporaryReply(request, validationResult.message, config.data.response_ttl);
 			await request.react("⚠️");
 			return;
@@ -106,7 +106,7 @@ export default class MuteRequestUtil {
 			const media = Array.from(request.attachments.values());
 			const result = await StoreMediaCtx.storeMedia(request.member, request.author.id, media, config);
 
-			if (result.success) {
+			if (result.ok) {
 				args.reason += ` ${result.data.join(" ")}`;
 			}
 		}
@@ -114,7 +114,7 @@ export default class MuteRequestUtil {
 		const reasonValidationResult = await InfractionUtil.validateReason(args.reason, config);
 
 		// The infraction reason must be valid
-		if (!reasonValidationResult.success) {
+		if (!reasonValidationResult.ok) {
 			return reasonValidationResult;
 		}
 
@@ -232,7 +232,7 @@ export default class MuteRequestUtil {
 
 		const validationResult = await MuteRequestUtil._validate(request, config);
 
-		if (!validationResult.success) {
+		if (!validationResult.ok) {
 			config.sendNotification(`${reviewer} Failed to approve the mute request, ${validationResult.message}`);
 			return;
 		}

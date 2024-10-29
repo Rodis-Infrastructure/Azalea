@@ -45,7 +45,7 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
 		const member = interaction.options.getMember("member");
 		const validationResult = await InfractionUtil.validateReason(reason, config);
 
-		if (!validationResult.success) {
+		if (!validationResult.ok) {
 			return {
 				content: validationResult.message,
 				temporary: true

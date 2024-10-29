@@ -149,7 +149,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 		if (process.env.ROVER_API_KEY) {
 			const result = await RobloxInfo.getLinkedRobloxUser(config.guild.id, user.id, process.env.ROVER_API_KEY);
 
-			if (result.success) {
+			if (result.ok) {
 				const robloxInfoButton = new ButtonBuilder()
 					.setStyle(ButtonStyle.Danger)
 					.setLabel("Roblox Info")

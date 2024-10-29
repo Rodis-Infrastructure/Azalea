@@ -90,7 +90,7 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
 		duration
 	}, true);
 
-	if (!result.success) {
+	if (!result.ok) {
 		return result.message;
 	}
 

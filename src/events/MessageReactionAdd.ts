@@ -156,7 +156,7 @@ export default class MessageReactionAdd extends EventListener {
 				executor
 			});
 
-			if (!result.success) {
+			if (!result.ok) {
 				config.sendNotification(`${executor} ${result.message}`);
 			}
 		} catch (error) {
