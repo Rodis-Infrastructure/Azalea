@@ -20,12 +20,15 @@ export default class ReportUserCtx extends Command<UserContextMenuCommandInterac
 		super({
 			name: "Report user",
 			type: ApplicationCommandType.User,
+			/* eslint-disable @typescript-eslint/naming-convention */
 			nameLocalizations: {
 				ru: "Пожаловаться на пользователя",
 				id: "Laporkan akun",
 				fr: "Signaler l'utilisateur",
-				it: "Segnala utente"
+				it: "Segnala utente",
+				"sv-SE": "Rapportera användare"
 			}
+			/* eslint-enable */
 		});
 	}
 
