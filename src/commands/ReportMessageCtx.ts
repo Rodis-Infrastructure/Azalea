@@ -10,12 +10,15 @@ export default class ReportMessageCtx extends Command<MessageContextMenuCommandI
 		super({
 			name: "Report message",
 			type: ApplicationCommandType.Message,
+			/* eslint-disable @typescript-eslint/naming-convention */
 			nameLocalizations: {
 				ru: "Пожаловаться на сообщение",
 				id: "Laporkan pesan",
 				fr: "Signaler le message",
-				it: "Segnala messaggio"
+				it: "Segnala messaggio",
+				"sv-SE": "Rapportera meddelande"
 			}
+			/* eslint-enable */
 		});
 	}
 
