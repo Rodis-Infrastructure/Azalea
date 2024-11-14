@@ -70,9 +70,11 @@ export default class InteractionCreate extends EventListener {
 				content: `An error occurred while executing this interaction (\`${sentryId}\`)`,
 				ephemeral: true
 			}).catch(() => null);
-		} finally {
-			InteractionCreate._log(interaction, config);
+
+			return;
 		}
+
+		InteractionCreate._log(interaction, config);
 	}
 
 	private static async _handle(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {

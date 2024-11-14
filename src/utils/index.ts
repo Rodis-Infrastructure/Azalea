@@ -91,12 +91,13 @@ export async function startCleanupOperations(event: string): Promise<void> {
 			color: AnsiColor.Red,
 			full: true
 		});
-	} finally {
-		Logger.log(event, "Successfully completed cleanup operations", {
-			color: AnsiColor.Red,
-			full: true
-		});
+		return;
 	}
+
+	Logger.log(event, "Successfully completed cleanup operations", {
+		color: AnsiColor.Red,
+		full: true
+	});
 
 	process.exit(0);
 }
