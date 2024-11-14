@@ -16,7 +16,8 @@ export default class ReportMessageCtx extends Command<MessageContextMenuCommandI
 				id: "Laporkan pesan",
 				fr: "Signaler le message",
 				it: "Segnala messaggio",
-				"sv-SE": "Rapportera meddelande"
+				"sv-SE": "Rapportera meddelande",
+				"pt-BR": "Reportar mensagem"
 			}
 			/* eslint-enable */
 		});

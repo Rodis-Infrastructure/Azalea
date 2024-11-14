@@ -26,7 +26,8 @@ export default class ReportUserCtx extends Command<UserContextMenuCommandInterac
 				id: "Laporkan akun",
 				fr: "Signaler l'utilisateur",
 				it: "Segnala utente",
-				"sv-SE": "Rapportera användare"
+				"sv-SE": "Rapportera användare",
+				"pt-BR": "Reportar usuário"
 			}
 			/* eslint-enable */
 		});
