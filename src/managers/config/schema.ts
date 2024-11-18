@@ -500,6 +500,15 @@ const lockdownSchema = z.object({
 
 export type Lockdown = z.infer<typeof lockdownSchema>;
 
+const stageEventOverrideSchema = z.object({
+	// ID of the stage channel to monitor for events
+	stage_id: snowflakeSchema,
+	// Channels affected by the override
+	channels: z.array(snowflakeSchema).nonempty(),
+	// Roles affected by the override
+	roles: z.array(snowflakeSchema).nonempty()
+});
+
 // Guild config schema exported for validation
 export const rawGuildConfigSchema = z.object({
 	logging: loggingSchema.default(defaultLogging),
@@ -507,6 +516,8 @@ export const rawGuildConfigSchema = z.object({
 	mute_requests: moderationRequestSchema.optional(),
 	infraction_reasons: infractionReasonsSchema.default({}),
 	auto_reactions: z.array(autoReactionSchema).default([]),
+	// Toggle the `SendMessages` permission in a channel depending on whether a stage event is active
+	stage_event_overrides: z.array(stageEventOverrideSchema).default([]),
 	notification_channel: snowflakeSchema.optional(),
 	lockdown: lockdownSchema.optional(),
 	media_conversion_channel: snowflakeSchema.optional(),
