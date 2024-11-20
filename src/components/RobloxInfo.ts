@@ -206,8 +206,7 @@ export default class RobloxInfo extends Component {
 
 		return {
 			embeds: [robloxInfoEmbed],
-			components: [buttonRow],
-			ephemeral: true
+			components: [buttonRow]
 		};
 	}
 }
