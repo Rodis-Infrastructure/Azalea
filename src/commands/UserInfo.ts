@@ -295,10 +295,14 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 		return flags;
 	}
 
-	execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
 		const member = interaction.options.getMember("user");
 		const user = member?.user ?? interaction.options.getUser("user", true);
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+
+		// Defer the reply to ensure the command doesn't time out
+		const isEphemeral = config.channelInScope(interaction.channel);
+		await interaction.deferReply({ ephemeral: isEphemeral });
 
 		return UserInfo.get({
 			executor: interaction.member,

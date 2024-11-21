@@ -23,16 +23,11 @@ import {
 	MAX_MUTE_DURATION
 } from "@utils/constants";
 
-import {
-	elipsify,
-	humanizeTimestamp,
-	userMentionWithId,
-	pluralize, getSurfaceName
-} from "@/utils";
+import { elipsify, getSurfaceName, humanizeTimestamp, pluralize, userMentionWithId } from "@/utils";
 
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
-import { Prisma, Infraction as InfractionPayload } from "@prisma/client";
+import { Infraction as InfractionPayload, Prisma } from "@prisma/client";
 import { log } from "@utils/logging";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { InfractionAction, InfractionFlag, InfractionUtil } from "@utils/infractions";
@@ -45,18 +40,18 @@ import { InfractionSearchPaginationDirection } from "@/components/InfractionSear
 
 // Filter infraction search results
 export enum InfractionSearchFilter {
-    // Show all infractions, including automatic ones
-    All = "All",
-    // Don't show notes
-    Infractions = "Infractions",
-    // Only show automatic infractions
-    Automatic = "Automatic",
-    // Only show non-automatic infractions (default)
-    Manual = "Manual",
-    // Only show archived infractions
-    Archived = "Archived",
-    // Only show notes
-    Notes = "Notes"
+	// Show all infractions, including automatic ones
+	All = "All",
+	// Don't show notes
+	Infractions = "Infractions",
+	// Only show automatic infractions
+	Automatic = "Automatic",
+	// Only show non-automatic infractions (default)
+	Manual = "Manual",
+	// Only show archived infractions
+	Archived = "Archived",
+	// Only show notes
+	Notes = "Notes"
 }
 
 const infractionSearchFilterChoices: ApplicationCommandOptionChoiceData<string>[] = Object.keys(InfractionSearchFilter)
@@ -204,8 +199,8 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 				// trying to view the infractions of another staff member
 				if (
 					member &&
-                    config.hasPermission(member, Permission.ViewInfractions) &&
-                    !config.hasPermission(interaction.member, Permission.ViewModerationActivity)
+					config.hasPermission(member, Permission.ViewInfractions) &&
+					!config.hasPermission(interaction.member, Permission.ViewModerationActivity)
 				) {
 					return {
 						content: "You do not have permission to view this user's infractions",
@@ -215,6 +210,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
 				const user = member?.user ?? interaction.options.getUser("user", true);
 				const filter = (interaction.options.getString("filter") ?? InfractionSearchFilter.All) as InfractionSearchFilter;
+
+				// Defer the reply to ensure the command doesn't time out
+				const isEphemeral = config.channelInScope(interaction.channel);
+				await interaction.deferReply({ ephemeral: isEphemeral });
 
 				return Infraction.search({
 					guildId: interaction.guildId,
@@ -377,13 +376,13 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 	}
 
 	/**
-     * Get a detailed overview of an infraction
-     *
-     * @param infractionId - ID of the infraction to view the details of
-     * @param guildId - ID of the guild the infraction was given in
-     * @returns An interaction reply with the result of the operation
-     * @private
-     */
+	 * Get a detailed overview of an infraction
+	 *
+	 * @param infractionId - ID of the infraction to view the details of
+	 * @param guildId - ID of the guild the infraction was given in
+	 * @returns An interaction reply with the result of the operation
+	 * @private
+	 */
 	static async info(infractionId: number, guildId: Snowflake): Promise<InteractionReplyData> {
 		const infraction = await prisma.infraction.findUnique({
 			where: {
@@ -463,17 +462,17 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 	}
 
 	/**
-     * Archives an infraction by:
-     *
-     * - Updating the infraction's archived status in the database.
-     * - Logging the archive in the appropriate channel.
-     *
-     * @param infractionId - ID of the infraction to archive
-     * @param executor - The user responsible for archiving the infraction
-     * @param config - The guild configuration
-     * @returns An interaction reply with the result of the operation
-     * @private
-     */
+	 * Archives an infraction by:
+	 *
+	 * - Updating the infraction's archived status in the database.
+	 * - Logging the archive in the appropriate channel.
+	 *
+	 * @param infractionId - ID of the infraction to archive
+	 * @param executor - The user responsible for archiving the infraction
+	 * @param config - The guild configuration
+	 * @returns An interaction reply with the result of the operation
+	 * @private
+	 */
 	private static async _archive(infractionId: number, executor: GuildMember, config: GuildConfig): Promise<InteractionReplyData> {
 		const infraction = await prisma.infraction.findUnique({
 			where: { id: infractionId, archived_at: null },
@@ -550,17 +549,17 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 	}
 
 	/**
-     * Restores an archived infraction by:
-     *
-     * - Updating the infraction's archived status in the database.
-     * - Logging the restoration in the appropriate channel.
-     *
-     * @param infractionId - ID of the infraction to restore
-     * @param executor - The user responsible for restoring the infraction
-     * @param config - The guild configuration
-     * @returns An interaction reply with the result of the operation
-     * @private
-     */
+	 * Restores an archived infraction by:
+	 *
+	 * - Updating the infraction's archived status in the database.
+	 * - Logging the restoration in the appropriate channel.
+	 *
+	 * @param infractionId - ID of the infraction to restore
+	 * @param executor - The user responsible for restoring the infraction
+	 * @param config - The guild configuration
+	 * @returns An interaction reply with the result of the operation
+	 * @private
+	 */
 	private static async _restore(infractionId: number, executor: GuildMember, config: GuildConfig): Promise<InteractionReplyData> {
 		const infraction = await prisma.infraction.update({
 			where: {
@@ -620,24 +619,24 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 	}
 
 	/**
-     * Handles the expiration date change of an infraction by:
-     *
-     * - Updating the expiration date in the database.
-     * - Logging the change in the appropriate channel.
-     *
-     * @param data.infractionId - ID of the infraction to modify
-     * @param data.duration - New duration of the infraction
-     * @param data.executor - The user responsible for changing the duration
-     * @param data.config - The guild configuration
-     * @returns An interaction reply with the result of the operation
-     * @private
-     */
+	 * Handles the expiration date change of an infraction by:
+	 *
+	 * - Updating the expiration date in the database.
+	 * - Logging the change in the appropriate channel.
+	 *
+	 * @param data.infractionId - ID of the infraction to modify
+	 * @param data.duration - New duration of the infraction
+	 * @param data.executor - The user responsible for changing the duration
+	 * @param data.config - The guild configuration
+	 * @returns An interaction reply with the result of the operation
+	 * @private
+	 */
 	private static async _setDuration(data: {
-        infractionId: number;
-        duration: string;
-        executor: GuildMember;
-        config: GuildConfig;
-    }): Promise<InteractionReplyData> {
+		infractionId: number;
+		duration: string;
+		executor: GuildMember;
+		config: GuildConfig;
+	}): Promise<InteractionReplyData> {
 		const { infractionId, duration, executor, config } = data;
 
 		const oldState = await prisma.infraction.findUnique({
@@ -741,24 +740,24 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 	}
 
 	/**
-     * Handles the reason change of an infraction by:
-     *
-     * - Updating the reason in the database.
-     * - Logging the change in the appropriate channel.
-     *
-     * @param data.infractionId - ID of the infraction to modify
-     * @param data.reason - New reason of the infraction
-     * @param data.executor - The user responsible for changing the reason
-     * @param data.config - The guild configuration
-     * @returns An interaction reply with the result of the operation
-     * @private
-     */
+	 * Handles the reason change of an infraction by:
+	 *
+	 * - Updating the reason in the database.
+	 * - Logging the change in the appropriate channel.
+	 *
+	 * @param data.infractionId - ID of the infraction to modify
+	 * @param data.reason - New reason of the infraction
+	 * @param data.executor - The user responsible for changing the reason
+	 * @param data.config - The guild configuration
+	 * @returns An interaction reply with the result of the operation
+	 * @private
+	 */
 	static async setReason(data: {
-        infractionId: number;
-        reason: string;
-        executor: GuildMember;
-        config: GuildConfig;
-    }): Promise<InteractionReplyData> {
+		infractionId: number;
+		reason: string;
+		executor: GuildMember;
+		config: GuildConfig;
+	}): Promise<InteractionReplyData> {
 		const { infractionId, reason, executor, config } = data;
 
 		const oldState = await prisma.infraction.findUnique({
@@ -847,22 +846,22 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 	}
 
 	/**
-     * Searches a user's infractions
-     *
-     * @param data.member - The member to search the infractions of
-     * @param data.user - The user to search the infractions of
-     * @param data.guildId - The guild ID to search infractions in
-     * @param data.filter - The filter to apply to the search
-     * @param data.page - The page number
-     * @returns An interaction reply with the search results
-     */
+	 * Searches a user's infractions
+	 *
+	 * @param data.member - The member to search the infractions of
+	 * @param data.user - The user to search the infractions of
+	 * @param data.guildId - The guild ID to search infractions in
+	 * @param data.filter - The filter to apply to the search
+	 * @param data.page - The page number
+	 * @returns An interaction reply with the search results
+	 */
 	static async search(data: {
-        member: GuildMember | null,
-        user: User,
-        guildId: Snowflake,
-        filter: InfractionSearchFilter,
-        page: number
-    }): Promise<InteractionReplyData> {
+		member: GuildMember | null,
+		user: User,
+		guildId: Snowflake,
+		filter: InfractionSearchFilter,
+		page: number
+	}): Promise<InteractionReplyData> {
 		const { member, user, guildId, filter, page } = data;
 
 		const RESULTS_PER_PAGE = 5;
@@ -907,11 +906,11 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 				iconURL: user.displayAvatarURL(),
 				url: user.displayAvatarURL()
 			})
-		// InfractionSearchNext.ts relies on this format
+			// InfractionSearchNext.ts relies on this format
 			.setFooter({ text: `User ID: ${user.id}` });
 
 		if (archivedInfractionCount) {
-            embed.data.footer!.text = `Archived: ${archivedInfractionCount} | ${embed.data.footer!.text}`;
+			embed.data.footer!.text = `Archived: ${archivedInfractionCount} | ${embed.data.footer!.text}`;
 		}
 
 		const fields = Infraction._formatInfractionSearchFields(infractions);
@@ -1020,13 +1019,13 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 	}
 
 	/**
-     * Parses an infraction's expiration date for display
-     *
-     * @param expiresAt - When the infraction expires
-     * @param createdAt - When the infraction was created
-     * @returns A timestamp if the expiration date in the future, a static string otherwise
-     * @private
-     */
+	 * Parses an infraction's expiration date for display
+	 *
+	 * @param expiresAt - When the infraction expires
+	 * @param createdAt - When the infraction was created
+	 * @returns A timestamp if the expiration date in the future, a static string otherwise
+	 * @private
+	 */
 	private static _parseInfractionSearchDurationEntry(expiresAt: Date, createdAt: Date): ReturnType<typeof Infraction._formatInfractionSearchEntry> {
 		const msExpiresAt = expiresAt.getTime();
 		const msDuration = expiresAt.getTime() - createdAt.getTime();
@@ -1041,10 +1040,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 	}
 
 	private static _getPaginationActionRow(data: {
-        page: number,
-        totalPageCount: number,
-        paginationButtonCustomIdPrefix: string,
-    }): ActionRowBuilder<ButtonBuilder> {
+		page: number,
+		totalPageCount: number,
+		paginationButtonCustomIdPrefix: string,
+	}): ActionRowBuilder<ButtonBuilder> {
 		const { page, totalPageCount, paginationButtonCustomIdPrefix } = data;
 
 		const isFirstPage = page === 1;
@@ -1091,12 +1090,12 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 }
 
 enum InfractionSubcommand {
-    Search = "search",
-    Info = "info",
-    Duration = "duration",
-    Reason = "reason",
-    Archive = "archive",
-    Restore = "restore",
-    Active = "active",
-    Transfer = "transfer"
+	Search = "search",
+	Info = "info",
+	Duration = "duration",
+	Reason = "reason",
+	Archive = "archive",
+	Restore = "restore",
+	Active = "active",
+	Transfer = "transfer"
 }

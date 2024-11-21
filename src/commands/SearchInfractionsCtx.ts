@@ -14,7 +14,7 @@ export default class SearchInfractionsCtx extends Command<UserContextMenuCommand
 		});
 	}
 
-	execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const member = interaction.targetMember;
 
@@ -29,6 +29,10 @@ export default class SearchInfractionsCtx extends Command<UserContextMenuCommand
 				temporary: true
 			});
 		}
+
+		// Defer the reply to ensure the command doesn't time out
+		const isEphemeral = config.channelInScope(interaction.channel);
+		await interaction.deferReply({ ephemeral: isEphemeral });
 
 		return Infraction.search({
 			user: interaction.targetUser,

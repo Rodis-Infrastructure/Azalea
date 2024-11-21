@@ -13,8 +13,12 @@ export default class UserInfoCtx extends Command<UserContextMenuCommandInteracti
 		});
 	}
 
-	execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+
+		// Defer the reply to ensure the command doesn't time out
+		const isEphemeral = config.channelInScope(interaction.channel);
+		await interaction.deferReply({ ephemeral: isEphemeral });
 
 		return UserInfo.get({
 			member: interaction.targetMember,

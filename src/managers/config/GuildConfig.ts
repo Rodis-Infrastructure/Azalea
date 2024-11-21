@@ -574,7 +574,9 @@ export default class GuildConfig {
      * @param channel - The channel to check
      * @param scoping - The scoping to check against, defaults to ephemeral scoping
      */
-	channelInScope(channel: GuildBasedChannel, scoping: ChannelScoping = this.data.ephemeral_scoping): boolean {
+	channelInScope(channel: GuildBasedChannel | null, scoping: ChannelScoping = this.data.ephemeral_scoping): boolean {
+		if (!channel) return false;
+
 		const channelData: ChannelScopingParams = {
 			categoryId: channel.parentId,
 			channelId: channel.id,

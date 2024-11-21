@@ -72,6 +72,9 @@ export async function handleInfractionSearchPagination(interaction: ButtonIntera
 		};
 	}
 
+	// Defer the update to ensure the command doesn't time out
+	await interaction.deferUpdate();
+
 	const buttons = interaction.message.components[0].components as ButtonComponent[];
 	// Get the middle component
 	const pageCountButton = buttons[Math.floor(buttons.length / 2)];
@@ -91,7 +94,7 @@ export async function handleInfractionSearchPagination(interaction: ButtonIntera
 		filter
 	}) as InteractionUpdateOptions;
 
-	await interaction.update(updatedResult);
+	await interaction.editReply(updatedResult);
 	return null;
 }
 
