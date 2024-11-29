@@ -32,13 +32,13 @@
   "devDependencies": {
     "@dword-design/eslint-plugin-import-alias": "5.1.1",
     "@eslint/eslintrc": "3.2.0",
-    "@eslint/js": "9.15.0",
+    "@eslint/js": "9.16.0",
     "@types/lodash": "4.17.13",
     "@types/ms": "0.7.34",
     "@typescript-eslint/eslint-plugin": "8.16.0",
     "@typescript-eslint/parser": "8.16.0",
     "bun-types": "1.1.38",
-    "eslint": "9.15.0",
+    "eslint": "9.16.0",
     "globals": "15.12.0"
   }
 }
