@@ -34,7 +34,7 @@
     "@eslint/eslintrc": "3.2.0",
     "@eslint/js": "9.17.0",
     "@types/lodash": "4.17.13",
-    "@types/ms": "0.7.34",
+    "@types/ms": "2.1.0",
     "@typescript-eslint/eslint-plugin": "8.18.0",
     "@typescript-eslint/parser": "8.18.0",
     "bun-types": "1.1.38",
