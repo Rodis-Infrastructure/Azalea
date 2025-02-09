@@ -1,7 +1,8 @@
 import {
 	ActionRowBuilder,
 	ButtonBuilder,
-	ButtonStyle, Colors,
+	ButtonStyle, ChannelType,
+	Colors,
 	EmbedBuilder,
 	Events,
 	Message,
@@ -12,11 +13,11 @@ import {
 } from "discord.js";
 
 import { formatMessageContentForShortLog, Messages, temporaryReply } from "@utils/messages";
-import { getSurfaceName, pluralize, userMentionWithId } from "@/utils";
+import { channelMentionWithName, getSurfaceName, pluralize, userMentionWithId } from "@/utils";
 import { RoleRequestNoteAction } from "@/components/RoleRequestNote";
 import { client, prisma } from "./..";
 import { DEFAULT_EMBED_COLOR } from "@utils/constants";
-import { ChannelScoping } from "@managers/config/schema";
+import { ChannelScoping, LoggingEvent } from "@managers/config/schema";
 import { HighlightChannelScopingType } from "@/commands/Highlight";
 
 import ConfigManager from "@managers/config/ConfigManager";
@@ -25,6 +26,8 @@ import StoreMediaCtx from "@/commands/StoreMediaCtx";
 import GuildConfig from "@managers/config/GuildConfig";
 import MuteRequestUtil from "@utils/muteRequests";
 import BanRequestUtil from "@utils/banRequests";
+import Logger from "@utils/logger";
+import { log } from "@utils/logging";
 
 export default class MessageCreate extends EventListener {
 	constructor() {
@@ -37,6 +40,11 @@ export default class MessageCreate extends EventListener {
 
 		const config = ConfigManager.getGuildConfig(message.guild.id);
 		if (!config) return;
+
+		// Handle announcement publishing
+		if (config.data.auto_publish_announcements.includes(message.channel.id)) {
+			MessageCreate._publishAnnouncement(message, config);
+		}
 
 		// Handle new mute requests
 		if (message.channelId === config.data.mute_requests?.channel_id) {
@@ -139,6 +147,45 @@ export default class MessageCreate extends EventListener {
 
 			user?.send({ embeds: [embed] }).catch(() => null);
 		}
+	}
+
+	private static async _publishAnnouncement(message: Message<true>, config: GuildConfig): Promise<void> {
+		if (message.channel.type !== ChannelType.GuildAnnouncement) {
+			Logger.warn("A non-announcement channel ID was added to the auto_publish_announcements config.");
+			return;
+		}
+
+		message.crosspost()
+			.catch(err => {
+				Logger.warn(`Failed to publish announcement in #${message.channel.name}: ${err}`);
+			});
+
+		const logEmbed = new EmbedBuilder()
+			.setColor(Colors.Grey)
+			.setAuthor({ name: "Announcement Published" })
+			.setFields([
+				{
+					name: "Author",
+					value: userMentionWithId(message.author.id)
+				},
+				{
+					name: "Channel",
+					value: channelMentionWithName(message.channel)
+				},
+				{
+					name: "Message Content",
+					value: await formatMessageContentForShortLog(message.content, null, message.url)
+				}
+			])
+			.setTimestamp();
+
+		log({
+			event: LoggingEvent.MessagePublish,
+			channel: message.channel,
+			member: null,
+			message: { embeds: [logEmbed] },
+			config
+		});
 	}
 
 	private static async _parseMessage(message: PartialMessage | Message<true>): Promise<Message<true> | null> {
