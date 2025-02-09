@@ -669,7 +669,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 			};
 		}
 
-		let msDuration = ms(duration);
+		let msDuration = ms(duration as ms.StringValue);
 
 		if (!msDuration || msDuration < 0) {
 			return {
