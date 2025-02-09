@@ -32,12 +32,14 @@ default_purge_amount: 100
 response_ttl: 3000 # 3 seconds
 notification_channel: "<channel_id>"
 media_conversion_channel: "<channel_id>"
+auto_publish_announcements: ["<channel_id>"]
 ```
 
 * `default_purge_amount`: The default amount of messages to purge when the `purge` command is used without an amount.
 * `response_ttl`: The time in milliseconds that the client will wait before deleting a temporary response.
 * `notification_channel`: ID of the channel where the client will send notifications (such as a ban being executed in a channel with ephemeral responses)
 * `media_conversion_channel`: ID of the channel where the client will log uploaded media (without message content) and respond with a link to the log - media logs are required for this to work.
+* `auto_publish_announcements`: An array of announcement channel IDs where the client will automatically publish messages to other servers.
 
 ### Logging
 

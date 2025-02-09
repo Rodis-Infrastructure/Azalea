@@ -124,6 +124,7 @@ export enum LoggingEvent {
     MessageDelete = "message_delete",
     MessageUpdate = "message_update",
     MessageReactionAdd = "message_reaction_add",
+    MessagePublish = "message_publish",
     InteractionCreate = "interaction_create",
     VoiceJoin = "voice_join",
     VoiceLeave = "voice_leave",
@@ -515,6 +516,8 @@ export const rawGuildConfigSchema = z.object({
 	ban_requests: moderationRequestSchema.optional(),
 	mute_requests: moderationRequestSchema.optional(),
 	infraction_reasons: infractionReasonsSchema.default({}),
+	// Automatically publish announcement messages in these channels
+	auto_publish_announcements: z.array(snowflakeSchema).default([]),
 	auto_reactions: z.array(autoReactionSchema).default([]),
 	// Toggle the `SendMessages` permission in a channel depending on whether a stage event is active
 	stage_event_overrides: z.array(stageEventOverrideSchema).default([]),
