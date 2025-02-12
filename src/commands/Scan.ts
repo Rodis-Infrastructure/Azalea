@@ -39,6 +39,14 @@ export default class Scan extends Command<ChatInputCommandInteraction<"cached">>
 		}
 
 		let url = interaction.options.getString("url", true);
+
+		if (url.startsWith("http://")) {
+			url = url.slice(4);
+			url = `https${url}`;
+		} else if (!url.startsWith("https://")) {
+			url = `https://${url}`;
+		}
+
 		url = Buffer.from(url).toString("base64"); // Base64 encode the URL
 
 		// Remove padding
