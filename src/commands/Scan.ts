@@ -1,14 +1,18 @@
 import {
+	ActionRowBuilder,
 	ApplicationCommandOptionType,
+	ButtonBuilder,
+	ButtonStyle,
 	ChatInputCommandInteraction,
-	Colors,
 	EmbedBuilder,
 	inlineCode
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
+import { formatEmojiUrl } from "@/utils";
 
 import Command from "@managers/commands/Command";
+import ConfigManager from "@managers/config/ConfigManager";
 
 const VIRUSTOTAL_API_ENDPOINT = "https://www.virustotal.com/api/v3/urls/";
 
@@ -38,7 +42,7 @@ export default class Scan extends Command<ChatInputCommandInteraction<"cached">>
 			return "The bot maintainer has not set up the VirusTotal API key.";
 		}
 
-		let url = interaction.options.getString("url", true);
+		let url = interaction.options.getString("url", true).trim();
 
 		if (url.startsWith("http://")) {
 			url = url.slice(4);
@@ -80,11 +84,11 @@ export default class Scan extends Command<ChatInputCommandInteraction<"cached">>
 			return "An error occurred while parsing the URL scan data.";
 		}
 
+		const emoji = ConfigManager.getGuildConfig(interaction.guildId, true).data.client_emojis;
 		const data = result.data.attributes;
-		const trackers = Object.keys(data.trackers);
+		const trackers = Object.keys(data.trackers ?? {});
 
 		const analysisEmbed = new EmbedBuilder()
-			.setTitle("URL Analysis")
 			.setFields([
 				{
 					name: "URL",
@@ -92,9 +96,13 @@ export default class Scan extends Command<ChatInputCommandInteraction<"cached">>
 					inline: true
 				},
 				{
-					name: "Votes",
-					value: `Harmless: ${inlineCode(data.total_votes.harmless.toString())}
-					Malicious: ${inlineCode(data.total_votes.malicious.toString())}`,
+					name: "Final URL",
+					value: inlineCode(data.last_final_url),
+					inline: true
+				},
+				{
+					name: "Tags",
+					value: inlineCode(data.tags.join("`, `") || "None"),
 					inline: true
 				},
 				{
@@ -103,59 +111,94 @@ export default class Scan extends Command<ChatInputCommandInteraction<"cached">>
 					inline: true
 				}
 			])
-			.setFooter({ text: "Powered by VirusTotal" });
-
-		if (
-			data.last_analysis_stats.malicious > 0 ||
-			(data.total_votes.malicious > data.total_votes.harmless && data.total_votes.malicious > 0)
-		) {
-			analysisEmbed.setColor(Colors.Red);
-			analysisEmbed.setTitle("❗ Potentially Malicious");
-		} else if (data.last_analysis_stats.suspicious > 0) {
-			analysisEmbed.setColor(Colors.Orange);
-			analysisEmbed.setTitle("⚠️ Potentially Suspicious");
-		} else {
-			analysisEmbed.setColor(Colors.Green);
-			analysisEmbed.setTitle("✅ Potentially Harmless");
-		}
-
+			.setFooter({ text: "Results may be inaccurate." });
 
 		if (data.last_analysis_stats.malicious > 0) {
-			analysisEmbed.addFields({
-				name: "Detected as Malicious By",
-				value: Object.entries(data.last_analysis_results)
-					.filter(([, { category }]) => category === "malicious")
-					.map(([engine]) => inlineCode(engine))
-					.join(", ") || "Error"
-			});
+			analysisEmbed.setColor("#FF5A50");
+			if (emoji.alert) {
+				analysisEmbed.setAuthor({
+					name: "Malicious",
+					iconURL: formatEmojiUrl(emoji.alert)
+				});
+			} else {
+				analysisEmbed.setTitle("❗ Malicious");
+			}
+		} else if (data.last_analysis_stats.suspicious > 0) {
+			analysisEmbed.setColor("#FFED2E");
+			if (emoji.warning) {
+				analysisEmbed.setAuthor({
+					name: "Suspicious",
+					iconURL: formatEmojiUrl(emoji.warning)
+				});
+			} else {
+				analysisEmbed.setTitle("⚠️ Suspicious");
+			}
+		} else {
+			analysisEmbed.setColor("#27C6A3");
+			if (emoji.checkmark) {
+				analysisEmbed.setAuthor({
+					name: "Harmless",
+					iconURL: formatEmojiUrl(emoji.checkmark)
+				});
+			} else {
+				analysisEmbed.setTitle("✅ Harmless");
+			}
 		}
 
-		if (data.last_analysis_stats.suspicious > 0) {
-			analysisEmbed.addFields({
-				name: "Detected as Suspicious By",
-				value: Object.entries(data.last_analysis_results)
-					.filter(([, { category }]) => category === "suspicious")
-					.map(([engine]) => inlineCode(engine))
-					.join(", ") || "Error"
-			});
+		if (data.last_analysis_stats.malicious > 0 || data.last_analysis_stats.suspicious > 0) {
+			const malicious = [];
+			const suspicious = [];
+
+			for (const [engine, { category }] of Object.entries(data.last_analysis_results)) {
+				switch (category) {
+					case "malicious":
+						malicious.push(engine);
+						break;
+					case "suspicious":
+						suspicious.push(engine);
+						break;
+				}
+			}
+
+			if (malicious.length > 0) {
+				analysisEmbed.addFields({
+					name: "Flagged as Malicious By",
+					value: malicious.map(inlineCode).join(", ") || "None",
+					inline: true
+				});
+			}
+
+			if (suspicious.length > 0) {
+				analysisEmbed.addFields({
+					name: "Flagged as Suspicious By",
+					value: suspicious.map(inlineCode).join(", ") || "None",
+					inline: true
+				});
+			}
 		}
 
-		if (data.redirection_chain.length > 1) {
-			analysisEmbed.addFields({
-				name: "Redirection Chain",
-				value: `-> ${inlineCode(data.redirection_chain.join("`\n-> `"))}`
-			});
-		}
+		const onlineReportUrl = `https://virustotal.com/gui/url/${result.data.id}`;
+		const fullReportButton = new ButtonBuilder()
+			.setLabel("View Full Report")
+			.setStyle(ButtonStyle.Link)
+			.setURL(onlineReportUrl);
+		const actionRow = new ActionRowBuilder<ButtonBuilder>()
+			.setComponents(fullReportButton);
 
-		return { embeds: [analysisEmbed] };
+		return {
+			embeds: [analysisEmbed],
+			components: [actionRow]
+		};
 	}
 }
 
 interface UrlScanResponse {
 	data: {
+		id: string,
 		attributes: {
 			url: string;
-			redirection_chain: string[];
+			last_final_url: string;
+			tags: string[];
 			last_analysis_stats: {
 				harmless: number;
 				malicious: number;
@@ -163,12 +206,8 @@ interface UrlScanResponse {
 				timeout: number;
 				failure: number;
 			};
-			total_votes: {
-				harmless: number;
-				malicious: number;
-			};
-			trackers: {
-				[tracker: string]: [];
+			trackers?: {
+				[tracker: string]: string[];
 			};
 			last_analysis_results: {
 				[engine: string]: {

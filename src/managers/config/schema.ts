@@ -314,6 +314,12 @@ const emojisSchema = z.object({
 	report_message: emojiSchema.optional()
 });
 
+const clientEmojisSchema = z.object({
+	checkmark: snowflakeSchema.optional(),
+	warning: snowflakeSchema.optional(),
+	alert: snowflakeSchema.optional()
+});
+
 const logSchema = z.object({
 	events: z.array(loggingEventEnum).nonempty(),
 	channel_id: snowflakeSchema,
@@ -545,6 +551,7 @@ export const rawGuildConfigSchema = z.object({
 	// default: 3 seconds (3000ms)
 	response_ttl: z.number().min(1000).default(3000),
 	emojis: emojisSchema.optional(),
+	client_emojis: clientEmojisSchema.default({}),
 	default_mute_duration_seconds: z.number()
 		.min(1)
 		.max(MAX_MUTE_DURATION / 1000)

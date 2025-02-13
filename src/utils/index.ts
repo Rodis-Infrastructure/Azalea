@@ -318,3 +318,7 @@ export function stringifyPositionalNum(num: number | string): string {
 			return `${num}th`;
 	}
 }
+
+export function formatEmojiUrl(id: Snowflake): string {
+	return `https://cdn.discordapp.com/emojis/${id}.webp?size=320`;
+}
