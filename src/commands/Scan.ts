@@ -53,9 +53,12 @@ export default class Scan extends Command<ChatInputCommandInteraction<"cached">>
 
 		url = Buffer.from(url).toString("base64"); // Base64 encode the URL
 
-		// Remove padding
-		if (url.endsWith("=")) {
-			url = url.slice(0, -1);
+		// Remove all end padding
+		for (let i = url.length - 1; i > 0; i--) {
+			if (url[i] !== "=") {
+				url = url.slice(0, i + 1);
+				break;
+			}
 		}
 
 		url = `${VIRUSTOTAL_API_ENDPOINT}${url}`;
