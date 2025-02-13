@@ -132,6 +132,8 @@ export enum LoggingEvent {
     ThreadCreate = "thread_create",
     ThreadDelete = "thread_delete",
     ThreadUpdate = "thread_update",
+    MemberJoin = "member_join",
+    MemberLeave = "member_leave",
     MediaStore = "media_store",
     InfractionCreate = "infraction_create",
     InfractionArchive = "infraction_archive",

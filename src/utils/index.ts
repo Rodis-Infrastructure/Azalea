@@ -302,3 +302,19 @@ export function stringifyJSON(obj: unknown, space = 2): string {
 		return typeof v === "bigint" ? v.toString() : v;
 	}, space);
 }
+
+export function stringifyPositionalNum(num: number | string): string {
+	const numStr = num.toString();
+	const lastDigit = numStr[numStr.length - 1];
+
+	switch (lastDigit) {
+		case "1":
+			return `${num}st`;
+		case "2":
+			return `${num}nd`;
+		case "3":
+			return `${num}rd`;
+		default:
+			return `${num}th`;
+	}
+}
