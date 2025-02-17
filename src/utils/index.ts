@@ -304,7 +304,7 @@ export function stringifyJSON(obj: unknown, space = 2): string {
 }
 
 export function stringifyPositionalNum(num: number | string): string {
-	const numStr = num.toString();
+	const numStr = num.toLocaleString();
 	const lastDigit = numStr[numStr.length - 1];
 
 	switch (lastDigit) {
