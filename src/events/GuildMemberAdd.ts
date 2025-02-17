@@ -8,6 +8,8 @@ import { stringifyPositionalNum, userMentionWithId } from "@/utils";
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
 
+const DAY_MS = 1000 * 60 * 60 * 24;
+
 export default class GuildMemberAdd extends EventListener {
 	constructor() {
 		super(Events.GuildMemberAdd);
@@ -86,6 +88,13 @@ export default class GuildMemberAdd extends EventListener {
 			])
 			.setFooter({ text: `ID: ${member.id}` })
 			.setTimestamp();
+
+		if (Date.now() - member.user.createdTimestamp < DAY_MS) {
+			logEmbed.addFields({
+				name: "⚠️ New Account ⚠️",
+				value: "This account is less than a day old"
+			});
+		}
 
 		log({
 			event: LoggingEvent.MemberJoin,
