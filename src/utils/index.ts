@@ -303,19 +303,19 @@ export function stringifyJSON(obj: unknown, space = 2): string {
 	}, space);
 }
 
-export function stringifyPositionalNum(num: number | string): string {
-	const numStr = num.toString();
+export function stringifyPositionalNum(num: number): string {
+	const numStr = num.toLocaleString();
 	const lastDigit = numStr[numStr.length - 1];
 
 	switch (lastDigit) {
 		case "1":
-			return `${num}st`;
+			return `${numStr}st`;
 		case "2":
-			return `${num}nd`;
+			return `${numStr}nd`;
 		case "3":
-			return `${num}rd`;
+			return `${numStr}rd`;
 		default:
-			return `${num}th`;
+			return `${numStr}th`;
 	}
 }
 
