@@ -1,4 +1,4 @@
-import { Colors, EmbedBuilder, Events, GuildMember, time, TimestampStyles } from "discord.js";
+import { Colors, EmbedBuilder, Events, GuildMember, roleMention, time, TimestampStyles } from "discord.js";
 import { log } from "@utils/logging";
 import { LoggingEvent } from "@managers/config/schema";
 import { userMentionWithId } from "@/utils";
@@ -42,6 +42,14 @@ export default class GuildMemberRemove extends EventListener {
 				name: "Joined",
 				value: time(member.joinedAt, TimestampStyles.RelativeTime),
 				inline: true
+			});
+		}
+
+		if (member.roles.cache.size > 0) {
+			logEmbed.addFields({
+				name: "Roles",
+				value: member.roles.cache.map(role => roleMention(role.id)).join(" "),
+				inline: false
 			});
 		}
 
