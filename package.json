@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@dword-design/eslint-plugin-import-alias": "5.1.1",
-    "@eslint/eslintrc": "3.3.0",
+    "@eslint/eslintrc": "3.3.1",
     "@eslint/js": "9.22.0",
     "@types/lodash": "4.17.16",
     "@types/ms": "2.1.0",
