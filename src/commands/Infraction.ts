@@ -120,19 +120,19 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 					type: ApplicationCommandOptionType.Subcommand
 				},
 				{
-					name: InfractionSubcommand.Transfer,
-					description: "Transfer one user's infraction history to another user",
+					name: InfractionSubcommand.CopyHistory,
+					description: "Copies a user's infraction history to another user, without removing the original infractions",
 					type: ApplicationCommandOptionType.Subcommand,
 					options: [
 						{
 							name: "source_user",
-							description: "The user to transfer the infractions from",
+							description: "The user to copy the infractions from",
 							type: ApplicationCommandOptionType.User,
 							required: true
 						},
 						{
 							name: "target_user",
-							description: "The user to transfer the infractions to",
+							description: "The user to copy the infractions to",
 							type: ApplicationCommandOptionType.User,
 							required: true
 						}
@@ -276,7 +276,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 				return Infraction.info(infractionId, interaction.guildId);
 			}
 
-			case InfractionSubcommand.Transfer: {
+			case InfractionSubcommand.CopyHistory: {
 				if (!config.hasPermission(interaction.member, Permission.TransferInfractions)) {
 					return {
 						content: "You do not have permission to transfer infractions.",
@@ -1097,5 +1097,5 @@ enum InfractionSubcommand {
 	Archive = "archive",
 	Restore = "restore",
 	Active = "active",
-	Transfer = "transfer"
+	CopyHistory = "copy-history"
 }
