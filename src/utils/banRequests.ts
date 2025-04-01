@@ -36,7 +36,10 @@ export default class BanRequestUtil {
 		const validationResult = await BanRequestUtil._validate(request, config);
 
 		if (!validationResult.ok) {
-			await temporaryReply(request, validationResult.message, config.data.response_ttl);
+			const requestURL = messageLink(request.channelId, request.id, request.guildId);
+			const requestHyperlink = hyperlink("your ban request", requestURL);
+
+			config.sendNotification(`${request.author} Failed to validate ${requestHyperlink}. ${validationResult.message}`);
 			await request.react("⚠️");
 			return;
 		}
@@ -224,7 +227,10 @@ export default class BanRequestUtil {
 		const validationResult = await BanRequestUtil._validate(request, config);
 
 		if (!validationResult.ok) {
-			config.sendNotification(`${reviewer} Failed to approve the ban request. ${validationResult.message}`);
+			const requestURL = messageLink(request.channelId, request.id, request.guildId);
+			const requestHyperlink = hyperlink("ban request", requestURL);
+
+			config.sendNotification(`${reviewer} Failed to approve the ${requestHyperlink}. ${validationResult.message}`);
 			return;
 		}
 
