@@ -93,7 +93,7 @@ export default class MuteRequestUtil {
          * - `<@123456789012345678> Spamming`
          * - `123456789012345678 Spamming`
          */
-		const re = TypedRegEx("^(?:<@!?)?(?<targetId>\\d{17,19})>?(?: +(?<duration>(?:\\d+ *(?:days?|h(?:ou)?rs?|min(?:ute)s?|[mhd]) *)+))? +(?<reason>(?:[\\n\\r]|.)+)", "mi");
+		const re = TypedRegEx("^(?:<@!?)?(?<targetId>\\d{17,19})>?(?: +(?<duration>(?:\\d+ *(?:days?|h(?:ou)?rs?|min(?:ute)?s?|[mhd]) *)+))? +(?<reason>(?:[\\n\\r]|.)+)", "mi");
 		const args = re.captures(request.content);
 
 		// Validate the request format
