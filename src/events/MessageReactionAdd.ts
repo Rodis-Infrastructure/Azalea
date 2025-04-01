@@ -431,7 +431,7 @@ export default class MessageReactionAdd extends EventListener {
 		);
 
 		if (!messages.length) {
-			config.sendNotification(`No messages were purged.`);
+			config.sendNotification(`${userMention(executorId)} No messages were purged.`);
 			return;
 		}
 

@@ -26,7 +26,10 @@ export default class MuteRequestUtil {
 		const validationResult = await MuteRequestUtil._validate(request, config);
 
 		if (!validationResult.ok) {
-			await temporaryReply(request, validationResult.message, config.data.response_ttl);
+			const requestURL = messageLink(request.channelId, request.id, request.guildId);
+			const requestHyperlink = hyperlink("your mute request", requestURL);
+
+			config.sendNotification(`${request.author} Failed to validate ${requestHyperlink}. ${validationResult.message}`);
 			await request.react("⚠️");
 			return;
 		}
@@ -192,7 +195,7 @@ export default class MuteRequestUtil {
 		// Ensure the passed duration does not exceed the maximum mute duration
 		// Use the default mute duration if no duration is provided
 		const durationSeconds = args.duration
-			? Math.min(ms(args.duration) / 1000, config.data.default_mute_duration_seconds)
+			? Math.min(ms(args.duration as ms.StringValue) / 1000, config.data.default_mute_duration_seconds)
 			: config.data.default_mute_duration_seconds;
 
 		return {
@@ -233,7 +236,10 @@ export default class MuteRequestUtil {
 		const validationResult = await MuteRequestUtil._validate(request, config);
 
 		if (!validationResult.ok) {
-			config.sendNotification(`${reviewer} Failed to approve the mute request, ${validationResult.message}`);
+			const requestURL = messageLink(request.channelId, request.id, request.guildId);
+			const requestHyperlink = hyperlink("mute request", requestURL);
+
+			config.sendNotification(`${reviewer} Failed to approve the ${requestHyperlink}, ${validationResult.message}`);
 			return;
 		}
 
