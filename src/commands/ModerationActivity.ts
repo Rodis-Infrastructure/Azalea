@@ -191,7 +191,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
             SELECT *
             FROM MuteRequest
             WHERE strftime(${format}, datetime(created_at / 1000, 'unixepoch')) = ${value}
-              AND author_id = ${userId}
+              AND (author_id = ${userId} OR reviewer_id = ${userId})
               AND guild_id = ${guildId}
               AND status IN (${MuteRequestStatus.Approved}, ${MuteRequestStatus.Denied})
         `;
@@ -200,7 +200,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
             SELECT *
             FROM BanRequest
             WHERE strftime(${format}, datetime(created_at / 1000, 'unixepoch')) = ${value}
-              AND author_id = ${userId}
+              AND (author_id = ${userId} OR reviewer_id = ${userId})
               AND guild_id = ${guildId}
               AND status IN (${BanRequestStatus.Approved}, ${BanRequestStatus.Denied})
         `;
