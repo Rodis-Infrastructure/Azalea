@@ -178,6 +178,8 @@ export enum Permission {
     ManageMessageReports = "manage_message_reports",
     // Grants access to resolving user reports
     ManageUserReports = "manage_user_reports",
+    // Grants access to managing other users' highlights
+    ManageHighlights = "manage_highlights",
     // Grants access to viewing a user's infractions
     ViewInfractions = "view_infractions",
     /**

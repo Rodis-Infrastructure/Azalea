@@ -1,9 +1,12 @@
+import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
 import safe from "safe-regex";
 
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, Colors, EmbedBuilder } from "discord.js";
 import { InteractionReplyData } from "@utils/types";
 import { prisma } from "./..";
+import { pluralize } from "@/utils";
+import { Permission } from "@managers/config/schema";
 
 const PATTERN_LIMIT = 20;
 const PATTERN_CHAR_LIMIT = 45;
@@ -99,7 +102,24 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 				{
 					name: HighlightSubcommand.List,
 					description: "List all patterns and channels in your highlights",
-					type: ApplicationCommandOptionType.Subcommand
+					type: ApplicationCommandOptionType.Subcommand,
+					options: [{
+						name: "user",
+						description: "The user to list highlights for",
+						type: ApplicationCommandOptionType.User,
+						required: false
+					}]
+				},
+				{
+					name: HighlightSubcommand.Erase,
+					description: "Erase a user's highlights",
+					type: ApplicationCommandOptionType.Subcommand,
+					options: [{
+						name: "user",
+						description: "The user to erase highlights for",
+						type: ApplicationCommandOptionType.User,
+						required: true
+					}]
 				}
 			]
 		});
@@ -111,9 +131,10 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 
 		if (!subcommandGroup) {
 			switch (subcommand as HighlightSubcommand) {
-				// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 				case HighlightSubcommand.List:
 					return Highlight._listHighlights(interaction);
+				case HighlightSubcommand.Erase:
+					return Highlight._eraseHighlights(interaction);
 				default:
 					return Promise.resolve({
 						content: "Unknown subcommand",
@@ -350,11 +371,68 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 		return "Successfully cleared all channels from your highlights.";
 	}
 
+	private static async _eraseHighlights(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+
+		if (!config.hasPermission(interaction.member, Permission.ManageHighlights)) {
+			return {
+				content: "You do not have permission to manage other users' highlights.",
+				ephemeral: true
+			};
+		}
+
+		const user = interaction.options.getUser("user", true);
+
+		try {
+			const [patterns] = await prisma.$transaction([
+				prisma.highlightPattern.deleteMany({
+					where: {
+						user_id: user.id,
+						guild_id: interaction.guildId
+					}
+				}),
+				prisma.highlightChannelScoping.deleteMany({
+					where: {
+						user_id: user.id,
+						guild_id: interaction.guildId
+					}
+				}),
+				prisma.highlight.delete({
+					where: {
+						user_id_guild_id: {
+							user_id: user.id,
+							guild_id: interaction.guildId
+						}
+					}
+				})
+			]);
+
+			return `Successfully erased \`${patterns.count}\` ${pluralize(patterns.count, "highlight")} for ${user}.`;
+		} catch {
+			return `Failed to erase highlights for ${user}. This user may not have any highlights set up.`;
+		}
+	}
+
 	private static async _listHighlights(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+		let user = interaction.options.getUser("user");
+
+		if (user && user.id !== interaction.user.id) {
+			const config = ConfigManager.getGuildConfig(interaction.guildId, true);
+
+			if (!config.hasPermission(interaction.member, Permission.ManageHighlights)) {
+				return {
+					content: "You do not have permission to view other users' highlights.",
+					ephemeral: true
+				};
+			}
+		} else {
+			user = interaction.user;
+		}
+
 		const highlights = await prisma.highlight.findUnique({
 			where: {
 				user_id_guild_id: {
-					user_id: interaction.user.id,
+					user_id: user.id,
 					guild_id: interaction.guild.id
 				}
 			},
@@ -394,7 +472,8 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 					value: blacklistedChannels.join("\n") || "None",
 					inline: true
 				}
-			]);
+			])
+			.setFooter({ text: `@${user.username} • ${user.id}` });
 
 		return { embeds: [embed] };
 	}
@@ -407,6 +486,7 @@ enum HighlightSubcommandGroup {
 
 enum HighlightSubcommand {
     List = "list",
+	Erase = "erase"
 }
 
 enum HighlightPatternSubcommand {
