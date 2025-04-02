@@ -156,16 +156,19 @@ export default class BanRequestUtil {
 
 		// Verify role hierarchy
 		// Request author must not be able to ban a member with a higher or equal role
-		if (
-			request.member &&
-            targetMember &&
-            targetMember.roles.highest.position >= request.member.roles.highest.position
-		) {
-			return {
-				ok: false,
-				message: "You cannot ban a member with a higher or equal role."
-			};
-		}
+		//
+		// TEMPORARILY DISABLED DUE TO FALSE POSITIVES
+		//
+		// if (
+		// 	request.member &&
+		//     targetMember &&
+		//     targetMember.roles.highest.position >= request.member.roles.highest.position
+		// ) {
+		// 	return {
+		// 		ok: false,
+		// 		message: "You cannot ban a member with a higher or equal role."
+		// 	};
+		// }
 
 		// Check whether a request for the same user is already pending
 		// Ignore duplicate requests from bots
