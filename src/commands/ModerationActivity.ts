@@ -241,9 +241,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
             FROM Infraction
             WHERE strftime(${format}, datetime(created_at / 1000, 'unixepoch')) = ${value}
               AND executor_id = ${userId}
-              AND guild_id = ${guildId}
-              AND archived_at IS NULL
-              AND archived_by IS NULL
+              AND guild_id = ${guildId};
         `;
 
 		const muteRequests = await prisma.$queryRaw<MuteRequest[]>`
@@ -251,8 +249,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
             FROM MuteRequest
             WHERE strftime(${format}, datetime(created_at / 1000, 'unixepoch')) = ${value}
               AND (author_id = ${userId} OR reviewer_id = ${userId})
-              AND guild_id = ${guildId}
-              AND status IN (${MuteRequestStatus.Approved}, ${MuteRequestStatus.Denied})
+              AND guild_id = ${guildId};
         `;
 
 		const banRequests = await prisma.$queryRaw<BanRequest[]>`
@@ -260,8 +257,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
             FROM BanRequest
             WHERE strftime(${format}, datetime(created_at / 1000, 'unixepoch')) = ${value}
               AND (author_id = ${userId} OR reviewer_id = ${userId})
-              AND guild_id = ${guildId}
-              AND status IN (${BanRequestStatus.Approved}, ${BanRequestStatus.Denied})
+              AND guild_id = ${guildId};
         `;
 
 		const activity: ModerationActivity = {
