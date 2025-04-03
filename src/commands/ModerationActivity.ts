@@ -71,7 +71,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 		const year = interaction.options.getInteger("year");
 		const user = interaction.options.getUser("user", true);
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-		const moderationActivity = await Moderation._getActivity(user.id, interaction.guildId, { month, year });
+		const data = await Moderation._getActivity(user.id, interaction.guildId, { month, year });
 
 		const embed = new EmbedBuilder()
 			.setColor(DEFAULT_EMBED_COLOR)
@@ -81,28 +81,87 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 			})
 			.setFields([
 				{
-					name: "Requested (Approved)",
-					value: Moderation._formatObjectProps(moderationActivity.requested.approved),
+					name: "Notes",
+					value: data.executed.notes.toString(),
 					inline: true
 				},
 				{
-					name: "Requested (Denied)",
-					value: Moderation._formatObjectProps(moderationActivity.requested.denied),
+					name: "Warns",
+					value: data.executed.warns.toString(),
 					inline: true
 				},
 				{
-					name: "Reviewed (Approved)",
-					value: Moderation._formatObjectProps(moderationActivity.reviewed.approved),
+					name: "Manual Mutes",
+					value: data.executed.manualMutes.toString(),
 					inline: true
 				},
 				{
-					name: "Reviewed (Denied)",
-					value: Moderation._formatObjectProps(moderationActivity.reviewed.denied),
+					name: "Quick Mutes",
+					value: data.executed.quickMutes.toString(),
 					inline: true
 				},
 				{
-					name: "Executed",
-					value: Moderation._formatObjectProps(moderationActivity.executed),
+					name: "Kicks",
+					value: data.executed.kicks.toString(),
+					inline: true
+				},
+				{
+					name: "Unbans",
+					value: data.executed.unbans.toString(),
+					inline: true
+				},
+				{
+					name: "Unmutes",
+					value: data.executed.unmutes.toString(),
+					inline: true
+				},
+				{
+					name: "Bans",
+					value: data.executed.bans.toString(),
+					inline: true
+				},
+				{
+					name: "Archived",
+					value: data.executed.archived.toString(),
+					inline: true
+				}
+			]);
+
+		const reviewedRequestsEmbed = new EmbedBuilder()
+			.setColor(DEFAULT_EMBED_COLOR)
+			.setTitle("Reviewed Requests")
+			.setDescription("The following analytics involve the number of requests **reviewed** by the user.")
+			.setFields([
+				{
+					name: "Ban Requests",
+					value: Moderation._formatObjectProps(data.reviewed.banRequests),
+					inline: true
+				},
+				{
+					name: "Mute Requests",
+					value: Moderation._formatObjectProps(data.reviewed.muteRequests),
+					inline: true
+				},
+				{
+					name: "\u200b",
+					value: "\u200b",
+					inline: true
+				}
+			]);
+
+		const requestsMadeEmbed = new EmbedBuilder()
+			.setColor(DEFAULT_EMBED_COLOR)
+			.setTitle("Requests Made")
+			.setDescription("The following analytics involve the number of requests **made** by the user.")
+			.setFields([
+				{
+					name: "Ban Requests",
+					value: Moderation._formatObjectProps(data.requested.banRequests),
+					inline: true
+				},
+				{
+					name: "Mute Requests",
+					value: Moderation._formatObjectProps(data.requested.muteRequests),
 					inline: true
 				},
 				{
@@ -145,7 +204,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 			: true;
 
 		return {
-			embeds: [embed],
+			embeds: [embed, reviewedRequestsEmbed, requestsMadeEmbed],
 			components: [actionRow],
 			ephemeral
 		};
@@ -213,15 +272,29 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 				kicks: 0,
 				unbans: 0,
 				unmutes: 0,
-				warns: 0
+				warns: 0,
+				notes: 0,
+				archived: 0
 			},
 			requested: {
-				approved: { bans: 0, mutes: 0 },
-				denied: { bans: 0, mutes: 0 }
+				banRequests: {
+					approved: 0,
+					denied: 0,
+					unknown: 0,
+					deleted: 0,
+					pending: 0
+				},
+				muteRequests: {
+					approved: 0,
+					denied: 0,
+					unknown: 0,
+					deleted: 0,
+					pending: 0
+				}
 			},
 			reviewed: {
-				approved: { bans: 0, mutes: 0 },
-				denied: { bans: 0, mutes: 0 }
+				banRequests: { approved: 0, denied: 0, unknown: 0 },
+				muteRequests: { approved: 0, denied: 0, unknown: 0 }
 			}
 		};
 
@@ -238,6 +311,11 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 	}
 
 	private static _evaluateDealtInfraction(infraction: Infraction, activity: ModerationActivity): void {
+		if (infraction.archived_at && infraction.archived_by) {
+			activity.executed.archived++;
+			return;
+		}
+
 		switch (infraction.action) {
 			case InfractionAction.Ban: {
 				activity.executed.bans++;
@@ -272,6 +350,11 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 				activity.executed.warns++;
 				break;
 			}
+
+			case InfractionAction.Note: {
+				activity.executed.notes++;
+				break;
+			}
 		}
 	}
 
@@ -283,18 +366,41 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 			switch (muteRequest.status) {
 				case MuteRequestStatus.Approved: {
 					if (isReviewer) {
-						activity.reviewed.approved.mutes++;
+						activity.reviewed.muteRequests.approved++;
 					} else if (isRequestAuthor) {
-						activity.requested.approved.mutes++;
+						activity.requested.muteRequests.approved++;
 					}
 					break;
 				}
 
 				case MuteRequestStatus.Denied: {
 					if (isReviewer) {
-						activity.reviewed.denied.mutes++;
+						activity.reviewed.muteRequests.denied++;
 					} else if (isRequestAuthor) {
-						activity.requested.denied.mutes++;
+						activity.requested.muteRequests.denied++;
+					}
+					break;
+				}
+
+				case MuteRequestStatus.Unknown: {
+					if (isReviewer) {
+						activity.reviewed.muteRequests.unknown++;
+					} else if (isRequestAuthor) {
+						activity.requested.muteRequests.unknown++;
+					}
+					break;
+				}
+
+				case MuteRequestStatus.Pending: {
+					if (isRequestAuthor) {
+						activity.requested.muteRequests.pending++;
+					}
+					break;
+				}
+
+				case MuteRequestStatus.Deleted: {
+					if (isRequestAuthor) {
+						activity.requested.muteRequests.deleted++;
 					}
 					break;
 				}
@@ -310,18 +416,41 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 			switch (banRequest.status) {
 				case BanRequestStatus.Approved: {
 					if (isReviewer) {
-						activity.reviewed.approved.bans++;
+						activity.reviewed.banRequests.approved++;
 					} else if (isRequestAuthor) {
-						activity.requested.approved.bans++;
+						activity.requested.banRequests.approved++;
 					}
 					break;
 				}
 
 				case BanRequestStatus.Denied: {
 					if (isReviewer) {
-						activity.reviewed.denied.bans++;
+						activity.reviewed.banRequests.denied++;
 					} else if (isRequestAuthor) {
-						activity.requested.denied.bans++;
+						activity.requested.banRequests.denied++;
+					}
+					break;
+				}
+
+				case BanRequestStatus.Unknown: {
+					if (isReviewer) {
+						activity.reviewed.banRequests.unknown++;
+					} else if (isRequestAuthor) {
+						activity.requested.banRequests.unknown++;
+					}
+					break;
+				}
+
+				case BanRequestStatus.Pending: {
+					if (isRequestAuthor) {
+						activity.requested.banRequests.pending++;
+					}
+					break;
+				}
+
+				case BanRequestStatus.Deleted: {
+					if (isRequestAuthor) {
+						activity.requested.banRequests.deleted++;
 					}
 					break;
 				}
@@ -337,8 +466,14 @@ interface ModerationActivityFilter {
 
 interface ModerationActivity {
     executed: InfractionsExecuted;
-    requested: InfractionRequests;
-    reviewed: InfractionRequests;
+    requested: {
+		banRequests: RequestMadeStatus;
+		muteRequests: RequestMadeStatus;
+    };
+    reviewed: {
+		banRequests: RequestStatus;
+		muteRequests: RequestStatus;
+    };
 }
 
 interface InfractionsExecuted {
@@ -349,15 +484,17 @@ interface InfractionsExecuted {
     unbans: number;
     unmutes: number;
     warns: number;
+    notes: number;
+    archived: number;
 }
 
-interface InfractionRequests {
-    approved: {
-        bans: number;
-        mutes: number;
-    };
-    denied: {
-        bans: number;
-        mutes: number;
-    };
+interface RequestStatus {
+	approved: number;
+	denied: number;
+	unknown: number;
+}
+
+interface RequestMadeStatus extends RequestStatus {
+	deleted: number;
+	pending: number;
 }
