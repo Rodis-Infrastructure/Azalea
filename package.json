@@ -35,8 +35,8 @@
     "@eslint/js": "9.25.1",
     "@types/lodash": "4.17.16",
     "@types/ms": "2.1.0",
-    "@typescript-eslint/eslint-plugin": "8.30.1",
-    "@typescript-eslint/parser": "8.30.1",
+    "@typescript-eslint/eslint-plugin": "8.31.0",
+    "@typescript-eslint/parser": "8.31.0",
     "bun-types": "1.2.10",
     "eslint": "9.25.1",
     "globals": "16.0.0"
