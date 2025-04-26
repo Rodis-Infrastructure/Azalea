@@ -1,5 +1,5 @@
 import {
-	ActionRowBuilder,
+	ActionRowBuilder, ApplicationEmoji,
 	ButtonBuilder,
 	Colors,
 	EmbedBuilder,
@@ -442,7 +442,7 @@ export default class MessageReactionAdd extends EventListener {
 	}
 
 	private static async _log(
-		emoji: GuildEmoji | ReactionEmoji,
+		emoji: GuildEmoji | ReactionEmoji | ApplicationEmoji,
 		message: Message<true>,
 		user: User,
 		config: GuildConfig
@@ -471,7 +471,7 @@ export default class MessageReactionAdd extends EventListener {
 	}
 
 	private static async _getShortLogContent(
-		emoji: GuildEmoji | ReactionEmoji,
+		emoji: GuildEmoji | ReactionEmoji | ApplicationEmoji,
 		message: Message<true>,
 		user: User
 	): Promise<MessageCreateOptions | null> {
@@ -502,7 +502,7 @@ export default class MessageReactionAdd extends EventListener {
 	}
 
 	private static async _getLongLogContent(
-		emoji: GuildEmoji | ReactionEmoji,
+		emoji: GuildEmoji | ReactionEmoji | ApplicationEmoji,
 		message: Message<true>,
 		user: User
 	): Promise<MessageCreateOptions | null> {
@@ -518,7 +518,7 @@ export default class MessageReactionAdd extends EventListener {
 	}
 
 	/** @returns The emoji ID and URL if the emoji is a custom emoji, otherwise the emoji name */
-	private static _parseEmoji(emoji: GuildEmoji | ReactionEmoji): string {
+	private static _parseEmoji(emoji: GuildEmoji | ReactionEmoji | ApplicationEmoji): string {
 		if (emoji.id) {
 			const maskedEmojiURL = hyperlink("view", `<${emoji.imageURL()}>`);
 			return `\`<:${emoji.name}:${emoji.id}>\` (${maskedEmojiURL})`;
@@ -527,7 +527,7 @@ export default class MessageReactionAdd extends EventListener {
 		return emoji.toString();
 	}
 
-	private static _getEmojiId(emoji: GuildEmoji | ReactionEmoji): string | null {
+	private static _getEmojiId(emoji: GuildEmoji | ReactionEmoji | ApplicationEmoji): string | null {
 		return emoji.id ?? emoji.name;
 	}
 }
