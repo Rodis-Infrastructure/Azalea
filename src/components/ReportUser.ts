@@ -7,12 +7,11 @@ import {
 	EmbedBuilder,
 	GuildTextBasedChannel,
 	ModalSubmitInteraction,
-	roleMention,
 	userMention
 } from "discord.js";
 
 import { InteractionReplyData } from "@utils/types";
-import { userMentionWithId } from "@/utils";
+import { enhancedRoleMention, userMentionWithId } from "@/utils";
 import { UserReportStatus } from "@utils/reports";
 import { prisma } from "./..";
 import { log } from "@utils/logging";
@@ -132,7 +131,7 @@ export default class ReportUser extends Component {
 
 		// Mention the roles that should be pinged when a message is reported
 		const mentionedRoles = config.data.user_reports!.mentioned_roles
-			?.map(roleMention)
+			?.map(enhancedRoleMention)
 			.join(" ");
 
 		const { id } = await userReportChannel.send({

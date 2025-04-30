@@ -322,3 +322,18 @@ export function stringifyPositionalNum(num: number | string): string {
 export function formatEmojiUrl(id: Snowflake): string {
 	return `https://cdn.discordapp.com/emojis/${id}.webp?size=320`;
 }
+
+/**
+ * Formats a role mention with the given ID (`<@&ID>`), a `@here` mention,
+ * or an `@everyone` mention.
+ * @param id
+ */
+export function enhancedRoleMention(id: Snowflake): string {
+	if (id === "@everyone" || id === "everyone") {
+		return "@everyone";
+	}
+	if (id === "@here" || id === "here") {
+		return "@here";
+	}
+	return `<@&${id}>`;
+}

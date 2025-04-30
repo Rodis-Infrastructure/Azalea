@@ -14,7 +14,6 @@ import {
 	PartialMessageReaction,
 	PermissionFlagsBits,
 	ReactionEmoji,
-	roleMention,
 	User,
 	userMention
 } from "discord.js";
@@ -29,7 +28,7 @@ import {
 import { handleQuickMute } from "@/commands/QuickMute30Ctx";
 import { log, mapLogEntriesToFile } from "@utils/logging";
 import { DEFAULT_EMBED_COLOR, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { cleanContent, cropLines, pluralize, userMentionWithId } from "@/utils";
+import { cleanContent, cropLines, enhancedRoleMention, pluralize, userMentionWithId } from "@/utils";
 import { ButtonStyle, Snowflake } from "discord-api-types/v10";
 import { client, prisma } from "./..";
 import { MessageReportFlag, MessageReportStatus, MessageReportUtil } from "@utils/reports";
@@ -380,7 +379,7 @@ export default class MessageReactionAdd extends EventListener {
 
 		// Mention the roles that should be pinged when a message is reported
 		const mentionedRoles = config.data.message_reports.mentioned_roles
-			?.map(roleMention)
+			?.map(enhancedRoleMention)
 			.join(" ");
 
 		const report = await reportChannel.send({

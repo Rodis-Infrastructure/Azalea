@@ -9,7 +9,6 @@ import {
 	hyperlink,
 	messageLink,
 	Role,
-	roleMention,
 	time,
 	TimestampStyles
 } from "discord.js";
@@ -27,7 +26,7 @@ import {
 import { client, prisma } from "@/index";
 import { MessageReportStatus, UserReportStatus } from "@utils/reports";
 import { fromZodError } from "zod-validation-error";
-import { pluralize, randInt, startCronJob } from "@/utils";
+import { enhancedRoleMention, pluralize, randInt, startCronJob } from "@/utils";
 import { Snowflake } from "discord-api-types/v10";
 import { LOG_ENTRY_DATE_FORMAT } from "@utils/constants";
 import { MuteRequestStatus } from "@utils/muteRequests";
@@ -140,7 +139,7 @@ export default class GuildConfig {
 		}
 
 		const mentionedRoles = config.review_reminder.mentioned_roles
-			.map(roleMention)
+			.map(enhancedRoleMention)
 			.join(" ") || "";
 
 		// Start the cron job for the review reminder
@@ -194,7 +193,7 @@ export default class GuildConfig {
 		}
 
 		const mentionedRoles = config.review_reminder.mentioned_roles
-			.map(roleMention)
+			.map(enhancedRoleMention)
 			.join(" ") || "";
 
 		// Start the cron job for the review reminder
@@ -323,7 +322,7 @@ export default class GuildConfig {
 		}
 
 		const mentionedRoles = reviewReminderConfig.mentioned_roles
-			.map(roleMention)
+			.map(enhancedRoleMention)
 			.join(" ") || "";
 
 		// Start the cron job for the review reminder
@@ -436,7 +435,7 @@ export default class GuildConfig {
 		}
 
 		const mentionedRoles = reviewReminderConfig.mentioned_roles
-			.map(roleMention)
+			.map(enhancedRoleMention)
 			.join(" ") || "";
 
 		// Start the cron job for the review reminder
