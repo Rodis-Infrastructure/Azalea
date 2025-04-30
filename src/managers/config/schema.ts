@@ -13,6 +13,8 @@ import _ from "lodash";
 const cronSchema = z.string().regex(/^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|µs|ms|s|m|h))+)|((((\d+,)+\d+|([\d*]+[/-]\d+)|\d+|\*) ?){5,7})$/gm);
 // Format: "123456789012345678"
 const snowflakeSchema = z.string().regex(/^\d{17,19}$/gm);
+const massMentionSchema = z.string().regex(/^@?(here|everyone)$/gm);
+const roleMentionSchema = z.union([snowflakeSchema, massMentionSchema]);
 const emojiSchema = z.union([z.string().emoji(), snowflakeSchema]);
 const stringSchema = z.string().min(1);
 const domainSchema = z.string().regex(/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/gmi);
@@ -256,7 +258,7 @@ const reviewReminderSchema = z.object({
 	// How old the oldest unreviewed item has to be to trigger a reminder (in milliseconds) - Default: 1 hour
 	age_threshold: z.number().min(1000).default(3600000),
 	// Role(s) mentioned in the reminders
-	mentioned_roles: z.array(snowflakeSchema).max(100).default([])
+	mentioned_roles: z.array(roleMentionSchema).max(100).default([])
 });
 
 export type ReviewReminder = z.infer<typeof reviewReminderSchema>;
@@ -296,7 +298,7 @@ const reportSchema = z.object({
 	report_ttl: z.number().min(1000).optional(),
 	review_reminder: reviewReminderSchema.optional(),
 	// Roles mentioned in new reports
-	mentioned_roles: z.array(snowflakeSchema).nonempty().optional(),
+	mentioned_roles: z.array(roleMentionSchema).nonempty().optional(),
 	// Users with these roles will be immune to reports
 	exclude_roles: z.array(snowflakeSchema).default([])
 });
