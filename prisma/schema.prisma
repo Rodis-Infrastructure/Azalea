@@ -44,6 +44,9 @@ model Message {
   sticker_id   String?
   /// ID of the message this message is replying to
   reference_id String?
+
+  /// Index for counting a user's messages
+  @@index([author_id, guild_id])
 }
 
 model Infraction {
@@ -61,6 +64,12 @@ model Infraction {
   updated_by        String?
   archived_at       DateTime?
   archived_by       String?
+
+  /// Index for counting infractions and searching a user's
+  /// infractions with a filter
+  @@index([target_id, guild_id, action, archived_at, archived_by])
+  /// Index for searching a user's infractions
+  @@index([target_id, guild_id, archived_at, archived_by])
 }
 
 model MessageReport {
