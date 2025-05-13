@@ -39,9 +39,11 @@ export default class InfractionSearch extends Component {
 			};
 		}
 
+		// Temporarily disable response deferral due to potential performance improvements
+		//
 		// Defer the reply to ensure the command doesn't time out
-		const isEphemeral = config.channelInScope(interaction.channel);
-		await interaction.deferReply({ ephemeral: isEphemeral });
+		// const isEphemeral = config.channelInScope(interaction.channel);
+		// await interaction.deferReply({ ephemeral: isEphemeral });
 
 		return Infraction.search({
 			filter: InfractionSearchFilter.All,
