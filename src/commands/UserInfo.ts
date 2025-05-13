@@ -300,9 +300,11 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 		const user = member?.user ?? interaction.options.getUser("user", true);
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
+		// Temporarily disabled due to potential performance improvements
+		//
 		// Defer the reply to ensure the command doesn't time out
-		const isEphemeral = config.channelInScope(interaction.channel);
-		await interaction.deferReply({ ephemeral: isEphemeral });
+		// const isEphemeral = config.channelInScope(interaction.channel);
+		// await interaction.deferReply({ ephemeral: isEphemeral });
 
 		return UserInfo.get({
 			executor: interaction.member,

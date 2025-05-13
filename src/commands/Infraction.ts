@@ -211,9 +211,11 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 				const user = member?.user ?? interaction.options.getUser("user", true);
 				const filter = (interaction.options.getString("filter") ?? InfractionSearchFilter.All) as InfractionSearchFilter;
 
+				// Temporarily disable due to potential performance improvements
+				//
 				// Defer the reply to ensure the command doesn't time out
-				const isEphemeral = config.channelInScope(interaction.channel);
-				await interaction.deferReply({ ephemeral: isEphemeral });
+				// const isEphemeral = config.channelInScope(interaction.channel);
+				// await interaction.deferReply({ ephemeral: isEphemeral });
 
 				return Infraction.search({
 					guildId: interaction.guildId,
