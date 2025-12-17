@@ -288,7 +288,9 @@ const autoReactionSchema = z.object({
 	channel_id: snowflakeSchema,
 	// The reactions to add to messages
 	reactions: z.array(emojiSchema).nonempty(),
-	exclude_roles: z.array(snowflakeSchema).default([])
+	exclude_roles: z.array(snowflakeSchema).default([]),
+	// Wildcard patterns to exclude from auto-reactions (messages matching these patterns won't get reactions)
+	exclude_patterns: z.array(stringSchema).default([])
 });
 
 const reportSchema = z.object({
