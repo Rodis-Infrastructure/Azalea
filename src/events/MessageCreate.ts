@@ -227,7 +227,7 @@ export default class MessageCreate extends EventListener {
 	private static _handleAutoReactions(message: Message<true>, config: GuildConfig): void {
 		if (!message.member) return;
 
-		const autoReactionEmojis = config.getAutoReactionEmojis(message.channel.id, message.member.roles.cache);
+		const autoReactionEmojis = config.getAutoReactionEmojis(message.channel.id, message.member.roles.cache, message.content);
 
 		// Add auto reactions to the message
 		for (const emoji of autoReactionEmojis) {

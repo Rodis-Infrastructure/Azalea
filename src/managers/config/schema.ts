@@ -288,7 +288,9 @@ const autoReactionSchema = z.object({
 	channel_id: snowflakeSchema,
 	// The reactions to add to messages
 	reactions: z.array(emojiSchema).nonempty(),
-	exclude_roles: z.array(snowflakeSchema).default([])
+	exclude_roles: z.array(snowflakeSchema).default([]),
+	// Wildcard patterns to exclude from auto-reactions (messages matching these patterns won't get reactions)
+	exclude_patterns: z.array(stringSchema).default([])
 });
 
 const reportSchema = z.object({
@@ -359,6 +361,13 @@ const quickResponseSchema = z.object({
 	value: z.string().regex(/^[\w-]{1,100}$/gm),
 	// The response to send when the command is executed
 	response: z.union([messageContentSchema, interactionReplyOptionsSchema])
+});
+
+const ruleSchema = z.object({
+	// The title of the rule (e.g., "Be respectful of others")
+	title: stringSchema.max(256),
+	// The description/content of the rule
+	content: messageContentSchema
 });
 
 const requestedRoleSchema = z.object({
@@ -540,6 +549,10 @@ export const rawGuildConfigSchema = z.object({
 	delete_message_days_on_ban: z.number().max(7).default(0),
 	nickname_censorship: nicknameCensorshipSchema.default({}),
 	quick_responses: z.array(quickResponseSchema).max(25).default([]),
+	// Server rules displayed via /rule command
+	rules: z.array(ruleSchema).default([]),
+	// Channel ID to reference for all rules (e.g., #welcome-to-rules)
+	rules_channel_id: snowflakeSchema.optional(),
 	role_requests: roleRequestsSchema.optional(),
 	scheduled_messages: z.array(scheduledMessageSchema).default([]),
 	// Flags displayed in the user info message

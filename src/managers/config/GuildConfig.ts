@@ -559,12 +559,26 @@ export default class GuildConfig {
      *
      * @param channelId - The channel ID to check
      * @param roles - The roles of the user to check
+     * @param messageContent - The content of the message to check against exclude patterns
      * @returns An array of emojis to add to a message
      */
-	getAutoReactionEmojis(channelId: Snowflake, roles: Collection<Snowflake, Role>): string[] {
-		return this.data.auto_reactions.find(reaction => {
+	getAutoReactionEmojis(channelId: Snowflake, roles: Collection<Snowflake, Role>, messageContent: string): string[] {
+		const reaction = this.data.auto_reactions.find(reaction => {
 			return reaction.channel_id === channelId && !roles.some(role => reaction.exclude_roles.includes(role.id));
-		})?.reactions ?? [];
+		});
+
+		if (!reaction) return [];
+
+		// Check if message content matches any exclude patterns
+		const matchesExcludePattern = reaction.exclude_patterns.some(pattern => {
+			const regexPattern = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+			const regex = new RegExp(regexPattern, "i");
+			return regex.test(messageContent);
+		});
+
+		if (matchesExcludePattern) return [];
+
+		return reaction.reactions;
 	}
 
 	/**
