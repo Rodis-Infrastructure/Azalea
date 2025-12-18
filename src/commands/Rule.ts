@@ -1,4 +1,5 @@
 import {
+	ApplicationCommandOptionChoiceData,
 	ApplicationCommandOptionType,
 	ChatInputCommandInteraction,
 	Colors,
@@ -18,12 +19,11 @@ export default class Rule extends GuildCommand<ChatInputCommandInteraction<"cach
 			description: "Display a server rule",
 			options: [
 				{
-					name: "number",
-					description: "The rule number to display",
-					type: ApplicationCommandOptionType.Integer,
+					name: "rule",
+					description: "The rule to display",
+					type: ApplicationCommandOptionType.String,
 					required: true,
-					minValue: 1,
-					maxValue: config.data.rules.length || 1
+					choices: Rule._getChoices(config)
 				}
 			]
 		});
@@ -31,24 +31,18 @@ export default class Rule extends GuildCommand<ChatInputCommandInteraction<"cach
 
 	execute(interaction: ChatInputCommandInteraction<"cached">): InteractionReplyData {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-		const ruleNumber = interaction.options.getInteger("number", true);
+		const ruleIndex = parseInt(interaction.options.getString("rule", true));
 		const rules = config.data.rules;
 
-		if (rules.length === 0) {
+		if (isNaN(ruleIndex) || ruleIndex < 0 || ruleIndex >= rules.length) {
 			return {
-				content: "No rules have been configured for this server.",
+				content: "Rule not found.",
 				ephemeral: true
 			};
 		}
 
-		if (ruleNumber < 1 || ruleNumber > rules.length) {
-			return {
-				content: `Invalid rule number. Please choose a number between 1 and ${rules.length}.`,
-				ephemeral: true
-			};
-		}
-
-		const rule = rules[ruleNumber - 1];
+		const rule = rules[ruleIndex];
+		const ruleNumber = ruleIndex + 1;
 		const rulesChannelId = config.data.rules_channel_id;
 
 		const rulesChannelMention = rulesChannelId ? `<#${rulesChannelId}>` : "the rules channel";
@@ -63,5 +57,21 @@ export default class Rule extends GuildCommand<ChatInputCommandInteraction<"cach
 			embeds: [embed],
 			ephemeral: false
 		};
+	}
+
+	/**
+	 * Get rule choices to pass to the command's options.
+	 *
+	 * @param config - The guild config
+	 * @returns The rule choices
+	 * @private
+	 */
+	private static _getChoices(config: GuildConfig): ApplicationCommandOptionChoiceData<string>[] | undefined {
+		const choices = config.data.rules.map((rule, index) => ({
+			name: `${index + 1} - ${rule.title}`.slice(0, 100),
+			value: index.toString()
+		}));
+
+		return choices.length ? choices : undefined;
 	}
 }
