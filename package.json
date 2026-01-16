@@ -27,7 +27,7 @@
     "typed-regex": "^0.0.8",
     "yaml": "^2.3.4",
     "zod": "^3.22.5",
-    "zod-validation-error": "^3.1.0"
+    "zod-validation-error": "^5.0.0"
   },
   "devDependencies": {
     "@dword-design/eslint-plugin-import-alias": "5.1.2",
