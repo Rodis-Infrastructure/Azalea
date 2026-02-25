@@ -13,7 +13,7 @@ ENV DISCORD_TOKEN=$DISCORD_TOKEN
 ENV SENTRY_DSN=$SENTRY_DSN
 
 # copy node binary from official node image
-COPY --from=node:22.22-slim@sha256:5373f1906319b3a1f291da5d102f4ce5c77ccbe29eb637f072b6c7b70443fc36 /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22.22-slim@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94 /usr/local/bin/node /usr/local/bin/node
 
 # install dependencies into temp directory
 # this will cache them and speed up future builds
