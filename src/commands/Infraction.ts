@@ -355,7 +355,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 		// Add pagination if there are more results than can be displayed
 		if (activeInfractionCount > RESULTS_PER_PAGE) {
 			const totalPageCount = Math.ceil(activeInfractionCount / RESULTS_PER_PAGE);
-			const paginationActionRow = Infraction._getPaginationActionRow({
+			const paginationActionRow = Infraction.getPaginationActionRow({
 				page,
 				totalPageCount,
 				paginationButtonCustomIdPrefix: "infraction-active"
@@ -927,7 +927,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
 		if (infractionCount > RESULTS_PER_PAGE) {
 			const totalPageCount = Math.ceil(infractionCount / RESULTS_PER_PAGE);
-			const paginationActionRow = Infraction._getPaginationActionRow({
+			const paginationActionRow = Infraction.getPaginationActionRow({
 				page,
 				totalPageCount,
 				paginationButtonCustomIdPrefix: "infraction-search"
@@ -1041,7 +1041,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 		return `> \`${name}\` | ${value}`;
 	}
 
-	private static _getPaginationActionRow(data: {
+	static getPaginationActionRow(data: {
 		page: number,
 		totalPageCount: number,
 		paginationButtonCustomIdPrefix: string,

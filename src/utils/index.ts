@@ -337,3 +337,29 @@ export function enhancedRoleMention(id: Snowflake): string {
 	}
 	return `<@&${id}>`;
 }
+
+/**
+ * Immutably sorts an array of Discord snowflake IDs in descending order (newest to oldest)
+ *
+ * This sorts by the full numeric value of the snowflake (which implicitly orders by timestamp
+ * and then by the snowflake sequence/worker bits for deterministic tie-breaking).
+ *
+ * @param ids - An array of Discord snowflake IDs to sort
+ * @returns A new array of snowflake IDs
+ */
+export function sortSnowflakes(ids: Snowflake[]): Snowflake[] {
+	// Map snowflakes to objects containing both the original string and its BigInt representation
+	const snowflakesWithBigInt = ids.map(id => {
+		return { id, bi: BigInt(id) };
+	});
+
+	// Sort by numeric BigInt descending (newest first).
+	snowflakesWithBigInt.sort((a, b) => {
+		if (a.bi > b.bi) return -1;
+		if (a.bi < b.bi) return 1;
+		return 0;
+	});
+
+	// Return the original ID types in sorted order (immutably).
+	return snowflakesWithBigInt.map(m => m.id);
+}

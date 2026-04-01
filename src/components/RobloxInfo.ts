@@ -23,7 +23,7 @@ export default class RobloxInfo extends Component {
 	}
 
 	/**
-	 * Fetches a list of Discord users linked to a Roblox account
+	 * Fetches a Roblox user linked to a Discord account
 	 *
 	 * @param guildId - ID of the guild to search in
 	 * @param discordId - ID of the Discord user
@@ -54,6 +54,37 @@ export default class RobloxInfo extends Component {
 		return {
 			ok: true,
 			data: await response.json() as RoverRobloxResponse
+		};
+	}
+
+	/**
+	 * Fetches a Roblox user by their ID
+	 *
+	 * @param robloxId - ID of the Roblox user
+	 * @returns The Roblox user
+	 */
+	static async getRobloxUser(robloxId: string): Promise<Result<RobloxUser>> {
+		const endpoint = Endpoint.RobloxUser
+			.replace(":robloxId", robloxId);
+
+		const response = await fetch(endpoint, {
+			method: "GET",
+			headers: {
+				// eslint-disable-next-line @typescript-eslint/naming-convention
+				"Content-Type": "application/json"
+			}
+		});
+
+		if (!response.ok) {
+			return {
+				ok: false,
+				message: `An error occurred while fetching the user's Roblox account: \`${response.status} ${response.statusText}\``
+			};
+		}
+
+		return {
+			ok: true,
+			data: await response.json() as RobloxUser
 		};
 	}
 
@@ -92,38 +123,6 @@ export default class RobloxInfo extends Component {
 		};
 	}
 
-	/**
-	 * Fetches a Roblox user by their ID
-	 *
-	 * @param robloxId - ID of the Roblox user
-	 * @returns The Roblox user
-	 * @private
-	 */
-	private static async _getRobloxUser(robloxId: string): Promise<Result<RobloxUser>> {
-		const endpoint = Endpoint.RobloxUser
-			.replace(":robloxId", robloxId);
-
-		const response = await fetch(endpoint, {
-			method: "GET",
-			headers: {
-				// eslint-disable-next-line @typescript-eslint/naming-convention
-				"Content-Type": "application/json"
-			}
-		});
-
-		if (!response.ok) {
-			return {
-				ok: false,
-				message: `An error occurred while fetching the user's Roblox account: \`${response.status} ${response.statusText}\``
-			};
-		}
-
-		return {
-			ok: true,
-			data: await response.json() as RobloxUser
-		};
-	}
-
 	async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
 		const apiKey = process.env.ROVER_API_KEY;
 
@@ -136,7 +135,7 @@ export default class RobloxInfo extends Component {
 		}
 
 		const robloxId = interaction.customId.split("-")[2];
-		const robloxUserResult = await RobloxInfo._getRobloxUser(robloxId);
+		const robloxUserResult = await RobloxInfo.getRobloxUser(robloxId);
 
 		if (!robloxUserResult.ok) {
 			return {

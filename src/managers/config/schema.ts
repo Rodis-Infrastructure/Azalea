@@ -184,6 +184,8 @@ export enum Permission {
     ManageHighlights = "manage_highlights",
     // Grants access to viewing a user's infractions
     ViewInfractions = "view_infractions",
+    // Grants access to viewing a user's Roblox bans
+    ViewRobloxBans = "view_roblox_bans",
     /**
      * Grants access to viewing the moderation activity of
      * users with the {@link Permission#ViewInfractions} permission
