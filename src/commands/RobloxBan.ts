@@ -81,7 +81,7 @@ export default class RobloxBan extends Command<ChatInputCommandInteraction<"cach
 		if (!response.ok) {
 			return {
 				ok: false,
-				message: `An error occurred while creating the Roblox ban: \`${response.status} ${response.statusText} ${await response.json().then((res) => JSON.stringify(res))}\``
+				message: `An error occurred while creating the Roblox ban: \`${response.status} ${response.statusText}\``
 			};
 		}
 
