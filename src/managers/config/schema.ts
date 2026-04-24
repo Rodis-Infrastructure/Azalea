@@ -293,6 +293,22 @@ const autoReactionSchema = z.object({
 	exclude_patterns: z.array(stringSchema).default([])
 });
 
+const autoThreadSchema = z.object({
+	// The channel to listen for messages in
+	channel_id: snowflakeSchema,
+	/**
+     * The name of the thread to create
+     *
+     * ## Args
+     *
+     * - `$USERNAME`: The username of the message author
+	 * - `$SURFACE_NAME`: The username and, if available, visible name of the message author on the current surface (e.g., their nickname in that guild)
+	 * - `$USER_ID`: The ID of the message author
+     */
+	name: placeholderString(["USERNAME", "SURFACE_NAME", "USER_ID"], 1, 100).default("$SURFACE_NAME's thread"),
+	exclude_roles: z.array(snowflakeSchema).default([]),
+});
+
 const reportSchema = z.object({
 	// Channel to send reports to
 	report_channel: snowflakeSchema,
@@ -540,6 +556,7 @@ export const rawGuildConfigSchema = z.object({
 	// Automatically publish announcement messages in these channels
 	auto_publish_announcements: z.array(snowflakeSchema).default([]),
 	auto_reactions: z.array(autoReactionSchema).default([]),
+	auto_threads: z.array(autoThreadSchema).default([]),
 	// Toggle the `SendMessages` permission in a channel depending on whether a stage event is active
 	stage_event_overrides: z.array(stageEventOverrideSchema).default([]),
 	notification_channel: snowflakeSchema.optional(),
