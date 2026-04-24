@@ -306,7 +306,7 @@ const autoThreadSchema = z.object({
 	 * - `$USER_ID`: The ID of the message author
      */
 	name: placeholderString(["USERNAME", "SURFACE_NAME", "USER_ID"], 1, 100).default("$SURFACE_NAME's thread"),
-	exclude_roles: z.array(snowflakeSchema).default([]),
+	exclude_roles: z.array(snowflakeSchema).default([])
 });
 
 const reportSchema = z.object({
