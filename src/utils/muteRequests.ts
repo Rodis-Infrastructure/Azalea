@@ -2,12 +2,12 @@ import { Colors, EmbedBuilder, GuildMember, hyperlink, Message, messageLink, Sno
 import { Result } from "./types";
 import { MuteRequest, Prisma } from "@prisma/client";
 import { TypedRegEx } from "typed-regex";
-import { client, prisma } from "./..";
+import { client, prisma } from "@";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { removeClientReactions, temporaryReply } from "./messages";
 import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
 import { userMentionWithId } from "./index";
-import { log } from "./logging";
+import { log } from "./eventLogging";
 import { captureException } from "@sentry/node";
 
 import GuildConfig from "@managers/config/GuildConfig";
@@ -194,9 +194,9 @@ export default class MuteRequestUtil {
 
 		// Ensure the passed duration does not exceed the maximum mute duration
 		// Use the default mute duration if no duration is provided
-		const durationSeconds = args.duration
-			? Math.min(ms(args.duration as ms.StringValue) / 1000, config.data.default_mute_duration_seconds)
-			: config.data.default_mute_duration_seconds;
+		const durationMs = args.duration
+			? Math.min(ms(args.duration as ms.StringValue), config.data.default_mute_duration)
+			: config.data.default_mute_duration;
 
 		return {
 			ok: true,
@@ -209,7 +209,7 @@ export default class MuteRequestUtil {
 					guild_id: config.guild.id,
 					reason: args.reason,
 					status: MuteRequestStatus.Pending,
-					duration: durationSeconds
+					duration: durationMs / 1000
 				}
 			}
 		};
@@ -394,5 +394,5 @@ export enum MuteRequestStatus {
     /** The request has been deleted. */
     Deleted = 4,
     /** An unsupported reaction has been added to the request. */
-    Unknown = 5
+    Unrecognized = 5
 }

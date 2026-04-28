@@ -9,9 +9,9 @@ import {
 	Snowflake
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
-import { prisma } from "./..";
-import { InfractionAction, InfractionFlag } from "@utils/infractions";
+import { CommandResponse } from "@utils/types";
+import { prisma } from "@";
+import { InfractionAction, InfractionSource } from "@utils/infractions";
 import { BanRequest, Infraction, MuteRequest } from "@prisma/client";
 import { capitalize } from "lodash";
 import { DEFAULT_EMBED_COLOR } from "@utils/constants";
@@ -21,8 +21,6 @@ import { BanRequestStatus } from "@utils/banRequests";
 import Command from "@managers/commands/Command";
 import ConfigManager from "@managers/config/ConfigManager";
 
-const CURRENT_YEAR = new Date().getFullYear();
-
 // Months of the year mapped by their names as labels and positions as values
 const months: ApplicationCommandOptionChoiceData<number>[] = Array.from({ length: 12 }, (_, i) => {
 	const date = new Date(0, i);
@@ -31,7 +29,7 @@ const months: ApplicationCommandOptionChoiceData<number>[] = Array.from({ length
 	return { name: month, value: i + 1 };
 });
 
-export default class Moderation extends Command<ChatInputCommandInteraction<"cached">> {
+export default class ModerationActivity extends Command<ChatInputCommandInteraction<"cached">> {
 	constructor() {
 		super({
 			name: "moderation",
@@ -59,19 +57,19 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 						type: ApplicationCommandOptionType.Integer,
 						// The year Discord was created
 						min_value: 2015,
-						max_value: CURRENT_YEAR
+						max_value: new Date().getFullYear()
 					}
 				]
 			}]
 		});
 	}
 
-	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const month = interaction.options.getInteger("month");
 		const year = interaction.options.getInteger("year");
 		const user = interaction.options.getUser("user", true);
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
-		const data = await Moderation._getActivity(user.id, interaction.guildId, { month, year });
+		const data = await ModerationActivity._getActivity(user.id, interaction.guildId, { month, year });
 
 		const embed = new EmbedBuilder()
 			.setColor(DEFAULT_EMBED_COLOR)
@@ -134,12 +132,12 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 			.setFields([
 				{
 					name: "Ban Requests",
-					value: Moderation._formatObjectProps(data.reviewed.banRequests),
+					value: ModerationActivity._formatObjectProps(data.reviewed.banRequests),
 					inline: true
 				},
 				{
 					name: "Mute Requests",
-					value: Moderation._formatObjectProps(data.reviewed.muteRequests),
+					value: ModerationActivity._formatObjectProps(data.reviewed.muteRequests),
 					inline: true
 				},
 				{
@@ -156,12 +154,12 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 			.setFields([
 				{
 					name: "Ban Requests",
-					value: Moderation._formatObjectProps(data.requested.banRequests),
+					value: ModerationActivity._formatObjectProps(data.requested.banRequests),
 					inline: true
 				},
 				{
 					name: "Mute Requests",
-					value: Moderation._formatObjectProps(data.requested.muteRequests),
+					value: ModerationActivity._formatObjectProps(data.requested.muteRequests),
 					inline: true
 				},
 				{
@@ -200,7 +198,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 			.setComponents(infractionsReceivedButton, infractionsDealtButton);
 
 		const ephemeral = interaction.channel
-			? config.channelInScope(interaction.channel, config.data.moderation_activity_ephemeral_scoping)
+			? config.channelInScope(interaction.channel, config.data.ephemeral_scoping.moderation_activity)
 			: true;
 
 		return {
@@ -219,48 +217,76 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 			.join("\n");
 	}
 
-	private static async _getActivity(userId: Snowflake, guildId: Snowflake, filter?: ModerationActivityFilter): Promise<ModerationActivity> {
-		const formatArgs: string[] = [];
-		const valueArgs: string[] = [];
+	/**
+	 * Compute a date range filter from the month/year filter.
+	 * Returns a Prisma `gte`/`lt` date range, or `undefined` if no filter is set.
+	 */
+	private static _buildDateRange(filter?: ModerationActivityFilter): { gte: Date; lt: Date } | undefined {
+		if (!filter?.year && !filter?.month) return undefined;
 
-		if (filter?.year) {
-			formatArgs.push("%Y");
-			valueArgs.push(filter.year.toString());
+		const year = filter.year ?? new Date().getFullYear();
+		const month = filter.month; // 1-indexed or null
+
+		if (month) {
+			// Specific month in a year
+			const start = new Date(year, month - 1, 1);
+			const end = new Date(year, month, 1);
+			return { gte: start, lt: end };
 		}
 
-		if (filter?.month) {
-			formatArgs.push("%m");
-			valueArgs.push(filter.month < 10 ? `0${filter.month}` : filter.month.toString());
-		}
+		// Full year
+		const start = new Date(year, 0, 1);
+		const end = new Date(year + 1, 0, 1);
+		return { gte: start, lt: end };
+	}
 
-		const format = formatArgs.join("-");
-		const value = valueArgs.join("-");
+	private static async _getActivity(userId: Snowflake, guildId: Snowflake, filter?: ModerationActivityFilter): Promise<ModerationActivityData> {
+		// Compute date range boundaries from filter instead of using strftime in SQL
+		const dateFilter = ModerationActivity._buildDateRange(filter);
 
-		const infractions = await prisma.$queryRaw<Infraction[]>`
-            SELECT *
-            FROM Infraction
-            WHERE strftime(${format}, datetime(created_at / 1000, 'unixepoch')) = ${value}
-              AND executor_id = ${userId}
-              AND guild_id = ${guildId};
-        `;
+		const requestWhereBase = {
+			guild_id: guildId,
+			created_at: dateFilter,
+			OR: [
+				{ author_id: userId },
+				{ reviewer_id: userId }
+			]
+		};
 
-		const muteRequests = await prisma.$queryRaw<MuteRequest[]>`
-            SELECT *
-            FROM MuteRequest
-            WHERE strftime(${format}, datetime(created_at / 1000, 'unixepoch')) = ${value}
-              AND (author_id = ${userId} OR reviewer_id = ${userId})
-              AND guild_id = ${guildId};
-        `;
+		const [infractions, muteRequests, banRequests] = await prisma.$transaction([
+			prisma.infraction.findMany({
+				select: {
+					action: true,
+					flag: true,
+					archived_at: true,
+					archived_by: true,
+					request_author_id: true
+				},
+				where: {
+					executor_id: userId,
+					guild_id: guildId,
+					created_at: dateFilter
+				}
+			}),
+			prisma.muteRequest.findMany({
+				select: {
+					reviewer_id: true,
+					author_id: true,
+					status: true
+				},
+				where: requestWhereBase
+			}),
+			prisma.banRequest.findMany({
+				select: {
+					reviewer_id: true,
+					author_id: true,
+					status: true
+				},
+				where: requestWhereBase
+			})
+		]);
 
-		const banRequests = await prisma.$queryRaw<BanRequest[]>`
-            SELECT *
-            FROM BanRequest
-            WHERE strftime(${format}, datetime(created_at / 1000, 'unixepoch')) = ${value}
-              AND (author_id = ${userId} OR reviewer_id = ${userId})
-              AND guild_id = ${guildId};
-        `;
-
-		const activity: ModerationActivity = {
+		const activity: ModerationActivityData = {
 			executed: {
 				bans: 0,
 				manualMutes: 0,
@@ -296,17 +322,17 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 
 		for (const infraction of infractions) {
 			if (!infraction.request_author_id) {
-				Moderation._evaluateDealtInfraction(infraction, activity);
+				ModerationActivity._tallyExecutedInfraction(infraction, activity);
 			}
 		}
 
-		Moderation._evaluateMuteRequests(muteRequests, activity, userId);
-		Moderation._evaluateBanRequests(banRequests, activity, userId);
+		ModerationActivity._evaluateMuteRequests(muteRequests, activity, userId);
+		ModerationActivity._evaluateBanRequests(banRequests, activity, userId);
 
 		return activity;
 	}
 
-	private static _evaluateDealtInfraction(infraction: Infraction, activity: ModerationActivity): void {
+	private static _tallyExecutedInfraction(infraction: Pick<Infraction, "action" | "flag" | "archived_at" | "archived_by">, activity: ModerationActivityData): void {
 		if (infraction.archived_at && infraction.archived_by) {
 			activity.executed.archived++;
 			return;
@@ -324,7 +350,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 			}
 
 			case InfractionAction.Mute: {
-				if (infraction.flag === InfractionFlag.Quick) {
+				if (infraction.flag === InfractionSource.Quick) {
 					activity.executed.quickMutes++;
 				} else {
 					activity.executed.manualMutes++;
@@ -354,10 +380,10 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 		}
 	}
 
-	private static _evaluateMuteRequests(muteRequests: MuteRequest[], activity: ModerationActivity, targetId: Snowflake): void {
+	private static _evaluateMuteRequests(muteRequests: Pick<MuteRequest, "reviewer_id" | "author_id" | "status">[], activity: ModerationActivityData, userId: Snowflake): void {
 		for (const muteRequest of muteRequests) {
-			const isReviewer = muteRequest.reviewer_id === targetId;
-			const isRequestAuthor = muteRequest.author_id === targetId;
+			const isReviewer = muteRequest.reviewer_id === userId;
+			const isRequestAuthor = muteRequest.author_id === userId;
 
 			switch (muteRequest.status) {
 				case MuteRequestStatus.Approved: {
@@ -378,7 +404,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 					break;
 				}
 
-				case MuteRequestStatus.Unknown: {
+				case MuteRequestStatus.Unrecognized: {
 					if (isReviewer) {
 						activity.reviewed.muteRequests.unknown++;
 					} else if (isRequestAuthor) {
@@ -404,10 +430,10 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 		}
 	}
 
-	private static _evaluateBanRequests(banRequests: BanRequest[], activity: ModerationActivity, targetId: Snowflake): void {
+	private static _evaluateBanRequests(banRequests: Pick<BanRequest, "reviewer_id" | "author_id" | "status">[], activity: ModerationActivityData, userId: Snowflake): void {
 		for (const banRequest of banRequests) {
-			const isReviewer = banRequest.reviewer_id === targetId;
-			const isRequestAuthor = banRequest.author_id === targetId;
+			const isReviewer = banRequest.reviewer_id === userId;
+			const isRequestAuthor = banRequest.author_id === userId;
 
 			switch (banRequest.status) {
 				case BanRequestStatus.Approved: {
@@ -428,7 +454,7 @@ export default class Moderation extends Command<ChatInputCommandInteraction<"cac
 					break;
 				}
 
-				case BanRequestStatus.Unknown: {
+				case BanRequestStatus.Unrecognized: {
 					if (isReviewer) {
 						activity.reviewed.banRequests.unknown++;
 					} else if (isRequestAuthor) {
@@ -460,7 +486,7 @@ interface ModerationActivityFilter {
     year: number | null;
 }
 
-interface ModerationActivity {
+interface ModerationActivityData {
     executed: InfractionsExecuted;
     requested: {
 		banRequests: RequestMadeStatus;

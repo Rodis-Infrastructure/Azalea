@@ -1,7 +1,7 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { captureException } from "@sentry/node";
 
 import ConfigManager from "@managers/config/ConfigManager";
@@ -39,7 +39,7 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
 		});
 	}
 
-	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
 		const member = interaction.options.getMember("member");

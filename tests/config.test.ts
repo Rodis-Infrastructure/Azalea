@@ -1,7 +1,7 @@
 import { describe, test } from "bun:test";
 import { readYamlFile } from "@/utils";
 import { globalConfigSchema, rawGuildConfigSchema } from "@managers/config/schema";
-import { fromZodError } from "zod-validation-error";
+import { fromZodError } from "zod-validation-error/v3";
 
 import fs from "fs";
 

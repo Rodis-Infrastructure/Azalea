@@ -10,9 +10,9 @@ import {
 	userMention
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { DEFAULT_EMBED_COLOR, DURATION_FORMAT, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { client, prisma } from "./..";
+import { client, prisma } from "@";
 import { pluralize } from "@/utils";
 import { InfractionUtil } from "@utils/infractions";
 import { captureException } from "@sentry/node";
@@ -75,7 +75,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 		});
 	}
 
-	execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const subcommand = interaction.options.getSubcommand(true) as ReminderSubcommand;
 
 		switch (subcommand) {
@@ -95,7 +95,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 		}
 	}
 
-	private static async _create(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _create(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		if (!interaction.channel) {
 			return {
 				content: "Failed to fetch the channel",
@@ -133,7 +133,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 
 		DURATION_FORMAT.lastIndex = 0;
 
-		const msExpiresAt = Date.now() + ms(duration);
+		const msExpiresAt = Date.now() + ms(duration as ms.StringValue);
 		const expiresAt = new Date(msExpiresAt);
 		const reminder = interaction.options.getString("reminder", true);
 		const createdAt = new Date();
@@ -149,12 +149,16 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 			});
 
 			setTimeout(async () => {
-				const reminderMessage = Reminders._formatReminder(interaction.user.id, reminder, createdAt);
+				try {
+					const reminderMessage = Reminders._formatReminder(interaction.user.id, reminder, createdAt);
 
-				await Promise.all([
-					prisma.reminder.deleteMany({ where: { id } }),
-                    interaction.channel!.send(reminderMessage)
-				]);
+					await Promise.all([
+						prisma.reminder.deleteMany({ where: { id } }),
+						interaction.channel!.send(reminderMessage)
+					]);
+				} catch (error) {
+					captureException(error);
+				}
 			}, msExpiresAt - Date.now());
 		} catch (error) {
 			const sentryId = captureException(error);
@@ -167,7 +171,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 		return `I will remind you ${relativeTimestamp} ${formattedReminder}`;
 	}
 
-	private static async _list(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _list(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const reminders = await prisma.reminder.findMany({
 			where: { author_id: interaction.user.id }
 		});
@@ -190,7 +194,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 		return { embeds: [embed] };
 	}
 
-	private static async _clear(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _clear(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const clearedReminders = await prisma.reminder.deleteMany({
 			where: { author_id: interaction.user.id }
 		});
@@ -202,7 +206,7 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 		return `Successfully cleared \`${clearedReminders.count}\` ${pluralize(clearedReminders.count, "reminder")}`;
 	}
 
-	private static async _delete(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _delete(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const reminderId = interaction.options.getString("reminder_id", true);
 		const deletedReminder = await prisma.reminder.delete({
 			where: {
@@ -243,10 +247,14 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 			const user = await client.users.fetch(reminder.author_id);
 
 			setTimeout(async () => {
-				await Promise.all([
-					prisma.reminder.deleteMany({ where: { id: reminder.id } }),
-					channel.send(reminderMessage)
-				]);
+				try {
+					await Promise.all([
+						prisma.reminder.deleteMany({ where: { id: reminder.id } }),
+						channel.send(reminderMessage)
+					]);
+				} catch (error) {
+					captureException(error);
+				}
 			}, reminder.expires_at.getTime() - Date.now());
 
 			Logger.info(`Mounted reminder with ID ${reminder.id} for @${user.username} (${user.id}) in #${channel.name} (${channel.id})`);

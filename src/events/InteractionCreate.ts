@@ -3,14 +3,16 @@ import {
 	AutocompleteInteraction,
 	Colors,
 	CommandInteractionOption,
+	ComponentType,
 	EmbedBuilder,
 	Events,
 	hyperlink,
-	Interaction
+	Interaction,
+	TextInputModalData
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
-import { log } from "@utils/logging";
+import { CommandResponse } from "@utils/types";
+import { log } from "@utils/eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
 import { channelMentionWithName, pluralize, roleMentionWithName, userMentionWithId } from "@/utils";
 import { formatMessageContentForShortLog } from "@utils/messages";
@@ -29,7 +31,8 @@ export default class InteractionCreate extends EventListener {
 
 	async execute(interaction: Interaction): Promise<void> {
 		if (interaction.isAutocomplete()) {
-			throw new Error(`Autocomplete interactions are not supported`);
+			await interaction.respond([]).catch(() => null);
+			return;
 		}
 
 		// Only allow interactions in guilds
@@ -44,6 +47,31 @@ export default class InteractionCreate extends EventListener {
 		const config = ConfigManager.getGuildConfig(interaction.guildId);
 
 		if (!config) {
+			// Allow create-testing-template to run without a guild config since it creates one
+			if (interaction.isChatInputCommand() && interaction.commandName === "create-testing-template") {
+				try {
+					const response = await CommandManager.handleCommand(interaction);
+
+					if (response) {
+						const options = typeof response === "string"
+							? { content: response }
+							: response;
+
+						delete options.temporary;
+						await interaction.reply({ ...options, allowedMentions: { parse: [] } });
+					}
+				} catch (error) {
+					const sentryId = captureException(error);
+
+					await interaction.reply({
+						content: `An error occurred while executing this interaction (\`${sentryId}\`)`,
+						ephemeral: true
+					}).catch(() => null);
+				}
+
+				return;
+			}
+
 			await interaction.reply({
 				content: "This guild does not have a configuration set up.",
 				ephemeral: true
@@ -82,7 +110,7 @@ export default class InteractionCreate extends EventListener {
 			? config.channelInScope(interaction.channel)
 			: true;
 
-		let response: InteractionReplyData | null;
+		let response: CommandResponse | null;
 
 		if (interaction.isCommand()) {
 			response = await CommandManager.handleCommand(interaction);
@@ -108,10 +136,9 @@ export default class InteractionCreate extends EventListener {
 		delete options.temporary;
 
 		if (interaction.deferred) {
-			await interaction.editReply({
-				...defaultReplyOptions,
-				...options
-			});
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars -- strip ephemeral/flags for editReply compatibility
+			const { ephemeral, flags, ...editOptions } = { ...defaultReplyOptions, ...options };
+			await interaction.editReply(editOptions);
 		} else {
 			await interaction.reply({
 				...defaultReplyOptions,
@@ -186,13 +213,15 @@ export default class InteractionCreate extends EventListener {
 		if (interaction.isModalSubmit()) {
 			interactionType = "Modal";
 
-			const mappedOptions: Promise<APIEmbedField>[] = interaction.fields.fields.map(async field => {
-				const content = await formatMessageContentForShortLog(field.value, null, null);
-				return {
-					name: field.customId,
-					value: content
-				};
-			});
+			const mappedOptions: Promise<APIEmbedField>[] = interaction.fields.fields
+				.filter((field): field is TextInputModalData => field.type === ComponentType.TextInput)
+				.map(async field => {
+					const content = await formatMessageContentForShortLog(field.value, null, null);
+					return {
+						name: field.customId,
+						value: content
+					};
+				});
 
 			embed.setFields(await Promise.all(mappedOptions));
 		}
@@ -322,7 +351,7 @@ export default class InteractionCreate extends EventListener {
 				.join(" ");
 		}
 
-		if (interaction.isContextMenuCommand()) {
+		if (interaction.isContextMenuCommand() || interaction.isPrimaryEntryPointCommand()) {
 			return interaction.commandName;
 		}
 

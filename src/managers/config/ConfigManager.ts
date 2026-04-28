@@ -2,7 +2,7 @@ import { Collection } from "discord.js";
 import { Snowflake } from "discord-api-types/v10";
 import { pluralize, readYamlFile } from "@/utils";
 import { GlobalConfig, globalConfigSchema } from "./schema";
-import { fromZodError } from "zod-validation-error";
+import { fromZodError } from "zod-validation-error/v3";
 
 import GuildConfig from "./GuildConfig";
 import Logger, { AnsiColor } from "@utils/logger";
@@ -22,9 +22,9 @@ export default class ConfigManager {
 			process.exit(1);
 		}
 
-		// Get all files in the configs directory (excluding the example file)
+		// Get all YAML files in the configs directory (excluding the example file)
 		const files = fs.readdirSync("configs")
-			.filter(file => file !== "example.yml");
+			.filter(file => file !== "example.yml" && (file.endsWith(".yml") || file.endsWith(".yaml")));
 
 		if (!files.length) {
 			Logger.error("No guild configs found, at least one guild config is required");
@@ -85,7 +85,8 @@ export default class ConfigManager {
 
 	// Cache an instance of a guild configuration
 	static addGuildConfig(guildId: Snowflake, config: GuildConfig): GuildConfig {
-		return ConfigManager.guildConfigs.set(guildId, config).first()!;
+		ConfigManager.guildConfigs.set(guildId, config);
+		return config;
 	}
 
 	static getGuildConfig(guildId: Snowflake, exists: true): GuildConfig;

@@ -20,17 +20,18 @@ import {
 	DEFAULT_EMBED_COLOR,
 	DEFAULT_INFRACTION_REASON,
 	EMBED_FIELD_CHAR_LIMIT,
+	INFRACTION_RESULTS_PER_PAGE,
 	MAX_MUTE_DURATION
 } from "@utils/constants";
 
-import { elipsify, getSurfaceName, humanizeTimestamp, pluralize, userMentionWithId } from "@/utils";
+import { ellipsize, getSurfaceName, humanizeDuration, pluralize, userMentionWithId } from "@/utils";
 
-import { InteractionReplyData } from "@utils/types";
-import { prisma } from "./..";
+import { CommandResponse } from "@utils/types";
+import { prisma } from "@";
 import { Infraction as InfractionPayload, Prisma } from "@prisma/client";
-import { log } from "@utils/logging";
+import { log } from "@utils/eventLogging";
 import { LoggingEvent, Permission } from "@managers/config/schema";
-import { InfractionAction, InfractionFlag, InfractionUtil } from "@utils/infractions";
+import { InfractionAction, InfractionSource, InfractionUtil } from "@utils/infractions";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import Command from "@managers/commands/Command";
@@ -187,7 +188,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 		});
 	}
 
-	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const subcommand = interaction.options.getSubcommand();
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
@@ -289,7 +290,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 				const sourceUser = interaction.options.getUser("source_user", true);
 				const targetUser = interaction.options.getUser("target_user", true);
 
-				return Infraction._transfer(sourceUser, targetUser, interaction.guildId);
+				return Infraction._copyHistory(sourceUser, targetUser, interaction.guildId);
 			}
 
 			default:
@@ -300,7 +301,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 		}
 	}
 
-	private static async _transfer(sourceUser: User, targetUser: User, guildId: Snowflake): Promise<InteractionReplyData> {
+	private static async _copyHistory(sourceUser: User, targetUser: User, guildId: Snowflake): Promise<CommandResponse> {
 		const sourceInfractions = await prisma.infraction.findMany({
 			where: {
 				target_id: sourceUser.id,
@@ -329,8 +330,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 		};
 	}
 
-	static async listActive(page = 1): Promise<InteractionReplyData> {
-		const RESULTS_PER_PAGE = 5;
+	static async listActive(page = 1): Promise<CommandResponse> {
 		const skipMultiplier = page - 1;
 		const queryConditions = {
 			archived_at: null,
@@ -341,8 +341,8 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 		const [infractions, activeInfractionCount] = await prisma.$transaction([
 			prisma.infraction.findMany({
 				orderBy: { id: "desc" },
-				skip: skipMultiplier * RESULTS_PER_PAGE,
-				take: RESULTS_PER_PAGE,
+				skip: skipMultiplier * INFRACTION_RESULTS_PER_PAGE,
+				take: INFRACTION_RESULTS_PER_PAGE,
 				where: queryConditions
 			}),
 			prisma.infraction.count({
@@ -353,8 +353,8 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 		const paginationComponents: ActionRowBuilder<ButtonBuilder>[] = [];
 
 		// Add pagination if there are more results than can be displayed
-		if (activeInfractionCount > RESULTS_PER_PAGE) {
-			const totalPageCount = Math.ceil(activeInfractionCount / RESULTS_PER_PAGE);
+		if (activeInfractionCount > INFRACTION_RESULTS_PER_PAGE) {
+			const totalPageCount = Math.ceil(activeInfractionCount / INFRACTION_RESULTS_PER_PAGE);
 			const paginationActionRow = Infraction._getPaginationActionRow({
 				page,
 				totalPageCount,
@@ -385,7 +385,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 	 * @returns An interaction reply with the result of the operation
 	 * @private
 	 */
-	static async info(infractionId: number, guildId: Snowflake): Promise<InteractionReplyData> {
+	static async info(infractionId: number, guildId: Snowflake): Promise<CommandResponse> {
 		const infraction = await prisma.infraction.findUnique({
 			where: {
 				id: infractionId,
@@ -429,7 +429,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 				embed.data.title += ` (expires ${time(infraction.expires_at, TimestampStyles.RelativeTime)})`;
 			} else {
 				const msCreatedAt = infraction.created_at.getTime();
-				const duration = humanizeTimestamp(msExpiresAt - msCreatedAt);
+				const duration = humanizeDuration(msExpiresAt - msCreatedAt);
 				embed.data.title += `  •  ${duration}`;
 			}
 		}
@@ -475,9 +475,9 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 	 * @returns An interaction reply with the result of the operation
 	 * @private
 	 */
-	private static async _archive(infractionId: number, executor: GuildMember, config: GuildConfig): Promise<InteractionReplyData> {
+	private static async _archive(infractionId: number, executor: GuildMember, config: GuildConfig): Promise<CommandResponse> {
 		const infraction = await prisma.infraction.findUnique({
-			where: { id: infractionId, archived_at: null },
+			where: { id: infractionId, guild_id: config.guild.id, archived_at: null },
 			select: {
 				executor_id: true,
 				expires_at: true,
@@ -562,22 +562,19 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 	 * @returns An interaction reply with the result of the operation
 	 * @private
 	 */
-	private static async _restore(infractionId: number, executor: GuildMember, config: GuildConfig): Promise<InteractionReplyData> {
-		const infraction = await prisma.infraction.update({
+	private static async _restore(infractionId: number, executor: GuildMember, config: GuildConfig): Promise<CommandResponse> {
+		const infraction = await prisma.infraction.findUnique({
 			where: {
 				id: infractionId,
+				guild_id: config.guild.id,
 				archived_at: { not: null }
 			},
 			select: {
 				action: true,
 				flag: true,
 				executor_id: true
-			},
-			data: {
-				archived_at: null,
-				archived_by: null
 			}
-		}).catch(() => null);
+		});
 
 		if (!infraction) {
 			return {
@@ -593,6 +590,14 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 				temporary: true
 			};
 		}
+
+		await prisma.infraction.update({
+			where: { id: infractionId },
+			data: {
+				archived_at: null,
+				archived_by: null
+			}
+		});
 
 		const formattedAction = InfractionUtil.formatAction(infraction.action, infraction.flag);
 		const embed = new EmbedBuilder()
@@ -638,12 +643,13 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 		duration: string;
 		executor: GuildMember;
 		config: GuildConfig;
-	}): Promise<InteractionReplyData> {
+	}): Promise<CommandResponse> {
 		const { infractionId, duration, executor, config } = data;
 
 		const oldState = await prisma.infraction.findUnique({
 			where: {
 				id: infractionId,
+				guild_id: config.guild.id,
 				action: InfractionAction.Mute,
 				expires_at: { gt: new Date() }
 			},
@@ -717,11 +723,11 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 				},
 				{
 					name: "Old Duration",
-					value: humanizeTimestamp(msOldDuration)
+					value: humanizeDuration(msOldDuration)
 				},
 				{
 					name: "New Duration",
-					value: humanizeTimestamp(msDuration)
+					value: humanizeDuration(msDuration)
 				}
 			])
 			.setFooter({ text: `#${infractionId}` })
@@ -759,11 +765,11 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 		reason: string;
 		executor: GuildMember;
 		config: GuildConfig;
-	}): Promise<InteractionReplyData> {
+	}): Promise<CommandResponse> {
 		const { infractionId, reason, executor, config } = data;
 
 		const oldState = await prisma.infraction.findUnique({
-			where: { id: infractionId },
+			where: { id: infractionId, guild_id: config.guild.id },
 			select: {
 				reason: true,
 				executor_id: true,
@@ -799,7 +805,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 			data: {
 				updated_at: new Date(),
 				updated_by: executor.id,
-				executor_id: oldState.flag === InfractionFlag.Automatic ? executor.id : undefined,
+				executor_id: oldState.flag === InfractionSource.Automatic ? executor.id : undefined,
 				flag: 0,
 				reason
 			}
@@ -863,40 +869,35 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 		guildId: Snowflake,
 		filter: InfractionSearchFilter,
 		page: number
-	}): Promise<InteractionReplyData> {
+	}): Promise<CommandResponse> {
 		const { member, user, guildId, filter, page } = data;
 
-		const RESULTS_PER_PAGE = 5;
 		const skipMultiplier = page - 1;
-		const queryConditions = Infraction._parseSearchFilter(filter);
+		const queryConditions = Infraction._buildSearchQuery(filter);
+
+		const isArchivedFilter = filter === InfractionSearchFilter.Archived;
+		const baseWhere = { target_id: user.id, guild_id: guildId };
 
 		const [infractions, infractionCount, archivedInfractionCount] = await prisma.$transaction([
 			prisma.infraction.findMany({
-				skip: skipMultiplier * RESULTS_PER_PAGE,
-				take: RESULTS_PER_PAGE,
-				where: {
-					target_id: user.id,
-					guild_id: guildId,
-					...queryConditions
-				},
-				orderBy: {
-					id: "desc"
-				}
+				skip: skipMultiplier * INFRACTION_RESULTS_PER_PAGE,
+				take: INFRACTION_RESULTS_PER_PAGE,
+				where: { ...baseWhere, ...queryConditions },
+				orderBy: { id: "desc" }
 			}),
 			prisma.infraction.count({
-				where: {
-					target_id: user.id,
-					guild_id: guildId,
-					...queryConditions
-				}
+				where: { ...baseWhere, ...queryConditions }
 			}),
-			prisma.infraction.count({
-				where: {
-					target_id: user.id,
-					guild_id: guildId,
-					...Infraction._parseSearchFilter(InfractionSearchFilter.Archived)
-				}
-			})
+			// Skip redundant archived count query when already filtering by archived
+			...(isArchivedFilter
+				? []
+				: [prisma.infraction.count({
+					where: {
+						...baseWhere,
+						...Infraction._buildSearchQuery(InfractionSearchFilter.Archived)
+					}
+				})]
+			)
 		]);
 
 		const surfaceName = getSurfaceName(member ?? user);
@@ -911,8 +912,9 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 			// InfractionSearchNext.ts relies on this format
 			.setFooter({ text: `User ID: ${user.id}` });
 
-		if (archivedInfractionCount) {
-			embed.data.footer!.text = `Archived: ${archivedInfractionCount} | ${embed.data.footer!.text}`;
+		const archivedCount = isArchivedFilter ? infractionCount : archivedInfractionCount;
+		if (archivedCount) {
+			embed.data.footer!.text = `Archived: ${archivedCount} | ${embed.data.footer!.text}`;
 		}
 
 		const fields = Infraction._formatInfractionSearchFields(infractions);
@@ -925,8 +927,8 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
 		const paginationComponents: ActionRowBuilder<ButtonBuilder>[] = [];
 
-		if (infractionCount > RESULTS_PER_PAGE) {
-			const totalPageCount = Math.ceil(infractionCount / RESULTS_PER_PAGE);
+		if (infractionCount > INFRACTION_RESULTS_PER_PAGE) {
+			const totalPageCount = Math.ceil(infractionCount / INFRACTION_RESULTS_PER_PAGE);
 			const paginationActionRow = Infraction._getPaginationActionRow({
 				page,
 				totalPageCount,
@@ -945,8 +947,8 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 	private static _formatInfractionSearchFields(infractions: InfractionPayload[], includeTargetEntry = false): APIEmbedField[] {
 		return infractions.map(infraction => {
 			const cleanContent = InfractionUtil.formatReasonPreview(infraction.reason ?? DEFAULT_INFRACTION_REASON);
-			const croppedContent = elipsify(cleanContent, 800);
-			const contentType = infraction.flag === InfractionFlag.Quick ? "Message" : "Reason";
+			const croppedContent = ellipsize(cleanContent, 800);
+			const contentType = infraction.flag === InfractionSource.Quick ? "Message" : "Reason";
 
 			const entries = [
 				Infraction._formatInfractionSearchEntry("Created", time(infraction.created_at, TimestampStyles.RelativeTime)),
@@ -974,7 +976,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 	}
 
 	/** @returns Database query conditions */
-	private static _parseSearchFilter(filter?: InfractionSearchFilter): Prisma.InfractionWhereInput {
+	private static _buildSearchQuery(filter?: InfractionSearchFilter): Prisma.InfractionWhereInput {
 		switch (filter) {
 			case InfractionSearchFilter.Infractions:
 				return {
@@ -985,7 +987,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
 			case InfractionSearchFilter.Manual:
 				return {
-					flag: { not: InfractionFlag.Automatic },
+					flag: { not: InfractionSource.Automatic },
 					action: { not: InfractionAction.Note },
 					archived_at: null,
 					archived_by: null
@@ -993,7 +995,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
 			case InfractionSearchFilter.Automatic:
 				return {
-					flag: InfractionFlag.Automatic,
+					flag: InfractionSource.Automatic,
 					action: { not: InfractionAction.Note },
 					archived_at: null,
 					archived_by: null
@@ -1034,7 +1036,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 
 		return msExpiresAt > Date.now()
 			? Infraction._formatInfractionSearchEntry("Expires", time(expiresAt, TimestampStyles.RelativeTime))
-			: Infraction._formatInfractionSearchEntry("Duration", humanizeTimestamp(msDuration));
+			: Infraction._formatInfractionSearchEntry("Duration", humanizeDuration(msDuration));
 	}
 
 	private static _formatInfractionSearchEntry(name: string, value: string): `> \`${string}\` | ${string}` {

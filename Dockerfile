@@ -3,15 +3,6 @@
 FROM oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c2a3c971f4f345a01da08ea6262ae30e as base
 WORKDIR /usr/src/app
 
-# set environment variables
-ARG DATABASE_URL
-ARG DISCORD_TOKEN
-ARG SENTRY_DSN
-
-ENV DATABASE_URL=$DATABASE_URL
-ENV DISCORD_TOKEN=$DISCORD_TOKEN
-ENV SENTRY_DSN=$SENTRY_DSN
-
 # copy node binary from official node image
 COPY --from=node:22.22-slim@sha256:d415caac2f1f77b98caaf9415c5f807e14bc8d7bdea62561ea2fef4fbd08a73c /usr/local/bin/node /usr/local/bin/node
 
@@ -31,10 +22,13 @@ COPY --from=install /temp/prod/ .
 # ensure prisma.schema is already in the directory
 # before installing the prisma client
 COPY . .
-RUN bunx prisma generate && bunx prisma migrate deploy
+RUN bunx prisma generate
+
 # give the user permission to write to the prisma directory
 RUN chown -R bun:bun /usr/src/app/prisma
 
-# run the app
+# run migrations at startup, then start the app
+# secrets (DISCORD_TOKEN, SENTRY_DSN, DATABASE_URL) should be provided
+# at runtime via environment variables or docker-compose env_file
 USER bun
-ENTRYPOINT [ "bun", "start" ]
+ENTRYPOINT [ "sh", "-c", "bunx prisma migrate deploy && bun start" ]

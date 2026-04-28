@@ -1,6 +1,6 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonComponent, ButtonInteraction, ButtonStyle } from "discord.js";
-import { getFilePreviewURL } from "@/utils";
-import { InteractionReplyData } from "@utils/types";
+import { ActionRow, ActionRowBuilder, ButtonBuilder, ButtonComponent, ButtonInteraction, ButtonStyle, MessageActionRowComponent } from "discord.js";
+import { getFileViewerURL } from "@/utils";
+import { CommandResponse } from "@utils/types";
 
 import Component from "@managers/components/Component";
 
@@ -9,16 +9,16 @@ export default class MessageBulkDeleteRefreshURL extends Component {
 		super("message-delete-bulk-refresh-url");
 	}
 
-	async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ButtonInteraction<"cached">): Promise<CommandResponse> {
 		const newURL = interaction.message.attachments.first()!.url;
-		const previewURL = getFilePreviewURL(newURL);
+		const previewURL = getFileViewerURL(newURL);
 
 		const openInBrowserButton = new ButtonBuilder()
 			.setLabel("Open in Browser")
 			.setStyle(ButtonStyle.Link)
 			.setURL(previewURL);
 
-		const rawRefreshURLButton = interaction.message.components[0].components[0] as ButtonComponent;
+		const rawRefreshURLButton = (interaction.message.components[0] as ActionRow<MessageActionRowComponent>).components[0] as ButtonComponent;
 		const refreshURLButton = new ButtonBuilder(rawRefreshURLButton.toJSON());
 
 		const newActionRow = new ActionRowBuilder<ButtonBuilder>()

@@ -6,9 +6,9 @@ import {
 } from "discord.js";
 
 import { DEFAULT_EMBED_COLOR } from "@utils/constants";
-import { InteractionReplyData } from "@utils/types";
-import { humanizeTimestamp } from "@/utils";
-import { client } from "./..";
+import { CommandResponse } from "@utils/types";
+import { humanizeDuration } from "@/utils";
+import { client } from "@";
 
 import Command from "@managers/commands/Command";
 
@@ -25,7 +25,7 @@ export default class Process extends Command<ChatInputCommandInteraction<"cached
 		});
 	}
 
-	execute(interaction: ChatInputCommandInteraction<"cached">): InteractionReplyData {
+	execute(interaction: ChatInputCommandInteraction<"cached">): CommandResponse {
 		const subcommand = interaction.options.getSubcommand();
 
 		if (subcommand !== "info") {
@@ -34,11 +34,11 @@ export default class Process extends Command<ChatInputCommandInteraction<"cached
 
 		// Node.js process uptime
 		const msProcessUptime = Math.floor(process.uptime() * 1000);
-		const strProcessUptime = humanizeTimestamp(msProcessUptime);
+		const strProcessUptime = humanizeDuration(msProcessUptime);
 
 		// Discord.js client uptime
 		const msClientUptime = Math.floor(client.uptime);
-		const strClientUptime = humanizeTimestamp(msClientUptime);
+		const strClientUptime = humanizeDuration(msClientUptime);
 
 		// Discord.js ping
 		const msPing = Math.round(client.ws.ping);

@@ -7,7 +7,7 @@ import {
 	MessageCreateOptions
 } from "discord.js";
 
-import { LoggingEvent, Scoping } from "@managers/config/schema";
+import { LoggingEvent, EventScoping } from "@managers/config/schema";
 import { captureException } from "@sentry/node";
 
 import GuildConfig from "@managers/config/GuildConfig";
@@ -59,27 +59,30 @@ async function getLoggingChannels(data: {
 }): Promise<GuildTextBasedChannel[]> {
 	const { event, config, member, channel } = data;
 
-	const inLoggingScope = (logScoping: Scoping): boolean => {
-		if (!logScoping.include_roles.length && !logScoping.exclude_roles.length) {
-			logScoping.include_roles = config.data.logging.default_scoping.include_roles;
-			logScoping.exclude_roles = config.data.logging.default_scoping.exclude_roles;
+	const inLoggingScope = (logScoping: EventScoping): boolean => {
+		// Create a copy to avoid mutating the config data
+		const scoping = { ...logScoping };
+
+		if (!scoping.include_roles.length && !scoping.exclude_roles.length) {
+			scoping.include_roles = config.data.logging.default_scoping.include_roles;
+			scoping.exclude_roles = config.data.logging.default_scoping.exclude_roles;
 		}
 
 		// If there is no channel, the event is in scope
 		if (!channel && member) {
-			return config.roleInScope(member, logScoping);
+			return config.roleInScope(member, scoping);
 		} else if (!channel) {
 			return true;
 		}
 
 		// Resort to the default scoping if there is no override for the event
-		if (!logScoping.include_channels.length && !logScoping.exclude_channels.length) {
-			logScoping.include_channels = config.data.logging.default_scoping.include_channels;
-			logScoping.exclude_channels = config.data.logging.default_scoping.exclude_channels;
+		if (!scoping.include_channels.length && !scoping.exclude_channels.length) {
+			scoping.include_channels = config.data.logging.default_scoping.include_channels;
+			scoping.exclude_channels = config.data.logging.default_scoping.exclude_channels;
 		}
 
 		// Check against event-specific scoping
-		return config.inScope(channel, member, logScoping);
+		return config.inScope(channel, member, scoping);
 	};
 
 	// Fetch all logging channels for this event that are in scope
@@ -103,7 +106,7 @@ async function getLoggingChannels(data: {
  *
  * @param entries - The message entries to log
  */
-export function mapLogEntriesToFile(entries: string[]): AttachmentBuilder {
+export function createLogAttachment(entries: string[]): AttachmentBuilder {
 	const buffer = Buffer.from(entries.join("\n\n"), "utf-8");
 	return new AttachmentBuilder(buffer, { name: "data.txt" });
 }

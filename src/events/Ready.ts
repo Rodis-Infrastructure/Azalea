@@ -1,7 +1,7 @@
-import { Messages } from "@utils/messages";
+import { MessageCache } from "@utils/messages";
 import { Client, Events, GuildTextBasedChannel } from "discord.js";
-import { client, prisma } from "./..";
-import { TemporaryMessage, TemporaryRole } from "@prisma/client";
+import { client, prisma } from "@";
+import { groupBy } from "lodash";
 import { pluralize, startCronJob } from "@/utils";
 
 import Logger, { AnsiColor } from "@utils/logger";
@@ -23,7 +23,7 @@ export default class Ready extends EventListener {
 		});
 
 		// Operations that require the global config
-		Messages.startDatabaseCronJob();
+		MessageCache.startDatabaseCronJob();
 		Reminders.mount();
 
 		// Start scheduled messages for all guilds
@@ -35,12 +35,15 @@ export default class Ready extends EventListener {
 			config.startMessageReportRemovalCronJob();
 			config.startUserReportReviewReminderCronJob();
 			config.startUserReportRemovalCronJob();
-			Ready._startTemporaryMessageRemovalCronJob();
-
-			if (config.data.role_requests) {
-				Ready._startTemporaryRoleRemovalCronJob();
-			}
 		});
+
+		// These cron jobs are global — start them once, outside the forEach
+		Ready._startTemporaryMessageRemovalCronJob();
+
+		const hasRoleRequests = ConfigManager.guildConfigs.some(config => !!config.data.role_requests);
+		if (hasRoleRequests) {
+			Ready._startTemporaryRoleRemovalCronJob();
+		}
 	}
 
 	private static _startTemporaryRoleRemovalCronJob(): void {
@@ -48,49 +51,37 @@ export default class Ready extends EventListener {
 		startCronJob("TEMPORARY_ROLE_REMOVAL", "0 0 * * *", async () => {
 			const now = new Date();
 
-			// Fetch and delete all expired role requests
+			// Fetch all expired role assignments
 			const expiredRoles = await prisma.temporaryRole.findMany({
 				where: { expires_at: { lte: now } }
 			});
 
 			// Map the expired roles to their respective guilds
-			const expiredRolesByGuild = expiredRoles.reduce((acc, request) => {
-				// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-				if (!acc[request.guild_id]) {
-					acc[request.guild_id] = [];
-				}
-
-				acc[request.guild_id].push(request);
-				return acc;
-			}, {} as Record<string, TemporaryRole[]>);
+			const expiredRolesByGuild = groupBy(expiredRoles, role => role.guild_id);
 
 			let removalCount = 0;
 
 			// Remove the roles from the users
 			for (const guildId in expiredRolesByGuild) {
 				const guild = await client.guilds.fetch(guildId);
-				const expiredRoles = expiredRolesByGuild[guildId];
+				const roles = expiredRolesByGuild[guildId];
 
-				for (const role of expiredRoles) {
+				for (const role of roles) {
 					const member = await guild.members.fetch(role.member_id).catch(() => null);
 
 					if (member?.roles.cache.has(role.role_id)) {
 						Logger.info(`Removing role ${role.role_id} from @${member.user.username} (${member.id})`);
-
 						await member.roles.remove(role.role_id);
-						await prisma.temporaryRole.delete({
-							where: {
-								member_id_role_id_guild_id: {
-									member_id: role.member_id,
-									role_id: role.role_id,
-									guild_id: role.guild_id
-								}
-							}
-						});
-
 						removalCount++;
 					}
 				}
+			}
+
+			// Batch delete all expired role records at once
+			if (expiredRoles.length) {
+				await prisma.temporaryRole.deleteMany({
+					where: { expires_at: { lte: now } }
+				});
 			}
 
 			if (removalCount > 0) {
@@ -117,15 +108,7 @@ export default class Ready extends EventListener {
 			]);
 
 			// Map the expired messages to their respective channels
-			const expiredMessagesByChannel = expiredMessages.reduce((acc, message) => {
-				// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-				if (!acc[message.channel_id]) {
-					acc[message.channel_id] = [];
-				}
-
-				acc[message.channel_id].push(message);
-				return acc;
-			}, {} as Record<string, TemporaryMessage[]>);
+			const expiredMessagesByChannel = groupBy(expiredMessages, message => message.channel_id);
 
 			let removalCount = 0;
 

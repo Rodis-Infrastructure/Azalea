@@ -59,8 +59,8 @@ async function main(): Promise<void> {
 	initSentry({
 		dsn: process.env.SENTRY_DSN,
 		environment: process.env.NODE_ENV,
-		profilesSampleRate: 1,
-		tracesSampleRate: 1
+		profilesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1,
+		tracesSampleRate: process.env.NODE_ENV === "production" ? 0.2 : 1
 	});
 
 	// Cache all components
@@ -95,6 +95,6 @@ if (process.env.NODE_ENV !== "test") {
 			Logger.error(`An unhandled error occurred: ${sentryId}`);
 			Logger.error(error);
 
-			process.exit(0);
+			process.exit(1);
 		});
 }

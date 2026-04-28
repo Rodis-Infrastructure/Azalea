@@ -1,4 +1,4 @@
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { Collection } from "discord.js";
 import { pluralize } from "@/utils";
 import { captureException } from "@sentry/node";
@@ -24,11 +24,11 @@ export default class ComponentManager {
 
 		Logger.info("Caching components...");
 
-		const filenames = fs.readdirSync(dirpath);
+		const filenames = fs.readdirSync(dirpath).filter(file => file.endsWith(".ts"));
 		let componentCount = 0;
 
-		try {
-			for (const filename of filenames) {
+		for (const filename of filenames) {
+			try {
 				const filepath = path.resolve(dirpath, filename);
 
 				// Import and initiate the component
@@ -50,9 +50,10 @@ export default class ComponentManager {
 				});
 
 				componentCount++;
+			} catch (error) {
+				Logger.error(`Failed to cache component from "${filename}": ${error}`);
+				captureException(error);
 			}
-		} catch (error) {
-			captureException(error);
 		}
 
 		Logger.info(`Cached ${componentCount} ${pluralize(componentCount, "component")}`);
@@ -105,7 +106,7 @@ export default class ComponentManager {
 		}
 	}
 
-	static handle(interaction: ComponentInteraction): Promise<InteractionReplyData> | InteractionReplyData {
+	static handle(interaction: ComponentInteraction): Promise<CommandResponse> | CommandResponse {
 		// Retrieve the component's instance from cache by its custom ID
 		const component = ComponentManager._getComponent(interaction.customId);
 

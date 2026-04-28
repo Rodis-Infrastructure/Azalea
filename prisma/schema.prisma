@@ -17,8 +17,9 @@ model BanRequest {
   created_at  DateTime @default(now())
   status      Int      @default(1)
   reviewer_id String?
-  /// ID of the auto-mute infraction
-  mute_id     Int?
+
+  @@index([status, guild_id])
+  @@index([target_id, guild_id, status])
 }
 
 model MuteRequest {
@@ -31,6 +32,9 @@ model MuteRequest {
   status      Int      @default(1)
   duration    Int
   reviewer_id String?
+
+  @@index([status, guild_id])
+  @@index([target_id, guild_id, status])
 }
 
 model Message {
@@ -47,6 +51,10 @@ model Message {
 
   /// Index for counting a user's messages
   @@index([author_id, guild_id])
+  /// Index for deleteMessagesByUser queries
+  @@index([author_id, channel_id, deleted])
+  /// Index for TTL-based message deletion
+  @@index([created_at])
 }
 
 model Infraction {
@@ -65,11 +73,15 @@ model Infraction {
   archived_at       DateTime?
   archived_by       String?
 
-  /// Index for counting infractions and searching a user's
-  /// infractions with a filter
+  /// Index for counting/searching a user's infractions with a filter
+  /// Also covers (target_id, guild_id) prefix queries
   @@index([target_id, guild_id, action, archived_at, archived_by])
-  /// Index for searching a user's infractions
-  @@index([target_id, guild_id, archived_at, archived_by])
+  /// Index for active infractions listing
+  @@index([expires_at, archived_at, archived_by])
+  /// Index for moderation activity queries by executor
+  @@index([executor_id, guild_id])
+  /// Index for finding latest ban/mute by action + target
+  @@index([action, target_id, guild_id, archived_at, archived_by])
 }
 
 model MessageReport {
@@ -79,6 +91,8 @@ model MessageReport {
   message_id      String   @unique
   /// Channel where the message was sent
   channel_id      String
+  /// Guild where the message was sent
+  guild_id        String
   /// Author of the reported message
   author_id       String
   /// Author of the report
@@ -95,6 +109,13 @@ model MessageReport {
   resolved_by     String?
   /// Content of the reported message
   content         String?
+
+  @@index([status, guild_id])
+  @@index([author_id, status, guild_id])
+  /// Index for ban-triggered report cleanup
+  @@index([author_id, status, message_deleted, guild_id])
+  /// Index for TTL-based report removal
+  @@index([created_at, status, guild_id])
 }
 
 model UserReport {
@@ -107,6 +128,12 @@ model UserReport {
   reason      String
   /// ID of the user that resolved the report
   resolved_by String?
+
+  @@index([status, guild_id])
+  /// Index for ban-triggered report cleanup
+  @@index([target_id, status])
+  /// Index for TTL-based report removal
+  @@index([created_at, status, guild_id])
 }
 
 model TemporaryRole {
@@ -116,6 +143,7 @@ model TemporaryRole {
   expires_at DateTime
 
   @@id([member_id, role_id, guild_id])
+  @@index([expires_at])
 }
 
 model TemporaryMessage {
@@ -124,6 +152,7 @@ model TemporaryMessage {
   expires_at DateTime
 
   @@id([message_id, channel_id])
+  @@index([expires_at])
 }
 
 model Reminder {
@@ -133,6 +162,9 @@ model Reminder {
   reminder   String
   created_at DateTime @default(now())
   expires_at DateTime
+
+  @@index([author_id])
+  @@index([expires_at])
 }
 
 model PermissionOverwrites {
@@ -148,6 +180,8 @@ model Highlight {
   channel_scoping HighlightChannelScoping[]
 
   @@id([user_id, guild_id])
+  /// Index for guild-scoped highlight queries (hot path on every message)
+  @@index([guild_id])
 }
 
 model HighlightPattern {
