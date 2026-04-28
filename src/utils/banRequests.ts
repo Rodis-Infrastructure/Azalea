@@ -12,13 +12,13 @@ import {
 import { Result } from "./types";
 import { BanRequest, Prisma } from "@prisma/client";
 import { TypedRegEx } from "typed-regex";
-import { client, prisma } from "./..";
+import { client, prisma } from "@";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { removeClientReactions, temporaryReply } from "./messages";
 import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
-import { SECONDS_IN_DAY } from "@/commands/Ban";
+import { SECONDS_IN_DAY } from "./constants";
 import { userMentionWithId } from "./index";
-import { log } from "./logging";
+import { log } from "./eventLogging";
 import { captureException } from "@sentry/node";
 
 import GuildConfig from "@managers/config/GuildConfig";
@@ -292,7 +292,7 @@ export default class BanRequestUtil {
 		try {
 			await config.guild.members.ban(targetId, {
 				reason: data.reason,
-				deleteMessageSeconds: config.data.delete_message_days_on_ban * SECONDS_IN_DAY
+				deleteMessageSeconds: config.data.ban_delete_message_days * SECONDS_IN_DAY
 			});
 		} catch (error) {
 			const sentryId = captureException(error);
@@ -393,5 +393,5 @@ export enum BanRequestStatus {
     /** The request has been deleted. */
     Deleted = 4,
     /** An unsupported reaction has been added to the request. */
-    Unknown = 5
+    Unrecognized = 5
 }

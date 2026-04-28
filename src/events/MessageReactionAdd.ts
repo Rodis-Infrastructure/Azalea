@@ -21,16 +21,16 @@ import {
 import {
 	formatMessageContentForShortLog,
 	formatBulkMessageLogEntry,
-	Messages,
+	MessageCache,
 	prependReferenceLog, removeClientReactions
 } from "@utils/messages";
 
 import { handleQuickMute } from "@/commands/QuickMute30Ctx";
-import { log, mapLogEntriesToFile } from "@utils/logging";
+import { log, createLogAttachment } from "@utils/eventLogging";
 import { DEFAULT_EMBED_COLOR, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { cleanContent, cropLines, enhancedRoleMention, pluralize, userMentionWithId } from "@/utils";
 import { ButtonStyle, Snowflake } from "discord-api-types/v10";
-import { client, prisma } from "./..";
+import { client, prisma } from "@";
 import { MessageReportFlag, MessageReportStatus, MessageReportUtil } from "@utils/reports";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { QuickMuteDuration } from "@utils/infractions";
@@ -41,7 +41,7 @@ import GuildConfig from "@managers/config/GuildConfig";
 import ConfigManager from "@managers/config/ConfigManager";
 import EventListener from "@managers/events/EventListener";
 import Purge from "@/commands/Purge";
-import BanRequestUtil from "@utils/banRequests";
+import BanRequestUtil, { BanRequestStatus } from "@utils/banRequests";
 
 export default class MessageReactionAdd extends EventListener {
 	constructor() {
@@ -67,17 +67,18 @@ export default class MessageReactionAdd extends EventListener {
 		const executor = await message.guild.members.fetch(user.id)
 			.catch(() => null);
 
-		// All subsequent actions require the emoji configuration
-		if (!config.data.emojis || !emojiId || !executor) return;
+		// All subsequent actions require the reaction emoji configuration
+		const reactionEmojis = config.data.emojis.reactions;
+		if (!reactionEmojis || !emojiId || !executor) return;
 
-		const canUseEmoji = (emoji: keyof typeof config.data.emojis, permission: Permission): boolean => {
-			return emojiId === config.data.emojis![emoji] && config.hasPermission(executor, permission);
+		const canUseEmoji = (emoji: keyof NonNullable<typeof reactionEmojis>, permission: Permission): boolean => {
+			return emojiId === reactionEmojis![emoji] && config.hasPermission(executor, permission);
 		};
 
 		// Handle a 30-minute quick mute
 		if (canUseEmoji("quick_mute_30", Permission.QuickMute)) {
 			await MessageReactionAdd._handleQuickMute({
-				duration: QuickMuteDuration.Short,
+				duration: QuickMuteDuration.ThirtyMinutes,
 				executor,
 				message,
 				config
@@ -88,7 +89,7 @@ export default class MessageReactionAdd extends EventListener {
 		// Handle a one-hour quick mute
 		if (canUseEmoji("quick_mute_60", Permission.QuickMute)) {
 			await MessageReactionAdd._handleQuickMute({
-				duration: QuickMuteDuration.Long,
+				duration: QuickMuteDuration.OneHour,
 				executor,
 				message,
 				config
@@ -113,7 +114,7 @@ export default class MessageReactionAdd extends EventListener {
 		}
 
 		// Handle moderation requests
-		MessageReactionAdd.handleModerationRequest(message, emojiId, executor, config);
+		await MessageReactionAdd.handleModerationRequest(message, emojiId, executor, config);
 	}
 
 	private static async _parseReaction(reaction: PartialMessageReaction | MessageReaction): Promise<MessageReaction | null> {
@@ -168,22 +169,22 @@ export default class MessageReactionAdd extends EventListener {
 		const isMuteRequestChannel = message.channelId === config.data.mute_requests?.channel_id;
 		const isBanRequestChannel = message.channelId === config.data.ban_requests?.channel_id;
 
-		if (isMuteRequestChannel && emojiId === config.data.emojis!.approve) {
+		if (isMuteRequestChannel && emojiId === config.data.emojis.reactions?.approve) {
 			await MuteRequestUtil.approve(message, executor, config);
 			return;
 		}
 
-		if (isBanRequestChannel && emojiId === config.data.emojis!.approve) {
+		if (isBanRequestChannel && emojiId === config.data.emojis.reactions?.approve) {
 			await BanRequestUtil.approve(message, executor, config);
 			return;
 		}
 
-		if (isMuteRequestChannel && emojiId === config.data.emojis!.deny) {
+		if (isMuteRequestChannel && emojiId === config.data.emojis.reactions?.deny) {
 			await MuteRequestUtil.deny(message, executor, config);
 			return;
 		}
 
-		if (isBanRequestChannel && emojiId === config.data.emojis!.deny) {
+		if (isBanRequestChannel && emojiId === config.data.emojis.reactions?.deny) {
 			await BanRequestUtil.deny(message, executor, config);
 			return;
 		}
@@ -191,14 +192,14 @@ export default class MessageReactionAdd extends EventListener {
 		if (isMuteRequestChannel) {
 			await prisma.muteRequest.update({
 				where: { id: message.id },
-				data: { status: MuteRequestStatus.Unknown }
+				data: { status: MuteRequestStatus.Unrecognized }
 			}).catch(() => null);
 		}
 
 		if (isBanRequestChannel) {
 			await prisma.banRequest.update({
 				where: { id: message.id },
-				data: { status: MuteRequestStatus.Unknown }
+				data: { status: BanRequestStatus.Unrecognized }
 			}).catch(() => null);
 		}
 
@@ -231,12 +232,12 @@ export default class MessageReactionAdd extends EventListener {
 		// Don't report messages from users with excluded roles
 		if (isExcluded || message.author.bot) return;
 
-		const reportChannel = await config.guild.channels.fetch(config.data.message_reports.report_channel);
+		const reportChannel = await config.guild.channels.fetch(config.data.message_reports.channel_id);
 
 		// Ensure the report channel exists and is a text channel
 		// An error should be thrown since the bot shouldn't be started with an incomplete configuration
 		if (!reportChannel || !reportChannel.isTextBased()) {
-			throw new Error(`Invalid report channel passed to \`message_reports.report_channel\` in the config for guild with ID ${config.guild.id}`);
+			throw new Error(`Invalid report channel passed to \`message_reports.channel_id\` in the config for guild with ID ${config.guild.id}`);
 		}
 
 		// Check if there is an existing report for a message with the same content
@@ -244,6 +245,7 @@ export default class MessageReactionAdd extends EventListener {
 		const originalReport = await prisma.messageReport.findFirst({
 			where: {
 				author_id: message.author.id,
+				guild_id: message.guildId,
 				status: MessageReportStatus.Unresolved,
 				OR: [
 					{ content: content },
@@ -398,6 +400,7 @@ export default class MessageReactionAdd extends EventListener {
 				message_id: message.id,
 				author_id: message.author.id,
 				channel_id: message.channelId,
+				guild_id: message.guildId,
 				reported_by: reporterId,
 				status: MessageReportStatus.Unresolved,
 				content,
@@ -494,7 +497,7 @@ export default class MessageReactionAdd extends EventListener {
 			.setTimestamp();
 
 		const embeds = [embed];
-		const serializedMessage = Messages.serialize(message);
+		const serializedMessage = MessageCache.serialize(message);
 		await prependReferenceLog(serializedMessage, embeds);
 
 		return { embeds };
@@ -505,9 +508,9 @@ export default class MessageReactionAdd extends EventListener {
 		message: Message<true>,
 		user: User
 	): Promise<MessageCreateOptions | null> {
-		const serializedMessage = Messages.serialize(message);
+		const serializedMessage = MessageCache.serialize(message);
 		const entry = await formatBulkMessageLogEntry(serializedMessage);
-		const file = mapLogEntriesToFile([entry]);
+		const file = createLogAttachment([entry]);
 
 		return {
 			content: `Reaction ${MessageReactionAdd._parseEmoji(emoji)} added to message in ${message.channel} by ${user}`,

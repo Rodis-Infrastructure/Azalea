@@ -7,8 +7,8 @@ import {
 	userMention
 } from "discord.js";
 
-import { InteractionReplyData, Result } from "@utils/types";
-import { log } from "@utils/logging";
+import { CommandResponse, Result } from "@utils/types";
+import { log } from "@utils/eventLogging";
 import { pluralize } from "@/utils";
 import { LoggingEvent } from "@managers/config/schema";
 
@@ -24,7 +24,7 @@ export default class StoreMediaCtx extends Command<MessageContextMenuCommandInte
 		});
 	}
 
-	async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const files: Attachment[] = Array.from(interaction.targetMessage.attachments.values());
 

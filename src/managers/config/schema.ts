@@ -3,21 +3,21 @@ import { TypedRegEx } from "typed-regex";
 import { MAX_MUTE_DURATION } from "@utils/constants";
 import { PermissionFlagsBits, PermissionsString } from "discord.js";
 
-import _ from "lodash";
+import { intersection } from "lodash";
 
 // ————————————————————————————————————————————————————————————————————————————————
 // Misc
 // ————————————————————————————————————————————————————————————————————————————————
 
 // Format: "*/5 * * * *" (every 5 minutes)
-const cronSchema = z.string().regex(/^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|µs|ms|s|m|h))+)|((((\d+,)+\d+|([\d*]+[/-]\d+)|\d+|\*) ?){5,7})$/gm);
+const cronSchema = z.string().regex(/^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|µs|ms|s|m|h))+)|((((\d+,)+\d+|([\d*]+[/-]\d+)|\d+|\*) ?){5,7})$/m);
 // Format: "123456789012345678"
-const snowflakeSchema = z.string().regex(/^\d{17,19}$/gm);
-const massMentionSchema = z.string().regex(/^@?(here|everyone)$/gm);
+const snowflakeSchema = z.string().regex(/^\d{17,19}$/m);
+const massMentionSchema = z.string().regex(/^@?(here|everyone)$/m);
 const roleMentionSchema = z.union([snowflakeSchema, massMentionSchema]);
 const emojiSchema = z.union([z.string().emoji(), snowflakeSchema]);
 const stringSchema = z.string().min(1);
-const domainSchema = z.string().regex(/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/gmi);
+const domainSchema = z.string().regex(/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/mi);
 const messageContentSchema = stringSchema.min(1).max(4000);
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -245,7 +245,7 @@ const scopingSchema = z.intersection(channelScopingSchema, roleScopingSchema);
 
 export type ChannelScoping = z.infer<typeof channelScopingSchema>;
 export type RoleScoping = z.infer<typeof roleScopingSchema>;
-export type Scoping = z.infer<typeof scopingSchema>;
+export type EventScoping = z.infer<typeof scopingSchema>;
 
 const reviewReminderSchema = z.object({
 	channel_id: snowflakeSchema,
@@ -276,7 +276,7 @@ const scheduledMessageSchema = z.object({
 	// Channel to send the message in
 	channel_id: snowflakeSchema,
 	// The slug of the monitor to set
-	monitor_slug: z.string().regex(/^[A-Z_]{1,50}$/g),
+	monitor_slug: z.string().regex(/^[A-Z_]{1,50}$/),
 	// Cron expression for when to send the message
 	cron: cronSchema,
 	// Message
@@ -295,9 +295,9 @@ const autoReactionSchema = z.object({
 
 const reportSchema = z.object({
 	// Channel to send reports to
-	report_channel: snowflakeSchema,
+	channel_id: snowflakeSchema,
 	// How long a report will stay in the channel before being removed (in milliseconds)
-	report_ttl: z.number().min(1000).optional(),
+	ttl: z.number().min(1000).optional(),
 	review_reminder: reviewReminderSchema.optional(),
 	// Roles mentioned in new reports
 	mentioned_roles: z.array(roleMentionSchema).nonempty().optional(),
@@ -358,7 +358,7 @@ const interactionReplyOptionsSchema = z.object({
 const quickResponseSchema = z.object({
 	// The label displayed in the command's dropdown
 	label: stringSchema.max(100),
-	value: z.string().regex(/^[\w-]{1,100}$/gm),
+	value: z.string().regex(/^[\w-]{1,100}$/m),
 	// The response to send when the command is executed
 	response: z.union([messageContentSchema, interactionReplyOptionsSchema])
 });
@@ -387,11 +387,11 @@ const roleRequestsSchema = z.object({
 
 const mediaChannelSchema = z.object({
 	channel_id: snowflakeSchema,
-	allowed_roles: z.array(snowflakeSchema).min(1).optional(),
+	include_roles: z.array(snowflakeSchema).min(1).optional(),
 	exclude_roles: z.array(snowflakeSchema).default([]),
 	fallback_response: messageContentSchema.optional()
 }).superRefine((mediaChannel, ctx) => {
-	const invalidRoleIds = mediaChannel.allowed_roles?.filter(roleId => {
+	const invalidRoleIds = mediaChannel.include_roles?.filter(roleId => {
 		return mediaChannel.exclude_roles.includes(roleId);
 	}) ?? [];
 
@@ -474,7 +474,7 @@ const permissionOverwriteSchema = z.object({
 	}
 
 	// Permissions cannot be included in more than one property
-	const invalidPermissions = _.intersection(overwrite.allow, overwrite.deny);
+	const invalidPermissions = intersection(overwrite.allow, overwrite.deny);
 
 	for (const permission of invalidPermissions) {
 		ctx.addIssue({
@@ -542,17 +542,23 @@ export const rawGuildConfigSchema = z.object({
 	auto_reactions: z.array(autoReactionSchema).default([]),
 	// Toggle the `SendMessages` permission in a channel depending on whether a stage event is active
 	stage_event_overrides: z.array(stageEventOverrideSchema).default([]),
-	notification_channel: snowflakeSchema.optional(),
+	notification_channel_id: snowflakeSchema.optional(),
 	lockdown: lockdownSchema.optional(),
-	media_conversion_channel: snowflakeSchema.optional(),
+	media_conversion_channel_id: snowflakeSchema.optional(),
 	// Period of time to delete messages on ban (in days) - Default: 0 (disabled)
-	delete_message_days_on_ban: z.number().max(7).default(0),
+	ban_delete_message_days: z.number()
+		.min(0)
+		.max(7)
+		.default(0),
 	nickname_censorship: nicknameCensorshipSchema.default({}),
 	quick_responses: z.array(quickResponseSchema).max(25).default([]),
-	// Server rules displayed via /rule command
-	rules: z.array(ruleSchema).default([]),
-	// Channel ID to reference for all rules (e.g., #welcome-to-rules)
-	rules_channel_id: snowflakeSchema.optional(),
+	// Server rules
+	rules: z.object({
+		// Channel ID to reference for all rules (e.g., #welcome-to-rules)
+		channel_id: snowflakeSchema.optional(),
+		// Rule entries displayed via /rule command
+		entries: z.array(ruleSchema).default([])
+	}).default({ entries: [] }),
 	role_requests: roleRequestsSchema.optional(),
 	scheduled_messages: z.array(scheduledMessageSchema).default([]),
 	// Flags displayed in the user info message
@@ -562,17 +568,25 @@ export const rawGuildConfigSchema = z.object({
 	permissions: z.array(permissionsSchema).default([]),
 	message_reports: reportSchema.optional(),
 	user_reports: reportSchema.optional(),
-	ephemeral_scoping: channelScopingSchema.default({}),
-	moderation_activity_ephemeral_scoping: channelScopingSchema.default({}),
+	ephemeral_scoping: z.object({
+		default: channelScopingSchema.default({}),
+		moderation_activity: channelScopingSchema.default({})
+	}).default({ default: {}, moderation_activity: {} }),
 	// Lifetime of non-ephemeral responses (milliseconds)
 	// default: 3 seconds (3000ms)
 	response_ttl: z.number().min(1000).default(3000),
-	emojis: emojisSchema.optional(),
-	client_emojis: clientEmojisSchema.default({}),
-	default_mute_duration_seconds: z.number()
-		.min(1)
-		.max(MAX_MUTE_DURATION / 1000)
-		.default(MAX_MUTE_DURATION / 1000),
+	// Emojis used for reactions and bot display
+	emojis: z.object({
+		// Reaction emojis for moderation actions
+		reactions: emojisSchema.optional(),
+		// Emojis used in bot response messages
+		display: clientEmojisSchema.default({})
+	}).default({ display: {} }),
+	// Default mute duration in milliseconds
+	default_mute_duration: z.number()
+		.min(1000)
+		.max(MAX_MUTE_DURATION)
+		.default(MAX_MUTE_DURATION),
 	// Value must be between 1 and 100 (inclusive) - Default: 100
 	default_purge_amount: z.number()
 		.min(1)

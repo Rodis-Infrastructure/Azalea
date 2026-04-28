@@ -1,11 +1,11 @@
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { ButtonInteraction, GuildTextBasedChannel } from "discord.js";
 import { handleQuickMute } from "@/commands/QuickMute30Ctx";
 import { MessageReportStatus } from "@utils/reports";
 import { QuickMuteDuration } from "@utils/infractions";
 import { Permission } from "@managers/config/schema";
 import { fetchMessage } from "@utils/messages";
-import { prisma } from "./..";
+import { prisma } from "@";
 
 import Component from "@managers/components/Component";
 import MessageReportResolve from "./MessageReportResolve";
@@ -16,10 +16,10 @@ export default class MessageReportQuickMute extends Component {
 		super({ matches: /^message-report-qm[36]0$/m });
 	}
 
-	execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+	execute(interaction: ButtonInteraction<"cached">): Promise<CommandResponse> {
 		const duration = interaction.customId.endsWith("60")
-			? QuickMuteDuration.Long
-			: QuickMuteDuration.Short;
+			? QuickMuteDuration.OneHour
+			: QuickMuteDuration.ThirtyMinutes;
 
 		return handleMessageReportQuickMute(interaction, duration);
 	}
@@ -32,7 +32,7 @@ export default class MessageReportQuickMute extends Component {
  * @param interaction - The quick mute button
  * @param duration - The duration of the quick mute
  */
-export async function handleMessageReportQuickMute(interaction: ButtonInteraction<"cached">, duration: QuickMuteDuration): Promise<InteractionReplyData> {
+export async function handleMessageReportQuickMute(interaction: ButtonInteraction<"cached">, duration: QuickMuteDuration): Promise<CommandResponse> {
 	const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
 	if (!config.hasPermission(interaction.member, Permission.QuickMute)) {
@@ -40,16 +40,6 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
 			content: "You do not have permission to execute quick mutes",
 			temporary: true
 		});
-	}
-
-	switch (duration) {
-		case QuickMuteDuration.Short:
-			MessageReportResolve.log(interaction, config, "quick mute (30m)");
-			break;
-
-		case QuickMuteDuration.Long:
-			MessageReportResolve.log(interaction, config, "quick mute (60m)");
-			break;
 	}
 
 	// Returns null if the report is not found
@@ -94,7 +84,18 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
 		return result.message;
 	}
 
-	const status = duration === QuickMuteDuration.Short
+	// Log after the mute succeeds
+	switch (duration) {
+		case QuickMuteDuration.ThirtyMinutes:
+			MessageReportResolve.log(interaction, config, "quick mute (30m)");
+			break;
+
+		case QuickMuteDuration.OneHour:
+			MessageReportResolve.log(interaction, config, "quick mute (60m)");
+			break;
+	}
+
+	const status = duration === QuickMuteDuration.ThirtyMinutes
 		? MessageReportStatus.QuickMute30
 		: MessageReportStatus.QuickMute60;
 

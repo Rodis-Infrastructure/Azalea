@@ -1,13 +1,11 @@
 import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
-import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
-import { InteractionReplyData } from "@utils/types";
+import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON, SECONDS_IN_DAY } from "@utils/constants";
+import { CommandResponse } from "@utils/types";
 import { captureException } from "@sentry/node";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
-
-export const SECONDS_IN_DAY = 86400;
 
 /**
  * Bans a user from the server.
@@ -51,7 +49,7 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
 		});
 	}
 
-	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
 		const member = interaction.options.getMember("user");
@@ -102,7 +100,7 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
 		});
 
 		const deleteMessageDays = interaction.options.getInteger("delete_message_days")
-            ?? config.data.delete_message_days_on_ban;
+            ?? config.data.ban_delete_message_days;
 		const deleteMessageSeconds = deleteMessageDays * SECONDS_IN_DAY;
 
 		try {

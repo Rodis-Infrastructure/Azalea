@@ -21,10 +21,9 @@ export default [...compat.extends(
 	"eslint:recommended",
 	"plugin:@typescript-eslint/eslint-recommended",
 	"plugin:@typescript-eslint/recommended"
-), {
+), dwordDesignImportAlias.configs.recommended, {
 	plugins: {
-		"@typescript-eslint": typescriptEslint,
-		"@dword-design/import-alias": dwordDesignImportAlias
+		"@typescript-eslint": typescriptEslint
 	},
 
 	languageOptions: {
@@ -35,7 +34,7 @@ export default [...compat.extends(
 		},
 
 		parser: tsParser,
-		ecmaVersion: 5,
+		ecmaVersion: "latest",
 		sourceType: "module",
 
 		parserOptions: {
@@ -132,12 +131,7 @@ export default [...compat.extends(
 		"no-label-var": "error",
 		"no-shadow": "off",
 		"no-undef-init": "error",
-		"callback-return": "error",
 		"getter-return": "error",
-		"handle-callback-err": "error",
-		"no-mixed-requires": "error",
-		"no-new-require": "error",
-		"no-path-concat": "error",
 		"block-spacing": "error",
 		"dot-notation": "error",
 		eqeqeq: "error",
@@ -166,7 +160,7 @@ export default [...compat.extends(
 		"no-array-constructor": "error",
 		"no-lonely-if": "error",
 		"no-mixed-operators": "error",
-		"no-new-object": "error",
+		"no-object-constructor": "error",
 		"no-trailing-spaces": "error",
 		"no-unneeded-ternary": "error",
 		"no-whitespace-before-property": "error",

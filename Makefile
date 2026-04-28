@@ -1,3 +1,5 @@
+.PHONY: install migrate-db test start lint typecheck prod production
+
 install:
 	bun install --frozen-lockfile --production
 
@@ -6,6 +8,12 @@ migrate-db:
 
 test:
 	bun test
+
+lint:
+	bun run lint
+
+typecheck:
+	bun run tsc --noEmit
 
 start:
 	bun start

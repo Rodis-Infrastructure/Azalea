@@ -356,14 +356,14 @@ export default class CreateTestingTemplate extends Command<ChatInputCommandInter
 			reason: "Testing template"
 		});
 
-		const generalVoice = await guild.channels.create({
+		await guild.channels.create({
 			name: "General",
 			type: ChannelType.GuildVoice,
 			parent: voiceCategory.id,
 			reason: "Testing template"
 		});
 
-		const staffVoice = await guild.channels.create({
+		await guild.channels.create({
 			name: "Staff",
 			type: ChannelType.GuildVoice,
 			parent: voiceCategory.id,
@@ -385,7 +385,7 @@ export default class CreateTestingTemplate extends Command<ChatInputCommandInter
 			reason: "Testing template"
 		});
 
-		const feedbackForum = await guild.channels.create({
+		await guild.channels.create({
 			name: "feedback",
 			type: ChannelType.GuildForum,
 			parent: forumCategory.id,
@@ -490,7 +490,7 @@ export default class CreateTestingTemplate extends Command<ChatInputCommandInter
 				`Generated <t:${timestamp}:R>`,
 				"",
 				"This server has been configured as a testing environment for the bot. " +
-				"All channels, roles, and the guild configuration have been auto-generated.",
+				"All channels, roles, and the guild configuration have been auto-generated."
 			].join("\n"))
 			.addFields(
 				{
@@ -500,7 +500,7 @@ export default class CreateTestingTemplate extends Command<ChatInputCommandInter
 						`2. Assign <@&${testAltRole.id}> to the alt account`,
 						`3. Use <#${botCommandsChannel.id}> for running bot commands`,
 						`4. Moderation channels are under the **MODERATION** category`,
-						`5. Logs will appear in the **LOGGING** category`,
+						`5. Logs will appear in the **LOGGING** category`
 					].join("\n")
 				},
 				{
@@ -517,7 +517,7 @@ export default class CreateTestingTemplate extends Command<ChatInputCommandInter
 						"- **Highlights**: `/highlight add` to track keywords",
 						`- **Nickname censorship**: \`/censor-nickname\` on the alt account`,
 						"- **Quick responses**: `/qr` for pre-configured responses",
-						"- **Rules**: `/rule` to view sample rules",
+						"- **Rules**: `/rule` to view sample rules"
 					].join("\n")
 				},
 				{

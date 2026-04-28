@@ -1,4 +1,4 @@
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { ButtonInteraction } from "discord.js";
 
 import Component from "@managers/components/Component";
@@ -11,7 +11,7 @@ export default class InfractionInfo extends Component {
 		super({ matches: /^infraction-info-\d+$/m });
 	}
 
-	execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+	execute(interaction: ButtonInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
 		if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {

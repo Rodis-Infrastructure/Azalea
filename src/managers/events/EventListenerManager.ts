@@ -20,11 +20,11 @@ export default class EventListenerManager {
 
 		Logger.info("Mounting event listeners...");
 
-		const filenames = fs.readdirSync(dirpath);
+		const filenames = fs.readdirSync(dirpath).filter(file => file.endsWith(".ts"));
 		let eventListenerCount = 0;
 
-		try {
-			for (const filename of filenames) {
+		for (const filename of filenames) {
+			try {
 				const filepath = path.resolve(dirpath, filename);
 
 				// Import and initiate the event listener
@@ -39,16 +39,23 @@ export default class EventListenerManager {
 
 				const logMessage = `Mounted event listener "${listener.event}"`;
 
+				// Wrap the listener execution in an error boundary to prevent
+				// unhandled errors from crashing the bot
+				const safeExecute = (...args: unknown[]): void => {
+					Promise.resolve(listener.execute(...args)).catch(error => {
+						Logger.error(`Error in event listener "${listener.event}": ${error}`);
+						captureException(error);
+					});
+				};
+
 				if (listener.options?.once) {
-					// Handle the event once per session
-					client.once(listener.event, (...args: unknown[]) => listener.execute(...args));
+					client.once(listener.event, safeExecute);
 
 					Logger.log("ONCE", logMessage, {
 						color: AnsiColor.Purple
 					});
 				} else {
-					// Handle the event every time it is emitted
-					client.on(listener.event, (...args: unknown[]) => listener.execute(...args));
+					client.on(listener.event, safeExecute);
 
 					Logger.log("ON", logMessage, {
 						color: AnsiColor.Purple
@@ -56,9 +63,10 @@ export default class EventListenerManager {
 				}
 
 				eventListenerCount++;
+			} catch (error) {
+				Logger.error(`Failed to mount event listener from "${filename}": ${error}`);
+				captureException(error);
 			}
-		} catch (error) {
-			captureException(error);
 		}
 
 		Logger.info(`Mounted ${eventListenerCount} ${pluralize(eventListenerCount, "event listener")}`);

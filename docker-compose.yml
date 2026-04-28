@@ -2,10 +2,7 @@ services:
   bot:
     build:
       context: .
-      args:
-        DISCORD_TOKEN:
-        SENTRY_DSN:
-        DATABASE_URL:
+    env_file: .env
     restart: always
     container_name: azalea
     volumes:

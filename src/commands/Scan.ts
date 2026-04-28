@@ -8,7 +8,7 @@ import {
 	inlineCode
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { formatEmojiUrl } from "@/utils";
 
 import Command from "@managers/commands/Command";
@@ -35,7 +35,7 @@ export default class Scan extends Command<ChatInputCommandInteraction<"cached">>
 		});
 	}
 
-	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const apiKey = process.env.VIRUSTOTAL_API_KEY;
 
 		if (!apiKey) {
@@ -87,7 +87,7 @@ export default class Scan extends Command<ChatInputCommandInteraction<"cached">>
 			return "An error occurred while parsing the URL scan data.";
 		}
 
-		const emoji = ConfigManager.getGuildConfig(interaction.guildId, true).data.client_emojis;
+		const emoji = ConfigManager.getGuildConfig(interaction.guildId, true).data.emojis.display;
 		const data = result.data.attributes;
 		const trackers = Object.keys(data.trackers ?? {});
 

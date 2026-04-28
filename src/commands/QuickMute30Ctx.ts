@@ -12,15 +12,15 @@ import {
 
 import {
 	InfractionAction,
-	InfractionFlag,
+	InfractionSource,
 	InfractionManager,
 	InfractionUtil,
 	QuickMuteDuration
 } from "@utils/infractions";
 
-import { InteractionReplyData, Result } from "@utils/types";
+import { CommandResponse, Result } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { cleanContent, cropLines, elipsify } from "@/utils";
+import { cleanContent, cropLines, ellipsize } from "@/utils";
 import { captureException } from "@sentry/node";
 import { Message } from "@prisma/client";
 
@@ -36,11 +36,11 @@ export default class QuickMute30Ctx extends Command<MessageContextMenuCommandInt
 		});
 	}
 
-	async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<CommandResponse> {
 		const result = await handleQuickMute({
 			executor: interaction.member,
 			targetMessage: interaction.targetMessage,
-			duration: QuickMuteDuration.Short
+			duration: QuickMuteDuration.ThirtyMinutes
 		});
 
 		if (!result.ok) {
@@ -68,7 +68,7 @@ export async function handleQuickMute(data: {
     executor: GuildMember,
     targetMessage: DiscordMessage<true> | Message,
     duration: QuickMuteDuration
-}, mention = false): Promise<Result<InteractionReplyData>> {
+}, mention = false): Promise<Result<CommandResponse>> {
 	const { executor, targetMessage, duration } = data;
 
 	if (!targetMessage.content) {
@@ -158,13 +158,13 @@ export async function handleQuickMute(data: {
 		reason += ` (Purge log: ${logURL})`;
 	}
 
-	reason = elipsify(reason, EMBED_FIELD_CHAR_LIMIT);
+	reason = ellipsize(reason, EMBED_FIELD_CHAR_LIMIT);
 
 	const infraction = await InfractionManager.storeInfraction({
 		executor_id: executor.id,
 		guild_id: executor.guild.id,
 		action: InfractionAction.Mute,
-		flag: InfractionFlag.Quick,
+		flag: InfractionSource.Quick,
 		target_id: targetUserId,
 		expires_at: expiresAt,
 		reason

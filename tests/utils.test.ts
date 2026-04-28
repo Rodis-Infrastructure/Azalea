@@ -1,9 +1,9 @@
 import {
 	channelMentionWithName,
 	cropLines,
-	elipsify,
+	ellipsize,
 	getObjectDiff,
-	humanizeTimestamp,
+	humanizeDuration,
 	pluralize,
 	userMentionWithId
 } from "@/utils";
@@ -20,28 +20,28 @@ describe("utils", () => {
 		expect(pluralize(2, "index", "indices")).toBe("indices");
 	});
 
-	test(humanizeTimestamp.name, () => {
+	test(humanizeDuration.name, () => {
 		const MINUTE = 1000 * 60;
 		const HOUR = MINUTE * 60;
 		const DAY = HOUR * 24;
 
 		// Zero duration
-		expect(humanizeTimestamp(0)).toBe("< 1 minute");
+		expect(humanizeDuration(0)).toBe("< 1 minute");
 
 		// Singular durations
-		expect(humanizeTimestamp(MINUTE)).toBe("1 minute");
-		expect(humanizeTimestamp(HOUR)).toBe("1 hour");
-		expect(humanizeTimestamp(DAY)).toBe("1 day");
+		expect(humanizeDuration(MINUTE)).toBe("1 minute");
+		expect(humanizeDuration(HOUR)).toBe("1 hour");
+		expect(humanizeDuration(DAY)).toBe("1 day");
 
 		// Plural durations
-		expect(humanizeTimestamp(MINUTE * 2)).toBe("2 minutes");
-		expect(humanizeTimestamp(HOUR * 2)).toBe("2 hours");
-		expect(humanizeTimestamp(DAY * 2)).toBe("2 days");
+		expect(humanizeDuration(MINUTE * 2)).toBe("2 minutes");
+		expect(humanizeDuration(HOUR * 2)).toBe("2 hours");
+		expect(humanizeDuration(DAY * 2)).toBe("2 days");
 
 		// Mixed durations
 		// Tests prioritization of larger units
-		expect(humanizeTimestamp(MINUTE + HOUR + DAY)).toBe("1 day 1 hour 1 minute");
-		expect(humanizeTimestamp((MINUTE + HOUR + DAY) * 2)).toBe("2 days 2 hours 2 minutes");
+		expect(humanizeDuration(MINUTE + HOUR + DAY)).toBe("1 day 1 hour 1 minute");
+		expect(humanizeDuration((MINUTE + HOUR + DAY) * 2)).toBe("2 days 2 hours 2 minutes");
 	});
 
 	test(cropLines.name, () => {
@@ -91,7 +91,7 @@ describe("utils", () => {
 		expect(channelMentionWithName(CHANNEL)).toBe(`<#${CHANNEL.id}> (\`#${CHANNEL.name}\`)`);
 	});
 
-	test(elipsify.name, () => {
+	test(ellipsize.name, () => {
 		const MAX_LENGTH = 50;
 		const text = (length: number): string => "A".repeat(length);
 
@@ -105,8 +105,8 @@ describe("utils", () => {
 		const expectedLongResult = `${longCropped}…(24 more characters)`;
 
 		// Tests
-		expect(elipsify(unchanged, MAX_LENGTH)).toBe(unchanged);
-		expect(elipsify(boundaryUnchanged, MAX_LENGTH)).toBe(boundaryUnchanged);
-		expect(elipsify(long, MAX_LENGTH)).toBe(expectedLongResult);
+		expect(ellipsize(unchanged, MAX_LENGTH)).toBe(unchanged);
+		expect(ellipsize(boundaryUnchanged, MAX_LENGTH)).toBe(boundaryUnchanged);
+		expect(ellipsize(long, MAX_LENGTH)).toBe(expectedLongResult);
 	});
 });
