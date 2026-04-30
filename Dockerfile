@@ -4,7 +4,7 @@ FROM oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c2a3c971f4f345a01da0
 WORKDIR /usr/src/app
 
 # copy node binary from official node image
-COPY --from=node:22.22-slim@sha256:d415caac2f1f77b98caaf9415c5f807e14bc8d7bdea62561ea2fef4fbd08a73c /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:24.15-slim@sha256:03eae3ef7e88a9de535496fb488d67e02b9d96a063a8967bae657744ecd513f2 /usr/local/bin/node /usr/local/bin/node
 
 # install dependencies into temp directory
 # this will cache them and speed up future builds
