@@ -302,8 +302,8 @@ const autoThreadSchema = z.object({
      * ## Args
      *
      * - `$USERNAME`: The username of the message author
-	 * - `$SURFACE_NAME`: The username and, if available, visible name of the message author on the current surface (e.g., their nickname in that guild)
-	 * - `$USER_ID`: The ID of the message author
+     * - `$SURFACE_NAME`: The username and, if available, visible name of the message author on the current surface (e.g., their nickname in that guild)
+     * - `$USER_ID`: The ID of the message author
      */
 	name: placeholderString(["USERNAME", "SURFACE_NAME", "USER_ID"], 1, 100).default("$SURFACE_NAME's thread"),
 	exclude_roles: z.array(snowflakeSchema).default([])
