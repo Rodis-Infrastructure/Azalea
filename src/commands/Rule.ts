@@ -6,7 +6,7 @@ import {
 	EmbedBuilder
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 
 import GuildCommand from "@managers/commands/GuildCommand";
 import GuildConfig from "@managers/config/GuildConfig";
@@ -29,10 +29,10 @@ export default class Rule extends GuildCommand<ChatInputCommandInteraction<"cach
 		});
 	}
 
-	execute(interaction: ChatInputCommandInteraction<"cached">): InteractionReplyData {
+	execute(interaction: ChatInputCommandInteraction<"cached">): CommandResponse {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const ruleIndex = parseInt(interaction.options.getString("rule", true));
-		const rules = config.data.rules;
+		const rules = config.data.rules.entries;
 
 		if (isNaN(ruleIndex) || ruleIndex < 0 || ruleIndex >= rules.length) {
 			return {
@@ -43,7 +43,7 @@ export default class Rule extends GuildCommand<ChatInputCommandInteraction<"cach
 
 		const rule = rules[ruleIndex];
 		const ruleNumber = ruleIndex + 1;
-		const rulesChannelId = config.data.rules_channel_id;
+		const rulesChannelId = config.data.rules.channel_id;
 
 		const rulesChannelMention = rulesChannelId ? `<#${rulesChannelId}>` : "the rules channel";
 
@@ -67,7 +67,7 @@ export default class Rule extends GuildCommand<ChatInputCommandInteraction<"cach
 	 * @private
 	 */
 	private static _getChoices(config: GuildConfig): ApplicationCommandOptionChoiceData<string>[] | undefined {
-		const choices = config.data.rules.map((rule, index) => ({
+		const choices = config.data.rules.entries.map((rule, index) => ({
 			name: `${index + 1} - ${rule.title}`.slice(0, 100),
 			value: index.toString()
 		}));

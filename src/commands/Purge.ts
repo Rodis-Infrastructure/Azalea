@@ -11,9 +11,9 @@ import {
 	PermissionFlagsBits
 } from "discord.js";
 
-import { Messages } from "@utils/messages";
+import { MessageCache } from "@utils/messages";
 import { handleShortMessageDeleteLog } from "@/events/MessageDelete";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
 import { pluralize } from "@/utils";
@@ -92,7 +92,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
 		});
 	}
 
-	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const subcommand = interaction.options.getSubcommand(true) as PurgeSubcommand;
 		const channel = interaction.options.getChannel<ChannelType.GuildText>("channel") ?? interaction.channel;
 		const amount = interaction.options.getInteger("amount") ?? 100;
@@ -110,7 +110,7 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
 			}
 
 			DURATION_FORMAT.lastIndex = 0;
-			msPeriod = ms(period);
+			msPeriod = ms(period as ms.StringValue);
 		}
 
 		if (!channel) {
@@ -188,11 +188,11 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
 		}
 
 		const messages = await channel.messages.fetch(options);
-		const serializedMessages = messages.map(message => Messages.serialize(message));
+		const serializedMessages = messages.map(message => MessageCache.serialize(message));
 
 		if (!messages.size) return [];
 
-		Messages.purgeQueue.push({
+		MessageCache.purgeQueue.push({
 			channelId: channel.id,
 			messages: serializedMessages
 		});
@@ -232,12 +232,12 @@ export default class Purge extends Command<ChatInputCommandInteraction<"cached">
      * @returns The purged messages
      */
 	static async purgeUser(targetId: Snowflake, channel: GuildTextBasedChannel, amount: number, period?: number): Promise<Message[]> {
-		const messages = await Messages.deleteMessagesByUser(targetId, channel.id, amount, period);
+		const messages = await MessageCache.markUserMessagesDeleted(targetId, channel.id, amount, period);
 		const messageIds = messages.map(message => message.id);
 
 		if (!messages.length) return [];
 
-		Messages.purgeQueue.push({
+		MessageCache.purgeQueue.push({
 			channelId: channel.id,
 			messages: messages
 		});

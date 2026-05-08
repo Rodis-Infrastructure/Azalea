@@ -3,8 +3,8 @@ import Command from "@managers/commands/Command";
 import safe from "safe-regex";
 
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, Colors, EmbedBuilder } from "discord.js";
-import { InteractionReplyData } from "@utils/types";
-import { prisma } from "./..";
+import { CommandResponse } from "@utils/types";
+import { prisma } from "@";
 import { pluralize } from "@/utils";
 import { Permission } from "@managers/config/schema";
 
@@ -125,7 +125,7 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 		});
 	}
 
-	execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const subcommandGroup = interaction.options.getSubcommandGroup();
 		const subcommand = interaction.options.getSubcommand(true);
 
@@ -183,7 +183,7 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 		});
 	}
 
-	private static async _addPattern(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _addPattern(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const pattern = interaction.options.getString("pattern", true);
 		const patternCount = await prisma.highlightPattern.count({
 			where: {
@@ -243,7 +243,7 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 		return `Successfully added \`${pattern}\` to your highlights (${patternCount + 1}/${PATTERN_LIMIT})`;
 	}
 
-	private static async _removePattern(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _removePattern(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const pattern = interaction.options.getString("pattern", true);
 
 		try {
@@ -267,7 +267,7 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 		return `Successfully removed \`${pattern}\` from your highlights.`;
 	}
 
-	private static async _clearPatterns(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _clearPatterns(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		await prisma.highlightPattern.deleteMany({
 			where: {
 				user_id: interaction.user.id,
@@ -278,7 +278,7 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 		return "Successfully cleared all patterns from your highlights.";
 	}
 
-	private static async _addChannelScoping(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _addChannelScoping(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const channel = interaction.options.getChannel("channel", true);
 		const scopingType = interaction.options.getInteger("type", true);
 		const stringifiedScopingType = scopingType === HighlightChannelScopingType.Whitelist ? "whitelist" : "blacklist";
@@ -336,7 +336,7 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 		return `Successfully ${stringifiedScopingType}ed ${channel} for your highlights (${channelCount + 1}/${CHANNEL_LIMIT})`;
 	}
 
-	private static async _removeChannelScoping(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _removeChannelScoping(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const channel = interaction.options.getChannel("channel", true);
 
 		try {
@@ -360,7 +360,7 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 		return `Successfully removed ${channel} from your highlights.`;
 	}
 
-	private static async _clearChannelScoping(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _clearChannelScoping(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		await prisma.highlightChannelScoping.deleteMany({
 			where: {
 				user_id: interaction.user.id,
@@ -371,7 +371,7 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 		return "Successfully cleared all channels from your highlights.";
 	}
 
-	private static async _eraseHighlights(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _eraseHighlights(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
 		if (!config.hasPermission(interaction.member, Permission.ManageHighlights)) {
@@ -413,7 +413,7 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 		}
 	}
 
-	private static async _listHighlights(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _listHighlights(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		let user = interaction.options.getUser("user");
 
 		if (user && user.id !== interaction.user.id) {

@@ -1,5 +1,7 @@
 import {
 	ActionRowBuilder,
+	APIActionRowComponent,
+	APIComponentInMessageActionRow,
 	ButtonBuilder,
 	ButtonStyle,
 	EmbedBuilder,
@@ -10,8 +12,8 @@ import {
 	userMention
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
-import { prisma } from "./..";
+import { CommandResponse } from "@utils/types";
+import { prisma } from "@";
 import { pluralize } from "@/utils";
 import { Permission } from "@managers/config/schema";
 import { Prisma } from "@prisma/client";
@@ -24,7 +26,7 @@ export default class RoleRequestSelectRole extends Component {
 		super("role-request-select-role");
 	}
 
-	async execute(interaction: StringSelectMenuInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: StringSelectMenuInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const roleRequestConfig = config.data.role_requests;
 
@@ -84,7 +86,9 @@ export default class RoleRequestSelectRole extends Component {
 
 		const nullableMembers = await Promise.all(memberFetchPromises);
 		const members = nullableMembers.filter(Boolean) as GuildMember[];
-		const buttonActionRow = new ActionRowBuilder<ButtonBuilder>(interaction.message.components[1].toJSON());
+		const buttonActionRow = new ActionRowBuilder<ButtonBuilder>(
+			interaction.message.components[1].toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>
+		);
 
 		const removeRolesButton = new ButtonBuilder()
 			.setLabel("Remove role")

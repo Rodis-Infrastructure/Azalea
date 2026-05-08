@@ -1,14 +1,18 @@
 import {
+	ActionRow,
 	ActionRowBuilder,
+	APIActionRowComponent,
+	APIComponentInMessageActionRow,
 	ButtonBuilder,
 	ButtonComponentData,
 	ButtonStyle,
 	EmbedBuilder,
+	MessageActionRowComponent,
 	ModalSubmitInteraction,
 	StringSelectMenuBuilder
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { RoleRequestNoteAction } from "./RoleRequestNote";
 
 import Component from "@managers/components/Component";
@@ -18,7 +22,7 @@ export default class RoleRequestPromptNote extends Component {
 		super("role-request-prompt-note");
 	}
 
-	async execute(interaction: ModalSubmitInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ModalSubmitInteraction<"cached">): Promise<CommandResponse> {
 		const note = interaction.fields.getTextInputValue("note");
 		const components = interaction.message!.components;
 		const [rawEmbed] = interaction.message!.embeds;
@@ -34,12 +38,15 @@ export default class RoleRequestPromptNote extends Component {
 		const newComponents: ActionRowBuilder<StringSelectMenuBuilder | ButtonBuilder>[] = [];
 
 		if (components.length === 2) {
-			const selectMenuActionRow = new ActionRowBuilder<StringSelectMenuBuilder>(components[0].toJSON());
+			const selectMenuActionRow = new ActionRowBuilder<StringSelectMenuBuilder>(
+				components[0].toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>
+			);
 			newComponents.push(selectMenuActionRow);
 		}
 
-		const hasNoteWithSelectMenu = rawButtonActionRow.components.length === 2 && components.length === 2;
-		const hasNoteWithoutSelectMenu = rawButtonActionRow.components.length === 3 && components.length === 1;
+		const actionRow = rawButtonActionRow as ActionRow<MessageActionRowComponent>;
+		const hasNoteWithSelectMenu = actionRow.components.length === 2 && components.length === 2;
+		const hasNoteWithoutSelectMenu = actionRow.components.length === 3 && components.length === 1;
 
 		// The button action row already contains the necessary buttons
 		if (hasNoteWithoutSelectMenu || hasNoteWithSelectMenu) {
@@ -66,7 +73,7 @@ export default class RoleRequestPromptNote extends Component {
 
 		// The request was approved and there is no note
 		if (components.length === 1) {
-			const rawRemoveRoleButton = rawButtonActionRow.components[1].toJSON() as ButtonComponentData;
+			const rawRemoveRoleButton = actionRow.components[1].toJSON() as ButtonComponentData;
 			const removeRoleButton = new ButtonBuilder(rawRemoveRoleButton);
 			buttonActionRow.addComponents(removeRoleButton);
 		}

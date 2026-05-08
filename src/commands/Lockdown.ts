@@ -9,13 +9,13 @@ import {
 } from "discord.js";
 
 import { PermissionOverwrite } from "@managers/config/schema";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { stringifyJSON } from "@/utils";
-import { prisma } from "./..";
+import { prisma } from "@";
 
 import Command from "@managers/commands/Command";
 import ConfigManager from "@managers/config/ConfigManager";
-import _ from "lodash";
+import { difference } from "lodash";
 
 export default class Lockdown extends Command<ChatInputCommandInteraction<"cached">> {
 	constructor() {
@@ -37,7 +37,7 @@ export default class Lockdown extends Command<ChatInputCommandInteraction<"cache
 		});
 	}
 
-	execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		if (!interaction.guild.members.me?.permissions.has(PermissionFlagsBits.ManageChannels)) {
 			return Promise.resolve("I cannot perform this action without the `Manage Channels` permission.");
 		}
@@ -60,7 +60,7 @@ export default class Lockdown extends Command<ChatInputCommandInteraction<"cache
      * @returns The reply data.
      * @private
      */
-	private static async _startLockdown(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _startLockdown(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true).data.lockdown;
 
 		if (!config) {
@@ -83,7 +83,8 @@ export default class Lockdown extends Command<ChatInputCommandInteraction<"cache
 		for (const data of config.channels) {
 			// The default_permission_overwrites property will be defined if permission_overwrites isn't,
 			// the validation is performed by zod.
-			const overwrites: PermissionOverwrite[] = data.permission_overwrites ?? config.default_permission_overwrites!;
+			// Copy the array to avoid mutating the shared config data.
+			const overwrites: PermissionOverwrite[] = [...(data.permission_overwrites ?? config.default_permission_overwrites!)];
 			const channel = await interaction.guild.channels.fetch(data.channel_id) as GuildChannel | null;
 
 			if (!channel) {
@@ -108,25 +109,26 @@ export default class Lockdown extends Command<ChatInputCommandInteraction<"cache
 			});
 
 			for (const preLockdownOverwrite of preLockdownChannelOverwrites) {
-				const overwrite = overwrites.find(({ id }) => id === preLockdownOverwrite.id);
-				if (!overwrite) continue;
+				const overwriteIdx = overwrites.findIndex(({ id }) => id === preLockdownOverwrite.id);
+				if (overwriteIdx === -1) continue;
+
+				const overwrite = overwrites[overwriteIdx];
 
 				// Only retain the pre-lockdown permissions that aren't present in the contrary array
 				// and append the lockdown permissions. This is done to ensure that non-overwritten permissions
 				// are retained during the lockdown.
-				overwrites.push({
+				// Replace the original entry to avoid duplicates.
+				overwrites[overwriteIdx] = {
 					id: preLockdownOverwrite.id,
-					allow: _
-						.difference(preLockdownOverwrite.allow, overwrite.deny)
+					allow: difference(preLockdownOverwrite.allow, overwrite.deny)
 						.concat(overwrite.allow),
-					deny: _
-						.difference(preLockdownOverwrite.deny, overwrite.allow)
+					deny: difference(preLockdownOverwrite.deny, overwrite.allow)
 						.concat(overwrite.deny)
-				});
+				};
 			}
 
 			// Apply the lockdown overwrites to the channel
-			channel.edit({
+			await channel.edit({
 				reason: `Server lockdown initiated by @${interaction.user.username} (${interaction.user.id})`,
 				permissionOverwrites: overwrites
 			}).catch(() => {
@@ -174,7 +176,7 @@ export default class Lockdown extends Command<ChatInputCommandInteraction<"cache
      * @returns The reply data.
      * @private
      */
-	private static async _endLockdown(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	private static async _endLockdown(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const preLockdownPermissionOverwrites = await prisma.permissionOverwrites.delete({
 			where: { guild_id: interaction.guildId }
 		}).catch(() => null);
@@ -185,23 +187,24 @@ export default class Lockdown extends Command<ChatInputCommandInteraction<"cache
 
 		// Channels that failed to be unlocked
 		const failedChannelIds: Snowflake[] = [];
+		const channelOverwrites: ChannelOverwrite[] = JSON.parse(preLockdownPermissionOverwrites.overwrites);
 
-		JSON.parse(preLockdownPermissionOverwrites.overwrites).forEach(async (data: ChannelOverwrite) => {
-			const channel = await interaction.guild.channels.fetch(data.channel_id) as GuildChannel | null;
+		for (const data of channelOverwrites) {
+			const channel = await interaction.guild.channels.fetch(data.channel_id).catch(() => null) as GuildChannel | null;
 
 			if (!channel) {
 				failedChannelIds.push(data.channel_id);
-				return;
+				continue;
 			}
 
 			// Apply the pre-lockdown overwrites to the channel
-			channel.edit({
+			await channel.edit({
 				reason: `Server lockdown ended by @${interaction.user.username} (${interaction.user.id})`,
 				permissionOverwrites: data.overwrites
 			}).catch(() => {
-				failedChannelIds.push(data.channel_id);
+				failedChannelIds.push(channel.id);
 			});
-		});
+		}
 
 		if (failedChannelIds.length) {
 			const channelMentions = failedChannelIds.map(channelMention).join(", ");

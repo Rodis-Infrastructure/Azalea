@@ -7,7 +7,7 @@ import {
 	Role as DiscordRole
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { DEFAULT_EMBED_COLOR } from "@utils/constants";
 
 import Command from "@managers/commands/Command";
@@ -39,7 +39,7 @@ export default class Role extends Command<ChatInputCommandInteraction<"cached">>
 		});
 	}
 
-	execute(interaction: ChatInputCommandInteraction<"cached">): InteractionReplyData {
+	execute(interaction: ChatInputCommandInteraction<"cached">): CommandResponse {
 		const subcommand = interaction.options.getSubcommand();
 
 		switch (subcommand) {
@@ -57,7 +57,7 @@ export default class Role extends Command<ChatInputCommandInteraction<"cached">>
 		}
 	}
 
-	private static _members(requiredRole: DiscordRole | null, embedTitle: string | null): InteractionReplyData {
+	private static _members(requiredRole: DiscordRole | null, embedTitle: string | null): CommandResponse {
 		const selectMenu = new RoleSelectMenuBuilder()
 			.setCustomId(`role-members${requiredRole ? `-${requiredRole.id}` : ""}`)
 			.setPlaceholder("Select role(s)")

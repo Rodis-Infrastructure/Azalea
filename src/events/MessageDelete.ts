@@ -14,15 +14,15 @@ import {
 
 import {
 	formatMessageContentForShortLog,
-	Messages,
+	MessageCache,
 	prependReferenceLog
 } from "@utils/messages";
 
 import { channelMentionWithName, userMentionWithId } from "@/utils";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { log } from "@utils/logging";
+import { log } from "@utils/eventLogging";
 import { Message } from "@prisma/client";
-import { client, prisma } from "./..";
+import { client, prisma } from "@";
 import { LoggingEvent } from "@managers/config/schema";
 import { MessageReportFlag, MessageReportStatus, MessageReportUtil } from "@utils/reports";
 
@@ -41,8 +41,8 @@ export default class MessageDelete extends EventListener {
 	async execute(deletedMessage: PartialMessage | DiscordMessage): Promise<void> {
 		if (deletedMessage.author?.bot) return;
 
-		let message = await Messages.delete(deletedMessage.id);
-		const isPurged = Messages.purgeQueue.some(purged => purged.messages[0].id === deletedMessage.id);
+		let message = await MessageCache.delete(deletedMessage.id);
+		const isPurged = MessageCache.purgeQueue.some(purged => purged.messages[0].id === deletedMessage.id);
 
 		// Handled by the purge command
 		if (isPurged) return;
@@ -50,7 +50,7 @@ export default class MessageDelete extends EventListener {
 		// Serialize the message passed by the event
 		// If there is sufficient data
 		if (!message && !deletedMessage.partial && deletedMessage.inGuild()) {
-			message = Messages.serialize(deletedMessage);
+			message = MessageCache.serialize(deletedMessage);
 		}
 
 		if (!message) return;
@@ -82,9 +82,9 @@ export default class MessageDelete extends EventListener {
 
 		if (!auditLogEntry) return null;
 
-		const executorId = Messages.getBlame({
+		const executorId = MessageCache.getBlame({
 			executorId: auditLogEntry.executorId!,
-			targetId: auditLogEntry.target.id,
+			targetId: auditLogEntry.target!.id,
 			channelId: auditLogEntry.extra.channel.id,
 			createdAt: auditLogEntry.createdAt,
 			count: auditLogEntry.extra.count
@@ -102,7 +102,7 @@ export default class MessageDelete extends EventListener {
 		if (!channel) return;
 
 		const reference = message.reference_id
-			? await Messages.get(message.reference_id)
+			? await MessageCache.get(message.reference_id)
 			: null;
 
 		// Ensure the message doesn't exceed the character limit
@@ -132,7 +132,7 @@ export async function handleShortMessageDeleteLog(
 	config: GuildConfig
 ): Promise<DiscordMessage<true>[] | null> {
 	const reference = message.reference_id
-		? await Messages.get(message.reference_id)
+		? await MessageCache.get(message.reference_id)
 		: null;
 
 	const messageURL = messageLink(message.channel_id, message.id, config.guild.id);
@@ -199,7 +199,7 @@ async function updateMessageReportState(messageId: Snowflake, config: GuildConfi
 	if (!messageReportData) return;
 
 	const messageReportChannel = await config.guild.channels
-		.fetch(config.data.message_reports.report_channel)
+		.fetch(config.data.message_reports.channel_id)
 		.catch(() => null);
 
 	if (!messageReportChannel || !messageReportChannel.isTextBased()) return;
@@ -214,11 +214,11 @@ async function updateMessageReportState(messageId: Snowflake, config: GuildConfi
 
 	if (executorId) {
 		embed.setColor(Colors.Orange);
-		messageReport.edit({
+		await messageReport.edit({
 			content: `${messageReport.content}\n\nThis report is being handled by ${userMentionWithId(executorId)}`,
 			embeds: [embed]
-		});
+		}).catch(() => null);
 	} else {
-		messageReport.edit({ embeds: [embed] });
+		await messageReport.edit({ embeds: [embed] }).catch(() => null);
 	}
 }

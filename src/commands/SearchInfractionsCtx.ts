@@ -1,5 +1,5 @@
 import { ApplicationCommandType, UserContextMenuCommandInteraction } from "discord.js";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 
 import Infraction, { InfractionSearchFilter } from "./Infraction";
 import Command from "@managers/commands/Command";
@@ -14,7 +14,7 @@ export default class SearchInfractionsCtx extends Command<UserContextMenuCommand
 		});
 	}
 
-	async execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const member = interaction.targetMember;
 

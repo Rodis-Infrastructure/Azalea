@@ -6,7 +6,7 @@ import {
 	PermissionFlagsBits
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { DEFAULT_EMBED_COLOR } from "@utils/constants";
 
 import Command from "@managers/commands/Command";
@@ -35,7 +35,7 @@ export default class ListPermissions extends Command<ChatInputCommandInteraction
 		});
 	}
 
-	execute(interaction: ChatInputCommandInteraction<"cached">): InteractionReplyData {
+	execute(interaction: ChatInputCommandInteraction<"cached">): CommandResponse {
 		const channel = interaction.options.getChannel("channel") ?? interaction.channel;
 		const permission = interaction.options.getString("permission") as keyof typeof PermissionFlagsBits | null;
 		const clientMember = interaction.guild.members.me;

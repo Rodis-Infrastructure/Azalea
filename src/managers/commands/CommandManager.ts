@@ -1,5 +1,5 @@
 import { Collection, CommandInteraction, Snowflake } from "discord.js";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { pluralize } from "@/utils";
 import { client } from "@/index";
 import { captureException } from "@sentry/node";
@@ -29,7 +29,7 @@ export default class CommandManager {
 
 		Logger.info("Caching commands...");
 
-		const filenames = fs.readdirSync(dirpath);
+		const filenames = fs.readdirSync(dirpath).filter(file => file.endsWith(".ts"));
 		let commandCount = 0;
 
 		const guilds = await client.guilds.fetch();
@@ -144,7 +144,7 @@ export default class CommandManager {
 	}
 
 	// Handles a command interaction.
-	static handleCommand(interaction: CommandInteraction): Promise<InteractionReplyData> | InteractionReplyData {
+	static handleCommand(interaction: CommandInteraction): Promise<CommandResponse> | CommandResponse {
 		const command = CommandManager._get(
 			interaction.commandId,
 			interaction.commandName,

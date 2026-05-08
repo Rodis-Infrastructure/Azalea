@@ -11,7 +11,7 @@ import {
 	TimestampStyles
 } from "discord.js";
 
-import { InteractionReplyData, Result } from "@utils/types";
+import { CommandResponse, Result } from "@utils/types";
 
 import Component from "@managers/components/Component";
 
@@ -124,7 +124,7 @@ export default class RobloxInfo extends Component {
 		};
 	}
 
-	async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ButtonInteraction<"cached">): Promise<CommandResponse> {
 		const apiKey = process.env.ROVER_API_KEY;
 
 		if (!apiKey) {

@@ -9,11 +9,11 @@ import {
 	userMention
 } from "discord.js";
 
-import { log, mapLogEntriesToFile } from "@utils/logging";
-import { formatBulkMessageLogEntry, Messages } from "@utils/messages";
+import { log, createLogAttachment } from "@utils/eventLogging";
+import { formatBulkMessageLogEntry, MessageCache } from "@utils/messages";
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
-import { getFilePreviewURL, pluralize } from "@/utils";
+import { getFileViewerURL, pluralize } from "@/utils";
 import { LoggingEvent } from "@managers/config/schema";
 
 import GuildConfig from "@managers/config/GuildConfig";
@@ -26,12 +26,12 @@ export default class MessageBulkDelete extends EventListener {
 	}
 
 	async execute(deletedMessages: Collection<Snowflake, PartialMessage | DiscordMessage<true>>, channel: GuildTextBasedChannel): Promise<void> {
-		const messages = await Messages.deleteMany(deletedMessages);
+		const messages = await MessageCache.deleteMany(deletedMessages);
 		const config = ConfigManager.getGuildConfig(channel.guild.id);
 
 		if (!messages.length || !config) return;
 
-		const purgeIndex = Messages.purgeQueue.findIndex(purged =>
+		const purgeIndex = MessageCache.purgeQueue.findIndex(purged =>
 			purged.messages.some(message =>
 				messages.some(m => m.id === message.id)
 			)
@@ -39,9 +39,8 @@ export default class MessageBulkDelete extends EventListener {
 
 		// Logging is handled by the purge command
 		if (purgeIndex !== -1) {
+			MessageCache.purgeQueue.splice(purgeIndex, 1);
 			return;
-		} else {
-			delete Messages.purgeQueue[purgeIndex];
 		}
 
 		MessageBulkDelete.log(messages, channel, config);
@@ -66,7 +65,7 @@ export default class MessageBulkDelete extends EventListener {
 			}
 
 			if (message.reference_id) {
-				const reference = await Messages.get(message.reference_id);
+				const reference = await MessageCache.get(message.reference_id);
 
 				if (reference) {
 					const referenceEntry = await formatBulkMessageLogEntry(reference);
@@ -88,7 +87,7 @@ export default class MessageBulkDelete extends EventListener {
 		// E.g. Deleted `5` messages in #general by @user1, @user2
 		const logContent = `Deleted \`${messages.length}\` ${pluralize(messages.length, "message")} in ${channel} by ${authorMentions.join(", ")}`;
 		const mappedEntries = entries.map(({ entry }) => entry);
-		const file = mapLogEntriesToFile(mappedEntries);
+		const file = createLogAttachment(mappedEntries);
 
 		const logs = await log({
 			event: LoggingEvent.MessageBulkDelete,
@@ -105,7 +104,7 @@ export default class MessageBulkDelete extends EventListener {
 		if (logs) {
 			for (const message of logs) {
 				const fileURL = message.attachments.first()!.url;
-				const previewURL = getFilePreviewURL(fileURL);
+				const previewURL = getFileViewerURL(fileURL);
 
 				const refreshFileLink = new ButtonBuilder()
 					.setLabel("Refresh Link")

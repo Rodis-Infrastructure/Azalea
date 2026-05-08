@@ -11,12 +11,12 @@ import {
 import {
 	prependReferenceLog,
 	formatMessageContentForShortLog,
-	Messages,
+	MessageCache,
 	formatBulkMessageLogEntry
 } from "@utils/messages";
 
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { log, mapLogEntriesToFile } from "@utils/logging";
+import { log, createLogAttachment } from "@utils/eventLogging";
 import { Message } from "@prisma/client";
 import { cleanContent } from "@/utils";
 import { LoggingEvent } from "@managers/config/schema";
@@ -48,7 +48,7 @@ export default class MessageUpdate extends EventListener {
 		if (!config) return;
 
 		const newContent = cleanContent(message.content, message.channel);
-		const oldContent = await Messages.updateContent(message.id, newContent);
+		const oldContent = await MessageCache.updateContent(message.id, newContent);
 
 		// Only proceed if the message content was changed
 		if (oldContent === newContent) return;
@@ -68,7 +68,7 @@ export default class MessageUpdate extends EventListener {
 
 	private static async _log(message: DiscordMessage<true>, oldContent: string, config: GuildConfig): Promise<void> {
 		const reference = message.reference?.messageId
-			? await Messages.get(message.reference.messageId)
+			? await MessageCache.get(message.reference.messageId)
 			: null;
 
 		const newContent = cleanContent(message.content, message.channel);
@@ -101,7 +101,7 @@ export default class MessageUpdate extends EventListener {
 		reference: Message | null,
 		oldContent: string
 	): Promise<MessageCreateOptions | null> {
-		const serializedMessage = Messages.serialize(message);
+		const serializedMessage = MessageCache.serialize(message);
 		const formattedOldContent = await formatMessageContentForShortLog(oldContent, null, message.url);
 		const formattedNewContent = await formatMessageContentForShortLog(serializedMessage.content, null, message.url);
 
@@ -131,9 +131,9 @@ export default class MessageUpdate extends EventListener {
 		reference: Message | null,
 		oldContent: string
 	): Promise<MessageCreateOptions | null> {
-		const serializedMessage = Messages.serialize(message);
+		const serializedMessage = MessageCache.serialize(message);
 		const entry = await MessageUpdate._formatLogEntry(serializedMessage, reference, oldContent);
-		const file = mapLogEntriesToFile([entry]);
+		const file = createLogAttachment([entry]);
 		const maskedJumpURL = hyperlink("Jump to message", `<${message.url}>`);
 
 		return {

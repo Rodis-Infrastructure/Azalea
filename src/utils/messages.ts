@@ -21,13 +21,13 @@ import {
 
 import { Snowflake } from "discord-api-types/v10";
 import { Message } from "@prisma/client";
-import { cleanContent, elipsify, pluralize, startCronJob, userMentionWithId } from "./index";
-import { client, prisma } from "./..";
+import { cleanContent, ellipsize, pluralize, startCronJob, userMentionWithId } from "./index";
+import { client, prisma } from "@";
 
 import Logger from "./logger";
 import ConfigManager from "@managers/config/ConfigManager";
 
-export class Messages {
+export class MessageCache {
 	// Queue for messages that need to be purged
 	static purgeQueue: PurgeOptions[] = [];
 	// The most recent message deletion audit log.
@@ -37,7 +37,7 @@ export class Messages {
 	private static _messageDeleteAuditLog?: MessageDeleteAuditLog;
 
 	static async get(id: Snowflake): Promise<Message | null> {
-		let message = Messages._dbQueue.get(id) ?? null;
+		let message = MessageCache._dbQueue.get(id) ?? null;
 
 		if (!message) {
 			message = await prisma.message.findUnique({ where: { id } });
@@ -48,7 +48,7 @@ export class Messages {
 
 	// @returns The ID of the user responsible for the deletion
 	static getBlame(data: MessageDeleteAuditLog): Snowflake | null {
-		const log = Messages._messageDeleteAuditLog;
+		const log = MessageCache._messageDeleteAuditLog;
 		const logHasChanged = !log
 			|| log.channelId !== data.channelId
 			|| log.targetId !== data.targetId
@@ -57,7 +57,7 @@ export class Messages {
 		// A new audit log has been created
 		// Meaning the count of the previous log was reset and is no longer needed
 		if (logHasChanged) {
-			Messages._messageDeleteAuditLog = data;
+			MessageCache._messageDeleteAuditLog = data;
 			const dateDiff = Date.now() - data.createdAt.getTime();
 
 			// The log is new and the count is 1
@@ -86,7 +86,7 @@ export class Messages {
               AND guild_id = ${guildId};
 		`;
 
-		const cachedCount = Messages._dbQueue.reduce((acc, message) => {
+		const cachedCount = MessageCache._dbQueue.reduce((acc, message) => {
 			if (message.author_id === userId && message.guild_id === guildId) {
 				acc.total++;
 				if (message.deleted) acc.deleted++;
@@ -109,7 +109,7 @@ export class Messages {
 	 * @param period - The period over which to remove the messages (in milliseconds)
 	 * @param limit - The maximum number of messages to return
 	 */
-	static async deleteMessagesByUser(userId: Snowflake, channelId: Snowflake, limit: number, period?: number): Promise<Message[]> {
+	static async markUserMessagesDeleted(userId: Snowflake, channelId: Snowflake, limit: number, period?: number): Promise<Message[]> {
 		const messages = [];
 
 		// Ensure the period doesn't exceed the message TTL
@@ -117,7 +117,7 @@ export class Messages {
 			period = MESSAGE_DELETE_THRESHOLD;
 		}
 
-		for (const message of Messages._dbQueue.values()) {
+		for (const message of MessageCache._dbQueue.values()) {
 			if (
 				message.author_id !== userId ||
 				message.channel_id !== channelId ||
@@ -162,9 +162,9 @@ export class Messages {
 	}
 
 	// Add a message to the database queue
-	static queue(message: DiscordMessage<true>): void {
-		const serializedMessage = Messages.serialize(message);
-		Messages._dbQueue.set(message.id, serializedMessage);
+	static cache(message: DiscordMessage<true>): void {
+		const serializedMessage = MessageCache.serialize(message);
+		MessageCache._dbQueue.set(message.id, serializedMessage);
 	}
 
 	/**
@@ -173,7 +173,7 @@ export class Messages {
 	 */
 	static async delete(id: Snowflake): Promise<Message | null> {
 		// Try to get the message form cache
-		let message = Messages._dbQueue.get(id) ?? null;
+		let message = MessageCache._dbQueue.get(id) ?? null;
 
 		// Modify the cache if the message is cached
 		// Otherwise, update the message in the database
@@ -198,7 +198,7 @@ export class Messages {
 		const ids = Array.from(messageCollection.keys());
 
 		// Try to get the messages from cache
-		const messages = Messages._dbQueue.filter(message =>
+		const messages = MessageCache._dbQueue.filter(message =>
 			ids.includes(message.id) && !message.deleted
 		);
 
@@ -210,14 +210,21 @@ export class Messages {
 
 		// Update whatever wasn't cached in the database
 		if (messages.size !== deletedMessages.length) {
-			const dbDeletedMessages = await prisma.$queryRaw<Message[]>`
-                UPDATE Message
-                SET deleted = true
-                WHERE id IN (${ids.join(",")}) RETURNING *;
-			`;
+			const uncachedIds = ids.filter(id => !messages.has(id));
 
-			// Merge the cached and stored messages
-			return deletedMessages.concat(dbDeletedMessages);
+			if (uncachedIds.length) {
+				await prisma.message.updateMany({
+					where: { id: { in: uncachedIds } },
+					data: { deleted: true }
+				});
+
+				const dbDeletedMessages = await prisma.message.findMany({
+					where: { id: { in: uncachedIds } }
+				});
+
+				// Merge the cached and stored messages
+				return deletedMessages.concat(dbDeletedMessages);
+			}
 		}
 
 		return deletedMessages;
@@ -231,7 +238,7 @@ export class Messages {
 	 */
 	static async updateContent(id: Snowflake, newContent: string): Promise<string> {
 		// Try to get the message from cache
-		const message = Messages._dbQueue.get(id);
+		const message = MessageCache._dbQueue.get(id);
 
 		// Modify the cache if the message is cached
 		if (message) {
@@ -241,21 +248,13 @@ export class Messages {
 			return oldContent;
 		}
 
-		// Update the message in the database
-		// @formatter:off
-		const { old_content } = await prisma.$queryRaw<{ old_content: string | null }>`
-            UPDATE Message
-            SET content = ${newContent}
-            WHERE id = ${id} 
-            RETURNING (
-                SELECT content
-                FROM Message
-                WHERE id = ${id}
-            ) AS old_content;
-        `;
-		// @formatter:on
+		// Fetch the old content and update the message atomically
+		const [oldMessage] = await prisma.$transaction([
+			prisma.message.findUnique({ where: { id }, select: { content: true } }),
+			prisma.message.update({ where: { id }, data: { content: newContent } })
+		]);
 
-		return old_content ?? EMPTY_MESSAGE_CONTENT;
+		return oldMessage?.content ?? EMPTY_MESSAGE_CONTENT;
 	}
 
 	// Clear the cache and store the messages in the database
@@ -263,11 +262,11 @@ export class Messages {
 		Logger.info("Storing cached messages...");
 
 		// Insert all cached messages into the database
-		const messages = Array.from(Messages._dbQueue.values());
+		const messages = Array.from(MessageCache._dbQueue.values());
 		const { count } = await prisma.message.createMany({ data: messages });
 
 		// Empty the cache
-		Messages._dbQueue.clear();
+		MessageCache._dbQueue.clear();
 
 		if (!count) {
 			Logger.info("No messages were stored");
@@ -284,7 +283,7 @@ export class Messages {
 
 		// Store cached messages
 		startCronJob("STORE_MESSAGES", insertionCron, async () => {
-			await Messages.store();
+			await MessageCache.store();
 		});
 
 		// Remove messages that exceed the TTL from the database
@@ -335,7 +334,7 @@ export class Messages {
 export async function prependReferenceLog(reference: string | Message, embeds: EmbedBuilder[]): Promise<void> {
 	// Fetch the reference if an ID is passed
 	if (typeof reference === "string") {
-		const cachedReference = await Messages.get(reference);
+		const cachedReference = await MessageCache.get(reference);
 		if (!cachedReference) return;
 
 		reference = cachedReference;
@@ -381,7 +380,7 @@ export async function formatMessageContentForShortLog(content: string | null, st
 		// Escape code blocks
 		content = escapeCodeBlock(content);
 		// Truncate the content if it's too long (account for the formatting characters)
-		content = elipsify(content, EMBED_FIELD_CHAR_LIMIT - rawContent.length - 6);
+		content = ellipsize(content, EMBED_FIELD_CHAR_LIMIT - rawContent.length - 6);
 	} else {
 		content = EMPTY_MESSAGE_CONTENT;
 	}
@@ -425,7 +424,7 @@ export async function formatBulkMessageLogEntry(message: Message): Promise<strin
 	}
 
 	if (message.content && content) {
-		content = ` | Message Content: ${message.content}`;
+		content += ` | Message Content: ${message.content}`;
 	}
 
 	content ??= message.content ?? EMPTY_MESSAGE_CONTENT;
@@ -443,9 +442,9 @@ export async function formatBulkMessageLogEntry(message: Message): Promise<strin
 export async function fetchMessage(messageId: Snowflake, channel: GuildTextBasedChannel): Promise<Message | null> {
 	try {
 		const message = await channel.messages.fetch(messageId);
-		return Messages.serialize(message);
+		return MessageCache.serialize(message);
 	} catch {
-		return Messages.get(messageId);
+		return MessageCache.get(messageId);
 	}
 }
 

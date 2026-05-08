@@ -7,7 +7,7 @@ import {
 } from "discord.js";
 
 import { DEFAULT_COMMAND_PERMISSIONS, DEFAULT_DM_PERMISSION } from "@utils/constants";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 
 // The base class for all commands.
 export default abstract class Command<T extends CommandInteraction> {
@@ -22,7 +22,7 @@ export default abstract class Command<T extends CommandInteraction> {
 	 * Handles the command interaction. Mentions are disabled by default.
 	 * @param interaction The interaction to handle.
 	 */
-	abstract execute(interaction: T): InteractionReplyData | Promise<InteractionReplyData>;
+	abstract execute(interaction: T): CommandResponse | Promise<CommandResponse>;
 
 	/**
 	 * Handles the associated autocomplete interaction.

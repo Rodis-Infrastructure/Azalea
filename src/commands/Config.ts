@@ -1,5 +1,5 @@
 import { ApplicationCommandOptionType, AttachmentBuilder, ChatInputCommandInteraction } from "discord.js";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { Snowflake } from "discord-api-types/v10";
 
 import ConfigManager from "@managers/config/ConfigManager";
@@ -38,7 +38,7 @@ export default class Config extends Command<ChatInputCommandInteraction<"cached"
 		});
 	}
 
-	execute(interaction: ChatInputCommandInteraction<"cached">): InteractionReplyData {
+	execute(interaction: ChatInputCommandInteraction<"cached">): CommandResponse {
 		const subcommand = interaction.options.getSubcommand() as ConfigSubcommand;
 
 		switch (subcommand) {
@@ -58,7 +58,7 @@ export default class Config extends Command<ChatInputCommandInteraction<"cached"
      * @returns The global configuration as an interaction reply
      * @private
      */
-	private static _getGlobalConfigAttachment(): InteractionReplyData {
+	private static _getGlobalConfigAttachment(): CommandResponse {
 		const fileContent = fs.readFileSync("azalea.cfg.yml", "utf-8");
 		const buffer = Buffer.from(fileContent);
 		const attachment = new AttachmentBuilder(buffer, { name: "azalea.cfg.yml" });
@@ -73,17 +73,18 @@ export default class Config extends Command<ChatInputCommandInteraction<"cached"
      * @returns The guild configuration as an interaction reply
      * @private
      */
-	private static _getGuildConfigAttachment(guildId: Snowflake): InteractionReplyData {
+	private static _getGuildConfigAttachment(guildId: Snowflake): CommandResponse {
 		const config = ConfigManager.getGuildConfig(guildId);
 
 		if (!config) {
 			return "This guild doesn't have a configuration.";
 		}
 
-		const filepath = path.resolve(`configs/${config.guild.id}.yml`);
+		const filename = `${config.guild.id}.yml`;
+		const filepath = path.resolve(`configs/${filename}`);
 		const fileContent = fs.readFileSync(filepath, "utf-8");
 		const buffer = Buffer.from(fileContent);
-		const attachment = new AttachmentBuilder(buffer, { name: filepath });
+		const attachment = new AttachmentBuilder(buffer, { name: filename });
 
 		return { files: [attachment] };
 	}

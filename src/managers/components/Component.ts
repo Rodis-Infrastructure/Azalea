@@ -1,5 +1,5 @@
 import { MessageComponentInteraction, ModalSubmitInteraction } from "discord.js";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 
 // The base class for all component interactions.
 export default abstract class Component {
@@ -14,7 +14,7 @@ export default abstract class Component {
      * Handles the component interaction. Mentions are disabled by default.
      * @param interaction The interaction to handle.
      */
-    abstract execute(interaction: ComponentInteraction): InteractionReplyData | Promise<InteractionReplyData>;
+    abstract execute(interaction: ComponentInteraction): CommandResponse | Promise<CommandResponse>;
 }
 
 export type ComponentInteraction = MessageComponentInteraction | ModalSubmitInteraction;

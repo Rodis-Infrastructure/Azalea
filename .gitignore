@@ -4,7 +4,7 @@ node_modules/
 
 # TypeScript cache
 
-\*.tsbuildinfo
+*.tsbuildinfo
 
 # dotenv environment variable files
 

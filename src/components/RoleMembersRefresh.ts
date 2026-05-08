@@ -1,4 +1,4 @@
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { ButtonInteraction, EmbedBuilder } from "discord.js";
 import { Permission } from "@managers/config/schema";
 
@@ -11,7 +11,7 @@ export default class RoleMembersRefresh extends Component {
 		super({ startsWith: "role-members-refresh" });
 	}
 
-	async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ButtonInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
 		if (!config.hasPermission(interaction.member, Permission.ManageRoles)) {
@@ -26,7 +26,7 @@ export default class RoleMembersRefresh extends Component {
 			? await interaction.guild.roles.fetch(requiredRoleId)
 			: null;
 
-		const optionalRoleIds = interaction.customId.split("-").slice(2);
+		const optionalRoleIds = interaction.customId.split("-").slice(3);
 		const roles = await interaction.guild.roles.fetch();
 		const optionalRoles = roles.filter(({ id }) => optionalRoleIds.includes(id));
 		const uniqueMembers = RoleMembers.uniqueMembers(requiredRole, optionalRoles);

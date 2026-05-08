@@ -30,7 +30,7 @@ export async function handleStageInstance(stageInstance: StageInstance, active: 
 	Logger.info(`Monitored stage instance ${action} in ${stageInstance.channelId}`);
 	if (active) Logger.info(`Topic: ${stageInstance.topic}`);
 
-	let channels: GuildChannel[] = [];
+	let channels: GuildChannel[];
 
 	try {
 		const fetchedChannels = await Promise.all(

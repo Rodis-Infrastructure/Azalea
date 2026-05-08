@@ -1,5 +1,5 @@
 import { ApplicationCommandType, UserContextMenuCommandInteraction } from "discord.js";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 
 import Command from "@managers/commands/Command";
 import UserInfo from "./UserInfo";
@@ -13,7 +13,7 @@ export default class UserInfoCtx extends Command<UserContextMenuCommandInteracti
 		});
 	}
 
-	async execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
 		// Defer the reply to ensure the command doesn't time out

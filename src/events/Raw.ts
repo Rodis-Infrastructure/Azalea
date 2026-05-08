@@ -3,12 +3,11 @@ import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
 
 import { Colors, EmbedBuilder, Events, GatewayDispatchEvents } from "discord.js";
-import { RawMessageData } from "discord.js/typings/rawDataTypes";
 import { LoggingEvent, Permission } from "@managers/config/schema";
-import { client } from "./..";
+import { client } from "@";
 import { channelMentionWithName, userMentionWithId } from "@/utils";
 import { formatMessageContentForShortLog } from "@utils/messages";
-import { log } from "@utils/logging";
+import { log } from "@utils/eventLogging";
 
 export default class Raw extends EventListener {
 	constructor() {
@@ -16,8 +15,8 @@ export default class Raw extends EventListener {
 		super(Events.Raw);
 	}
 
-	execute(packet: any): void {
-		Raw._handleForwardRemoval(packet);
+	async execute(packet: any): Promise<void> {
+		await Raw._handleForwardRemoval(packet);
 	}
 
 	private static async _handleForwardRemoval(packet: any): Promise<void> {
@@ -27,11 +26,15 @@ export default class Raw extends EventListener {
 		// Since forwarded messages cannot be edited into normal messages
 		if (event !== GatewayDispatchEvents.MessageCreate) return;
 
-		const data: RawMessageData = packet.d;
+		const data = packet.d as {
+			id: string;
+			channel_id: string;
+			author: { id: string };
+			message_reference?: { type?: number };
+			message_snapshots?: Array<{ message: { content: string } }>;
+		};
 
-		// Only handle forwarded messages
-		// The type for forwarded messages is 1
-		// @ts-expect-error - 'type' exists in 'message_reference'
+		// Only handle forwarded messages (type 1 = forwarded)
 		if (data.message_reference?.type !== 1) return;
 
 		const channel = await client.channels.fetch(data.channel_id)
@@ -55,8 +58,7 @@ export default class Raw extends EventListener {
 			.catch(() => null);
 
 		// Log the deletion of the forwarded message
-		// @ts-expect-error - 'message_snapshots' exists in 'data'
-		const content = data.message_snapshots[0].message.content;
+		const content = data.message_snapshots?.[0]?.message.content ?? null;
 		const embed = new EmbedBuilder()
 			.setColor(Colors.Red)
 			.setAuthor({ name: "Forwarded Message Deleted" })

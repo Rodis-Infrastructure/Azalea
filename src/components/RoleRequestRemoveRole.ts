@@ -1,6 +1,6 @@
 import { ButtonInteraction, GuildMember, roleMention } from "discord.js";
-import { InteractionReplyData } from "@utils/types";
-import { prisma } from "./..";
+import { CommandResponse } from "@utils/types";
+import { prisma } from "@";
 import { pluralize } from "@/utils";
 import { Permission } from "@managers/config/schema";
 
@@ -12,7 +12,7 @@ export default class RoleRequestRemoveRole extends Component {
 		super("role-request-remove-role");
 	}
 
-	async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ButtonInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
 		if (!config.hasPermission(interaction.member, Permission.ManageRoleRequests)) {

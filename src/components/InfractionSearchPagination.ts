@@ -1,6 +1,6 @@
-import { InteractionReplyData } from "@utils/types";
-import { ButtonComponent, ButtonInteraction, InteractionUpdateOptions } from "discord.js";
-import { client } from "./..";
+import { CommandResponse } from "@utils/types";
+import { ActionRow, ButtonComponent, ButtonInteraction, InteractionUpdateOptions, MessageActionRowComponent } from "discord.js";
+import { client } from "@";
 import { Permission } from "@managers/config/schema";
 import { PageOptions, parsePageOptions } from "./InfractionActivePagination";
 
@@ -13,7 +13,7 @@ export default class InfractionSearchPagination extends Component {
 		super({ matches: /^infraction-search-(next|back|last|first)$/m });
 	}
 
-	execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+	execute(interaction: ButtonInteraction<"cached">): Promise<CommandResponse> {
 		const direction = interaction.customId.split("-")[2] as InfractionSearchPaginationDirection;
 
 		switch (direction) {
@@ -43,7 +43,7 @@ export default class InfractionSearchPagination extends Component {
  * @param options.page - The page, values less than 1 will be treated as relative to the last page
  * @param options.pageOffset - The page offset (e.g. `-1` goes back and `1` goes forward)
  */
-export async function handleInfractionSearchPagination(interaction: ButtonInteraction<"cached">, options: PageOptions): Promise<InteractionReplyData> {
+export async function handleInfractionSearchPagination(interaction: ButtonInteraction<"cached">, options: PageOptions): Promise<CommandResponse> {
 	const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
 	if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {
@@ -75,7 +75,7 @@ export async function handleInfractionSearchPagination(interaction: ButtonIntera
 	// Defer the update to ensure the command doesn't time out
 	await interaction.deferUpdate();
 
-	const buttons = interaction.message.components[0].components as ButtonComponent[];
+	const buttons = (interaction.message.components[0] as ActionRow<MessageActionRowComponent>).components as ButtonComponent[];
 	// Get the middle component
 	const pageCountButton = buttons[Math.floor(buttons.length / 2)];
 	// Format: "{current_page} / {total_pages}"

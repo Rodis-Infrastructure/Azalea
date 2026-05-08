@@ -1,9 +1,9 @@
 import { Colors, EmbedBuilder, Events, GuildMember, time, TimestampStyles } from "discord.js";
 import { InfractionManager } from "@utils/infractions";
-import { prisma } from "./..";
-import { log } from "@utils/logging";
+import { prisma } from "@";
+import { log } from "@utils/eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
-import { stringifyPositionalNum, userMentionWithId } from "@/utils";
+import { toOrdinal, userMentionWithId } from "@/utils";
 
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -69,7 +69,7 @@ export default class GuildMemberAdd extends EventListener {
 		if (!config) return;
 
 		const memberCount = config.guild.memberCount;
-		const joinNumber = stringifyPositionalNum(memberCount);
+		const joinNumber = toOrdinal(memberCount);
 
 		const logEmbed = new EmbedBuilder()
 			.setColor(Colors.Green)

@@ -1,6 +1,6 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, codeBlock, EmbedBuilder } from "discord.js";
 import { DEFAULT_EMBED_COLOR } from "@utils/constants";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 
 import Command from "@managers/commands/Command";
 
@@ -20,7 +20,7 @@ export default class Search extends Command<ChatInputCommandInteraction<"cached"
 		});
 	}
 
-	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const query = interaction.options.getString("query", true);
 		// Set a limit to avoid exceeding the character limit
 		const results = await interaction.guild.members.search({ query, limit: MAX_RESULTS });

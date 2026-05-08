@@ -13,3 +13,11 @@ tests
 
 # Dot files
 .*
+
+# Database files
+prisma/*.db
+prisma/*.db-journal
+
+# Config files (mounted at runtime)
+configs/
+azalea.cfg.yml

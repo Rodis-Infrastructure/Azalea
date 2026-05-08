@@ -32,7 +32,7 @@ export const EXIT_EVENTS = ["SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", 
 // The default permissions required to use commands.
 export const DEFAULT_COMMAND_PERMISSIONS: readonly bigint[] = [PermissionFlagsBits.ManageGuild];
 
-export const DURATION_FORMAT = /^(\d+ *(days?|h(ou)?rs?|min(ute)?s?|[mhd]) *)+$/gmi;
+export const DURATION_FORMAT = /^(\d+ *(days?|h(ou)?rs?|min(ute)?s?|[mhd]) *)+$/mi;
 
 // The default state of whether commands should be allowed in DMs.
 export const DEFAULT_DM_PERMISSION: boolean = false;
@@ -54,6 +54,12 @@ export const CLIENT_PARTIALS: Partials[] = [
 	Partials.Reaction,
 	Partials.Message
 ];
+
+// Number of seconds in a day
+export const SECONDS_IN_DAY = 86400;
+
+// Number of infraction search results per page
+export const INFRACTION_RESULTS_PER_PAGE = 5;
 
 // An empty embed field. Typically used for layout purposes.
 export const BLANK_EMBED_FIELD: EmbedField = {
