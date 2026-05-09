@@ -12,22 +12,38 @@
   },
   "scripts": {
     "start": "bun ./src/index.ts",
-    "check": "eslint .",
-    "check:write": "eslint . --fix",
+    "setup": "bun install && bun run db:generate",
+    "reset": "bun run clean && bun run setup",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "verify": "bun run db:generate && bun run lint && bun run typecheck && bun run db:validate && bun run db:format:check && bun run db:check && bun run test",
+    "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:generate": "prisma generate"
+    "db:validate": "prisma validate",
+    "db:format": "prisma format",
+    "db:format:check": "prisma format && git diff --exit-code prisma/schema.prisma",
+    "db:check": "prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --shadow-database-url file:./.shadow.db --exit-code",
+    "db:studio": "prisma studio",
+    "db": "bun run db:migrate && bun run db:generate",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f bot",
+    "clean": "rm -rf node_modules"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
-    "@sentry/node": "^10.50.0",
+    "@sentry/node": "^10.52.0",
     "cron": "^4.4.0",
-    "discord.js": "^14.26.3",
+    "discord.js": "^14.26.4",
     "lodash": "^4.18.1",
     "ms": "^2.1.3",
     "prisma": "6.19.3",
     "safe-regex": "^2.1.1",
     "typed-regex": "^0.0.8",
-    "yaml": "^2.8.3",
+    "yaml": "^2.8.4",
     "zod": "^3.25.76",
     "zod-validation-error": "^5.0.0"
   },
@@ -43,5 +59,11 @@
     "bun-types": "1.3.13",
     "eslint": "10.3.0",
     "globals": "17.6.0"
+  },
+  "overrides": {
+    "defu": "^6.1.5",
+    "flatted": "^3.4.0",
+    "picomatch": "^4.0.4",
+    "ws": "^8.17.1"
   }
 }
