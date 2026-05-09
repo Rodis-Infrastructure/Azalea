@@ -6,7 +6,7 @@ services:
     restart: always
     container_name: azalea
     volumes:
-      - prisma:/usr/src/app/prisma
+      - data:/usr/src/app/data
 
 volumes:
-  prisma:
+  data:
