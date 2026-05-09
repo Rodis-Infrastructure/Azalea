@@ -72,6 +72,12 @@ database:
     insert_cron: "0 * * * *"       # Cron for inserting cached messages into the database
     delete_cron: "0 0 * * *"       # Cron for deleting expired messages
     ttl: 2419200000                # Message TTL in milliseconds (default: 28 days)
+
+# Optional. Both fields must be set for the editor's "Test in Discord" button
+# to work; when unset, message previews are disabled.
+preview:
+  test_channel_id: "<channel_id>"
+  test_webhook_url: "https://discord.com/api/webhooks/<id>/<token>"
 ```
 
 **Guild configs** — Create one file per guild in the `configs/` directory, named `<guild_id>.yml`. See the [Guild Configuration](#guild-configuration) section below for the full schema.
@@ -214,7 +220,9 @@ permissions:
       - view_infractions
 ```
 
-**Available permissions:** `manage_infractions`, `transfer_infractions`, `manage_mute_requests`, `manage_ban_requests`, `manage_message_reports`, `manage_user_reports`, `manage_highlights`, `view_infractions`, `view_moderation_activity`, `purge_messages`, `quick_mute`, `report_messages`, `manage_role_requests`, `manage_roles`, `forward_messages`
+**Available permissions:** `manage_infractions`, `transfer_infractions`, `manage_mute_requests`, `manage_ban_requests`, `manage_message_reports`, `manage_user_reports`, `manage_highlights`, `view_infractions`, `view_moderation_activity`, `purge_messages`, `quick_mute`, `report_messages`, `manage_role_requests`, `manage_roles`, `forward_messages`, `manage_guild_config`
+
+> `manage_guild_config` gates the sibling `azalea-editor` web UI; the bot itself does not consume it.
 
 ### Ban & Mute Requests
 
