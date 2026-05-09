@@ -8,7 +8,7 @@ import {
 } from "discord.js";
 
 import { LoggingEvent, EventScoping } from "@managers/config/schema";
-import { captureException } from "@sentry/node";
+import { captureException } from "./sentry";
 
 import GuildConfig from "@managers/config/GuildConfig";
 

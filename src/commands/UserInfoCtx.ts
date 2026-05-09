@@ -1,4 +1,4 @@
-import { ApplicationCommandType, UserContextMenuCommandInteraction } from "discord.js";
+import { ApplicationCommandType, MessageFlags, UserContextMenuCommandInteraction } from "discord.js";
 import { CommandResponse } from "@utils/types";
 
 import Command from "@managers/commands/Command";
@@ -18,7 +18,7 @@ export default class UserInfoCtx extends Command<UserContextMenuCommandInteracti
 
 		// Defer the reply to ensure the command doesn't time out
 		const isEphemeral = config.channelInScope(interaction.channel);
-		await interaction.deferReply({ ephemeral: isEphemeral });
+		await interaction.deferReply(isEphemeral ? { flags: MessageFlags.Ephemeral } : {});
 
 		return UserInfo.get({
 			member: interaction.targetMember,

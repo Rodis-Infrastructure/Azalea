@@ -1,6 +1,6 @@
 import { MessageCache } from "@utils/messages";
 import { Client, Events, GuildTextBasedChannel } from "discord.js";
-import { client, prisma } from "@";
+import { client, health, prisma } from "@";
 import { groupBy } from "lodash";
 import { pluralize, startCronJob } from "@/utils";
 
@@ -44,6 +44,10 @@ export default class Ready extends EventListener {
 		if (hasRoleRequests) {
 			Ready._startTemporaryRoleRemovalCronJob();
 		}
+
+		// Signal full readiness to the editor's health poll. Must come after
+		// every cron above so a healthy response means crons are mounted.
+		health.markReady();
 	}
 
 	private static _startTemporaryRoleRemovalCronJob(): void {

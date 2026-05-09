@@ -1,6 +1,6 @@
 # use the official Bun image
 # see all versions at https://hub.docker.com/r/oven/bun/tags
-FROM oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c2a3c971f4f345a01da08ea6262ae30e as base
+FROM oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c2a3c971f4f345a01da08ea6262ae30e AS base
 WORKDIR /usr/src/app
 
 # copy node binary from official node image
@@ -19,13 +19,12 @@ RUN cd /temp/prod && bun install --frozen-lockfile --production
 FROM base AS release
 COPY --from=install /temp/prod/ .
 
-# ensure prisma.schema is already in the directory
-# before installing the prisma client
-COPY . .
+# copy source code with bun ownership so generated artifacts are writable at runtime
+COPY --chown=bun:bun . .
 RUN bunx prisma generate
 
-# give the user permission to write to the prisma directory
-RUN chown -R bun:bun /usr/src/app/prisma
+# create the SQLite data directory (mounted as a volume in docker-compose)
+RUN mkdir -p data && chown bun:bun data
 
 # run migrations at startup, then start the app
 # secrets (DISCORD_TOKEN, SENTRY_DSN, DATABASE_URL) should be provided

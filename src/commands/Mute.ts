@@ -15,7 +15,7 @@ import {
 
 import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { CommandResponse } from "@utils/types";
-import { captureException } from "@sentry/node";
+import { captureInteractionError } from "@utils/sentry";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -158,7 +158,10 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
 			try {
 				await member.timeout(msDuration, reason);
 			} catch (error) {
-				const sentryId = captureException(error);
+				const sentryId = captureInteractionError(error, interaction, {
+					target_id: member.id,
+					duration_ms: msDuration
+				});
 				InfractionManager.deleteInfraction(infraction.id);
 
 				return {

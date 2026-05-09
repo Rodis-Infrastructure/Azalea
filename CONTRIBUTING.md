@@ -13,25 +13,20 @@ Guidelines for contributing to Azalea.
 ### Installation
 
 ```bash
-bun install
+bun run setup        # bun install + bun run db:generate
 ```
 
 ### Environment
 
-Copy `.env.example` to `.env` (or create `.env`) and fill in:
-
-```
-BOT_TOKEN=<your discord bot token>
-SENTRY_DSN=<optional sentry dsn>
-VIRUSTOTAL_API_KEY=<optional virustotal api key>
-```
+Copy `.env.example` to `.env` and fill in the required values. See [README.md](README.md#2-configure-environment-variables) for the full table.
 
 ### Database
 
 ```bash
-bun run db:generate   # Generate Prisma client
 bun run db:migrate    # Apply migrations
 ```
+
+`bun run db` applies migrations and regenerates the Prisma client in one go.
 
 ### Running
 
@@ -71,7 +66,8 @@ All time-based configuration values and constants use **milliseconds** unless do
 The project uses ESLint with TypeScript rules. Run the linter:
 
 ```bash
-bunx eslint .
+bun run lint           # check
+bun run lint:fix       # auto-fix
 ```
 
 All code must pass linting with zero errors and zero warnings.
@@ -94,10 +90,18 @@ Tests live in the `tests/` directory. All tests must pass before merging.
 ## Type Checking
 
 ```bash
-bunx tsc --noEmit
+bun run typecheck
 ```
 
 Must produce zero errors.
+
+## Verify Everything
+
+```bash
+bun run verify
+```
+
+Runs the same checks CI runs (lint + typecheck + tests + Prisma schema validation + migration drift check). Use this before pushing.
 
 ## Project Structure
 
@@ -120,9 +124,7 @@ tests/                      # Test files
 
 ## Guild Configuration
 
-Guild configs are YAML files in `configs/` named by guild ID (e.g., `configs/123456789.yml`). They are validated against the Zod schema in `src/managers/config/schema.ts`.
-
-See [CONFIG_MIGRATION.md](CONFIG_MIGRATION.md) for recent property changes.
+Guild configs are YAML files in `configs/` named by guild ID (e.g., `configs/123456789.yml`). They are validated against the Zod schema in `src/managers/config/schema.ts`. See [docs/configuration.md](docs/configuration.md) for the full schema.
 
 ## Key Patterns
 

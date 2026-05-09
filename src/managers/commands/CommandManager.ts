@@ -2,7 +2,7 @@ import { Collection, CommandInteraction, Snowflake } from "discord.js";
 import { CommandResponse } from "@utils/types";
 import { pluralize } from "@/utils";
 import { client } from "@/index";
-import { captureException } from "@sentry/node";
+import { captureException } from "@utils/sentry";
 
 import Logger, { AnsiColor } from "@utils/logger";
 import Command from "./Command";
@@ -39,7 +39,10 @@ export default class CommandManager {
 			const filepath = path.resolve(dirpath, filename);
 
 			// Import and initiate the command
-			const commandModule = await import(filepath).catch(captureException);
+			const commandModule = await import(filepath).catch(error => captureException(error, {
+				tags: { source: "command_cache" },
+				extra: { filename }
+			}));
 			if (!commandModule) continue;
 
 			const commandClass = commandModule.default;
@@ -113,7 +116,10 @@ export default class CommandManager {
 			const publishedCommands = await guild.commands.set(commands).catch(() => null);
 
 			if (!publishedCommands) {
-				captureException(new Error("Failed to publish guild commands"));
+				captureException(new Error("Failed to publish guild commands"), {
+					tags: { source: "command_publish_guild", guild_id: guildId },
+					extra: { command_count: commands.length }
+				});
 				return;
 			}
 
@@ -132,7 +138,10 @@ export default class CommandManager {
 		const publishedCommands = await client.application.commands.set(globalCommands).catch(() => null);
 
 		if (!publishedCommands) {
-			captureException(new Error("Failed to publish global commands"));
+			captureException(new Error("Failed to publish global commands"), {
+				tags: { source: "command_publish_global" },
+				extra: { command_count: globalCommands.length }
+			});
 			return;
 		}
 

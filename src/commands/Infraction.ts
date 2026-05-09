@@ -9,6 +9,7 @@ import {
 	Colors,
 	EmbedBuilder,
 	GuildMember,
+	MessageFlags,
 	Snowflake,
 	time,
 	TimestampStyles,
@@ -260,7 +261,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 				}
 
 				const ephemeral = config.channelInScope(interaction.channel);
-				await interaction.deferReply({ ephemeral });
+				await interaction.deferReply(ephemeral ? { flags: MessageFlags.Ephemeral } : {});
 				return Infraction.listActive();
 			}
 

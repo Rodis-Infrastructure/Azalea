@@ -248,10 +248,11 @@ export class MessageCache {
 			return oldContent;
 		}
 
-		// Fetch the old content and update the message atomically
+		// Fetch the old content and update the message atomically.
+		// Use updateMany so a missing row is a no-op instead of throwing.
 		const [oldMessage] = await prisma.$transaction([
 			prisma.message.findUnique({ where: { id }, select: { content: true } }),
-			prisma.message.update({ where: { id }, data: { content: newContent } })
+			prisma.message.updateMany({ where: { id }, data: { content: newContent } })
 		]);
 
 		return oldMessage?.content ?? EMPTY_MESSAGE_CONTENT;

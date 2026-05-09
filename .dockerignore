@@ -17,6 +17,11 @@ tests
 # Database files
 prisma/*.db
 prisma/*.db-journal
+prisma/backups/
+data/
+
+# CI/CD only
+scripts/
 
 # Config files (mounted at runtime)
 configs/

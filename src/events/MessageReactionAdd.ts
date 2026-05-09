@@ -34,7 +34,7 @@ import { client, prisma } from "@";
 import { MessageReportFlag, MessageReportStatus, MessageReportUtil } from "@utils/reports";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { QuickMuteDuration } from "@utils/infractions";
-import { captureException } from "@sentry/node";
+import { captureGuildError } from "@utils/sentry";
 
 import MuteRequestUtil, { MuteRequestStatus } from "@utils/muteRequests";
 import GuildConfig from "@managers/config/GuildConfig";
@@ -160,7 +160,12 @@ export default class MessageReactionAdd extends EventListener {
 				config.sendNotification(`${executor} ${result.message}`);
 			}
 		} catch (error) {
-			const sentryId = captureException(error);
+			const sentryId = captureGuildError(error, config.guild.id, {
+				userId: executor.id,
+				username: executor.user.username,
+				tags: { source: "quick_mute_reaction" },
+				extra: { duration_ms: duration }
+			});
 			config.sendNotification(`${executor} An error occurred while trying to execute the quick mute (\`${sentryId}\`)`);
 		}
 	}

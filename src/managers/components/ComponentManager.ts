@@ -1,7 +1,7 @@
 import { CommandResponse } from "@utils/types";
 import { Collection } from "discord.js";
 import { pluralize } from "@/utils";
-import { captureException } from "@sentry/node";
+import { captureException } from "@utils/sentry";
 
 import Component, { ComponentInteraction, CustomID } from "./Component";
 import Logger, { AnsiColor } from "@utils/logger";
@@ -52,7 +52,10 @@ export default class ComponentManager {
 				componentCount++;
 			} catch (error) {
 				Logger.error(`Failed to cache component from "${filename}": ${error}`);
-				captureException(error);
+				captureException(error, {
+					tags: { source: "component_cache" },
+					extra: { filename }
+				});
 			}
 		}
 

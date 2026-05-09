@@ -3,13 +3,20 @@ import { CLIENT_INTENTS, CLIENT_PARTIALS, EXIT_EVENTS } from "@utils/constants";
 import { PrismaClient } from "@prisma/client";
 import { startCleanupOperations } from "./utils";
 import { Client, Events, Options } from "discord.js";
-import { captureException, init as initSentry } from "@sentry/node";
+import { init as initSentry } from "@sentry/node";
 
+import { version as APP_VERSION, name as APP_NAME } from "../package.json";
+import { captureException } from "./utils/sentry";
 import CommandManager from "./managers/commands/CommandManager";
 import EventListenerManager from "./managers/events/EventListenerManager";
 import ComponentManager from "./managers/components/ComponentManager";
 import ConfigManager from "./managers/config/ConfigManager";
 import Logger from "./utils/logger";
+import { startHealthServer } from "./utils/health";
+
+// Health endpoint started at module load so the editor can detect the new
+// process the moment pm2 reload spawns it; ready flips once Ready.ts fires.
+export const health = startHealthServer();
 
 // Handle process exit
 EXIT_EVENTS.forEach(event => {
@@ -51,17 +58,32 @@ async function main(): Promise<void> {
 		throw new Error("No token provided! Configure the DISCORD_TOKEN environment variable.");
 	}
 
-	if (!process.env.SENTRY_DSN) {
-		throw new Error("No sentry DSN provided! Configure the SENTRY_DSN environment variable.");
-	}
+	if (process.env.SENTRY_DSN) {
+		const isProd = process.env.NODE_ENV === "production";
 
-	// Initialize Sentry
-	initSentry({
-		dsn: process.env.SENTRY_DSN,
-		environment: process.env.NODE_ENV,
-		profilesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1,
-		tracesSampleRate: process.env.NODE_ENV === "production" ? 0.2 : 1
-	});
+		initSentry({
+			dsn: process.env.SENTRY_DSN,
+			release: `${APP_NAME}@${APP_VERSION}`,
+			environment: process.env.NODE_ENV ?? "development",
+			profilesSampleRate: isProd ? 0.1 : 1,
+			tracesSampleRate: isProd ? 0.2 : 1,
+			attachStacktrace: true,
+			beforeSend(event) {
+				// Redact the bot token if it ever leaks into a captured value.
+				const token = process.env.DISCORD_TOKEN;
+				if (token && event.exception?.values) {
+					for (const exception of event.exception.values) {
+						if (exception.value) {
+							exception.value = exception.value.replaceAll(token, "[REDACTED]");
+						}
+					}
+				}
+				return event;
+			}
+		});
+	} else {
+		Logger.warn("SENTRY_DSN is not set; error reporting is disabled.");
+	}
 
 	// Cache all components
 	await ComponentManager.cache();
@@ -87,6 +109,19 @@ async function main(): Promise<void> {
 }
 
 if (process.env.NODE_ENV !== "test") {
+	// Last-resort safety net for async errors that escape the call stack.
+	process.on("unhandledRejection", reason => {
+		const sentryId = captureException(reason);
+		Logger.error(`Unhandled promise rejection (${sentryId}):`);
+		Logger.error(reason instanceof Error ? reason.stack ?? reason.message : String(reason));
+	});
+
+	process.on("uncaughtException", error => {
+		const sentryId = captureException(error);
+		Logger.error(`Uncaught exception (${sentryId}):`);
+		Logger.error(error.stack ?? error.message);
+	});
+
 	// Perform closing operations on error
 	main()
 		.catch(error => {

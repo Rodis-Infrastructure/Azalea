@@ -198,7 +198,13 @@ export enum Permission {
     // Grants access to managing role requests
     ManageRoleRequests = "manage_role_requests",
     ManageRoles = "manage_roles",
-    ForwardMessages = "forward_messages"
+    ForwardMessages = "forward_messages",
+    /**
+     * Grants access to editing this guild's config via the web editor.
+     * The bot itself does not consume this permission — it gates the
+     * sibling `azalea-editor` service.
+     */
+    ManageGuildConfig = "manage_guild_config"
 }
 
 const permissionEnum = z.nativeEnum(Permission);
