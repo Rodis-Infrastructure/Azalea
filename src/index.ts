@@ -10,6 +10,11 @@ import EventListenerManager from "./managers/events/EventListenerManager";
 import ComponentManager from "./managers/components/ComponentManager";
 import ConfigManager from "./managers/config/ConfigManager";
 import Logger from "./utils/logger";
+import { startHealthServer } from "./utils/health";
+
+// Health endpoint started at module load so the editor can detect the new
+// process the moment pm2 reload spawns it; ready flips once Ready.ts fires.
+export const health = startHealthServer();
 
 // Handle process exit
 EXIT_EVENTS.forEach(event => {
