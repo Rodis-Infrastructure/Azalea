@@ -46,12 +46,6 @@ const placeholderString = (placeholders: string[], min = 0, max = Infinity) => {
 // Global Config
 // ————————————————————————————————————————————————————————————————————————————————
 
-// Discord webhook URLs: https://discord.com/api/webhooks/<id>/<token>
-const webhookUrlSchema = z.string().regex(
-	/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\/\d{17,19}\/[\w-]+$/,
-	"Must be a Discord webhook URL"
-);
-
 // Global config schema exported for validation
 export const globalConfigSchema = z.object({
 	database: z.object({
@@ -61,17 +55,7 @@ export const globalConfigSchema = z.object({
 			// How long messages should be stored for (in milliseconds) - Default: 7 days
 			ttl: z.number().min(1000).default(604800000)
 		})
-	}),
-	/**
-	 * Configuration for the sibling `azalea-editor` service. The bot does
-	 * not read these fields itself — they're surfaced to the editor so it
-	 * can post message previews to a test channel via webhook. Both fields
-	 * are optional; preview is enabled only when both are set.
-	 */
-	preview: z.object({
-		test_channel_id: snowflakeSchema.optional(),
-		test_webhook_url: webhookUrlSchema.optional()
-	}).optional()
+	})
 });
 
 export type GlobalConfig = z.infer<typeof globalConfigSchema>;

@@ -72,12 +72,6 @@ database:
     insert_cron: "0 * * * *"       # Cron for inserting cached messages into the database
     delete_cron: "0 0 * * *"       # Cron for deleting expired messages
     ttl: 2419200000                # Message TTL in milliseconds (default: 28 days)
-
-# Optional. Both fields must be set for the editor's "Test in Discord" button
-# to work; when unset, message previews are disabled.
-preview:
-  test_channel_id: "<channel_id>"
-  test_webhook_url: "https://discord.com/api/webhooks/<id>/<token>"
 ```
 
 **Guild configs** — Create one file per guild in the `configs/` directory, named `<guild_id>.yml`. See the [Guild Configuration](#guild-configuration) section below for the full schema.
