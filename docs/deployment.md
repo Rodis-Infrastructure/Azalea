@@ -38,7 +38,7 @@ Configure these in the GitHub repo settings:
 
 - `bun` (matching the version in `package.json`).
 - `pm2` with an `ecosystem.config.js` one directory above the repo (`cd ..` from `Projects/azalea`).
-- A working tree at `~/Projects/azalea` whose `.env` has `DATABASE_URL`, `DISCORD_TOKEN`, and `SENTRY_DSN`.
+- A working tree at `~/Projects/azalea` whose `.env` has `DATABASE_URL` and `DISCORD_TOKEN`. `SENTRY_DSN` is optional — leave it unset to disable error reporting.
 
 ### Manual deploy / rollback
 

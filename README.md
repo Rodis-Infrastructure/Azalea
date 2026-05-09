@@ -36,7 +36,7 @@ A Discord moderation and utility bot built with [Bun](https://bun.sh), [discord.
 - [Bun](https://bun.sh) v1.3+
 - [Node.js](https://nodejs.org) v22+ (used by Prisma at runtime)
 - A Discord bot token
-- A Sentry DSN
+- (Optional) A Sentry DSN for error reporting
 
 ## Setup
 
@@ -58,7 +58,7 @@ cp .env.example .env
 |---|---|---|
 | `DISCORD_TOKEN` | Yes | Discord bot token ([Developer Portal](https://discord.com/developers/applications)). |
 | `DATABASE_URL` | Yes | SQLite database path. Default: `file:data/azalea.db`. |
-| `SENTRY_DSN` | Yes | Sentry DSN ([sentry.io](https://sentry.io)). |
+| `SENTRY_DSN` | No | Sentry DSN ([sentry.io](https://sentry.io)). If unset, error reporting is disabled. |
 | `ROVER_API_KEY` | No | RoVer API key for Roblox account linking in `/user info`. |
 | `VIRUSTOTAL_API_KEY` | No | VirusTotal API key for `/scan url`. |
 
