@@ -4,17 +4,27 @@ import type { Interaction } from "discord.js";
 export { captureException } from "@sentry/node";
 
 /**
- * Capture an error with rich Discord interaction context. Tags are searchable
- * in the Sentry UI; `extra` is shown on the issue page but not searchable.
- *
- * Tags applied: `guild_id`, `channel_id`, `command`/`custom_id`, `command_kind`.
- * User context: `id` and `username` from the interaction.
+ * Subset of Sentry's ScopeContext we actually use. Defining this locally avoids
+ * reaching into @sentry/core (a transitive dependency that v10 does not
+ * re-export from @sentry/node).
  */
-export function captureInteractionError(
-	error: unknown,
+export interface SentryScope {
+	user?: { id?: string; username?: string };
+	tags?: Record<string, string>;
+	extra?: Record<string, unknown>;
+}
+
+/**
+ * Build a Sentry scope from a Discord interaction. Tags are searchable in the
+ * Sentry UI; `extra` is shown on the issue page but not searchable.
+ *
+ * Pure — exposed separately from {@link captureInteractionError} so the
+ * tag-building behaviour can be tested without mocking the Sentry SDK.
+ */
+export function buildInteractionScope(
 	interaction: Interaction,
 	extra?: Record<string, unknown>
-): string {
+): SentryScope {
 	const tags: Record<string, string> = {
 		guild_id: interaction.guildId ?? "dm"
 	};
@@ -34,11 +44,48 @@ export function captureInteractionError(
 		tags.command_kind = "component";
 	}
 
-	return sentryCapture(error, {
+	return {
 		user: { id: interaction.user.id, username: interaction.user.username },
 		tags,
 		extra
-	});
+	};
+}
+
+/**
+ * Capture an error with rich Discord interaction context.
+ * See {@link buildInteractionScope} for the tag list.
+ */
+export function captureInteractionError(
+	error: unknown,
+	interaction: Interaction,
+	extra?: Record<string, unknown>
+): string {
+	return sentryCapture(error, buildInteractionScope(interaction, extra));
+}
+
+interface GuildScopeOptions {
+	userId?: string;
+	username?: string;
+	tags?: Record<string, string>;
+	extra?: Record<string, unknown>;
+}
+
+/**
+ * Build a Sentry scope from a guild ID with optional user/tag/extra context.
+ * Pure — see {@link buildInteractionScope} for rationale.
+ */
+export function buildGuildScope(
+	guildId: string,
+	options?: GuildScopeOptions
+): SentryScope {
+	return {
+		user: options?.userId
+			? { id: options.userId, username: options.username }
+			: undefined,
+		// Guild_id wins so caller-supplied tags can't accidentally clobber it
+		tags: { ...options?.tags, guild_id: guildId },
+		extra: options?.extra
+	};
 }
 
 /**
@@ -48,18 +95,7 @@ export function captureInteractionError(
 export function captureGuildError(
 	error: unknown,
 	guildId: string,
-	options?: {
-		userId?: string;
-		username?: string;
-		tags?: Record<string, string>;
-		extra?: Record<string, unknown>;
-	}
+	options?: GuildScopeOptions
 ): string {
-	return sentryCapture(error, {
-		user: options?.userId
-			? { id: options.userId, username: options.username }
-			: undefined,
-		tags: { guild_id: guildId, ...options?.tags },
-		extra: options?.extra
-	});
+	return sentryCapture(error, buildGuildScope(guildId, options));
 }
