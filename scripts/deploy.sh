@@ -4,6 +4,12 @@
 
 set -euo pipefail
 
+# appleboy/ssh-action runs a non-interactive non-login shell, so the host's
+# ~/.bashrc / ~/.profile (where Bun and PM2 add themselves to PATH) is
+# never sourced. Re-add both binaries' default install dirs explicitly so
+# `bun` and `pm2` resolve regardless of how this script was invoked.
+export PATH="$HOME/.bun/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
+
 BACKUPS_DIR="prisma/backups"
 KEEP_BACKUPS=10
 
