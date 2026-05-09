@@ -6,6 +6,7 @@ import {
 	ButtonStyle,
 	EmbedBuilder,
 	GuildMember,
+	MessageFlags,
 	StringSelectMenuInteraction,
 	time,
 	TimestampStyles,
@@ -109,7 +110,7 @@ export default class RoleRequestSelectRole extends Component {
 				await interaction.editReply({});
 				await interaction.followUp({
 					content: "Failed to fetch channel",
-					ephemeral: true
+					flags: MessageFlags.Ephemeral
 				});
 				return null;
 			}
@@ -158,7 +159,7 @@ export default class RoleRequestSelectRole extends Component {
 				await interaction.editReply({});
 				await interaction.followUp({
 					content: `Failed to start expiration ${pluralize(members.length, "timer")}.`,
-					ephemeral: true
+					flags: MessageFlags.Ephemeral
 				});
 				return null;
 			}
@@ -190,13 +191,13 @@ export default class RoleRequestSelectRole extends Component {
 
 			await interaction.followUp({
 				content: `Failed to assign the role to the following ${pluralize(failedMembers.length, "member")}: ${failedMembers}`,
-				ephemeral: true
+				flags: MessageFlags.Ephemeral
 			});
 		} else {
 			// The role was successfully assigned to all members
 			await interaction.followUp({
 				content: `Successfully assigned the role to ${members.length} ${pluralize(members.length, "member")}.`,
-				ephemeral: true
+				flags: MessageFlags.Ephemeral
 			});
 		}
 

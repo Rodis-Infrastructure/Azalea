@@ -1,4 +1,4 @@
-import { ButtonInteraction, GuildMember, roleMention } from "discord.js";
+import { ButtonInteraction, GuildMember, MessageFlags, roleMention } from "discord.js";
 import { CommandResponse } from "@utils/types";
 import { prisma } from "@";
 import { pluralize } from "@/utils";
@@ -59,7 +59,7 @@ export default class RoleRequestRemoveRole extends Component {
 
 		await interaction.reply({
 			content: response,
-			ephemeral: true
+			flags: MessageFlags.Ephemeral
 		});
 
 		setTimeout(() => {

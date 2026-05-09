@@ -1,6 +1,6 @@
 import { Events, GuildChannel, OverwriteResolvable, PermissionOverwrites, StageInstance } from "discord.js";
 
-import { captureException } from "@sentry/node";
+import { captureGuildError } from "@utils/sentry";
 
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -41,7 +41,10 @@ export async function handleStageInstance(stageInstance: StageInstance, active: 
 
 		channels = fetchedChannels.filter(channel => channel !== null) as GuildChannel[];
 	} catch (err: unknown) {
-		const sentryId = captureException(err);
+		const sentryId = captureGuildError(err, config.guild.id, {
+			tags: { source: "stage_instance_fetch_channels" },
+			extra: { active }
+		});
 		Logger.error(`Failed to fetch channels: ${sentryId}`);
 		return;
 	}
@@ -77,7 +80,10 @@ export async function handleStageInstance(stageInstance: StageInstance, active: 
 				reason: `Monitored stage instance ${action}`
 			});
 		} catch (err: unknown) {
-			const sentryId = captureException(err);
+			const sentryId = captureGuildError(err, config.guild.id, {
+				tags: { source: "stage_instance_apply_overrides", channel_id: channel.id },
+				extra: { active }
+			});
 			Logger.error(`Failed to apply overrides to channel ${channel.id}: ${sentryId}`);
 			return;
 		}
