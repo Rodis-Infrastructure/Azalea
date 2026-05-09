@@ -8,10 +8,12 @@ import {
 	Events,
 	hyperlink,
 	Interaction,
+	InteractionReplyOptions,
+	MessageFlags,
 	TextInputModalData
 } from "discord.js";
 
-import { CommandResponse } from "@utils/types";
+import { CommandResponse, CommandResponseOptions } from "@utils/types";
 import { log } from "@utils/eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
 import { channelMentionWithName, pluralize, roleMentionWithName, userMentionWithId } from "@/utils";
@@ -39,7 +41,7 @@ export default class InteractionCreate extends EventListener {
 		if (!interaction.inCachedGuild()) {
 			await interaction.reply({
 				content: "Interactions are not supported in DMs.",
-				ephemeral: true
+				flags: MessageFlags.Ephemeral
 			});
 			return;
 		}
@@ -58,14 +60,14 @@ export default class InteractionCreate extends EventListener {
 							: response;
 
 						delete options.temporary;
-						await interaction.reply({ ...options, allowedMentions: { parse: [] } });
+						await interaction.reply(InteractionCreate._toReplyOptions({ ...options, allowedMentions: { parse: [] } }));
 					}
 				} catch (error) {
 					const sentryId = captureException(error);
 
 					await interaction.reply({
 						content: `An error occurred while executing this interaction (\`${sentryId}\`)`,
-						ephemeral: true
+						flags: MessageFlags.Ephemeral
 					}).catch(() => null);
 				}
 
@@ -74,7 +76,7 @@ export default class InteractionCreate extends EventListener {
 
 			await interaction.reply({
 				content: "This guild does not have a configuration set up.",
-				ephemeral: true
+				flags: MessageFlags.Ephemeral
 			});
 			return;
 		}
@@ -96,7 +98,7 @@ export default class InteractionCreate extends EventListener {
 
 			await interaction.reply({
 				content: `An error occurred while executing this interaction (\`${sentryId}\`)`,
-				ephemeral: true
+				flags: MessageFlags.Ephemeral
 			}).catch(() => null);
 
 			return;
@@ -123,7 +125,7 @@ export default class InteractionCreate extends EventListener {
 			return;
 		}
 
-		const defaultReplyOptions = {
+		const defaultReplyOptions: CommandResponseOptions = {
 			ephemeral: ephemeralReply,
 			allowedMentions: { parse: [] }
 		};
@@ -135,15 +137,14 @@ export default class InteractionCreate extends EventListener {
 		const isTemporary = options.temporary;
 		delete options.temporary;
 
+		const merged: CommandResponseOptions = { ...defaultReplyOptions, ...options };
+
 		if (interaction.deferred) {
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars -- strip ephemeral/flags for editReply compatibility
-			const { ephemeral, flags, ...editOptions } = { ...defaultReplyOptions, ...options };
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars -- editReply doesn't accept ephemeral/flags
+			const { ephemeral, flags, ...editOptions } = merged;
 			await interaction.editReply(editOptions);
 		} else {
-			await interaction.reply({
-				...defaultReplyOptions,
-				...options
-			});
+			await interaction.reply(InteractionCreate._toReplyOptions(merged));
 		}
 
 		if (isTemporary && ephemeralReply) {
@@ -151,6 +152,15 @@ export default class InteractionCreate extends EventListener {
 				interaction.deleteReply().catch(() => null);
 			}, config.data.response_ttl);
 		}
+	}
+
+	// Translate our internal `ephemeral: boolean` to discord.js's `flags: MessageFlags.Ephemeral`.
+	private static _toReplyOptions(options: CommandResponseOptions): InteractionReplyOptions {
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured to omit `temporary` from rest
+		const { ephemeral, flags, temporary, ...rest } = options;
+		const baseFlags = typeof flags === "number" ? flags : 0;
+		const finalFlags = ephemeral ? baseFlags | MessageFlags.Ephemeral : baseFlags;
+		return finalFlags ? { ...rest, flags: finalFlags } : rest;
 	}
 
 	private static async _log(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {

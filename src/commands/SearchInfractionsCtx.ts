@@ -1,4 +1,4 @@
-import { ApplicationCommandType, UserContextMenuCommandInteraction } from "discord.js";
+import { ApplicationCommandType, MessageFlags, UserContextMenuCommandInteraction } from "discord.js";
 import { CommandResponse } from "@utils/types";
 
 import Infraction, { InfractionSearchFilter } from "./Infraction";
@@ -32,7 +32,7 @@ export default class SearchInfractionsCtx extends Command<UserContextMenuCommand
 
 		// Defer the reply to ensure the command doesn't time out
 		const isEphemeral = config.channelInScope(interaction.channel);
-		await interaction.deferReply({ ephemeral: isEphemeral });
+		await interaction.deferReply(isEphemeral ? { flags: MessageFlags.Ephemeral } : {});
 
 		return Infraction.search({
 			user: interaction.targetUser,
