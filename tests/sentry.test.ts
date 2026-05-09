@@ -124,7 +124,7 @@ describe(buildGuildScope.name, () => {
 
 	test("custom tag does not overwrite guild_id", () => {
 		const scope = buildGuildScope("G", { tags: { guild_id: "should-be-ignored" } });
-		// guild_id is added after the spread, so the helper's value wins
+		// Guild_id is added after the spread, so the helper's value wins
 		expect(scope.tags?.guild_id).toBe("G");
 	});
 
