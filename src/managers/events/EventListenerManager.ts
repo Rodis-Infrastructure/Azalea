@@ -1,6 +1,6 @@
 import { client } from "@/index";
 import { pluralize } from "@/utils";
-import { captureException } from "@sentry/node";
+import { captureException } from "@utils/sentry";
 
 import Logger, { AnsiColor } from "@utils/logger";
 import EventListener from "./EventListener";
@@ -44,7 +44,9 @@ export default class EventListenerManager {
 				const safeExecute = (...args: unknown[]): void => {
 					Promise.resolve(listener.execute(...args)).catch(error => {
 						Logger.error(`Error in event listener "${listener.event}": ${error}`);
-						captureException(error);
+						captureException(error, {
+							tags: { event_name: listener.event, source: "event_listener" }
+						});
 					});
 				};
 
@@ -65,7 +67,10 @@ export default class EventListenerManager {
 				eventListenerCount++;
 			} catch (error) {
 				Logger.error(`Failed to mount event listener from "${filename}": ${error}`);
-				captureException(error);
+				captureException(error, {
+					tags: { source: "event_listener_mount" },
+					extra: { filename }
+				});
 			}
 		}
 

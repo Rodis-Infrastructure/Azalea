@@ -2,7 +2,7 @@ import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "disco
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { CommandResponse } from "@utils/types";
-import { captureException } from "@sentry/node";
+import { captureInteractionError } from "@utils/sentry";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -85,7 +85,9 @@ export default class Kick extends Command<ChatInputCommandInteraction<"cached">>
 		try {
 			await member.kick(reason);
 		} catch (error) {
-			const sentryId = captureException(error);
+			const sentryId = captureInteractionError(error, interaction, {
+				target_id: member.id
+			});
 			await InfractionManager.deleteInfraction(infraction.id);
 
 			return {

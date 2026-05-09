@@ -18,7 +18,7 @@ import { log } from "@utils/eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
 import { channelMentionWithName, pluralize, roleMentionWithName, userMentionWithId } from "@/utils";
 import { formatMessageContentForShortLog } from "@utils/messages";
-import { captureException } from "@sentry/node";
+import { captureInteractionError } from "@utils/sentry";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ComponentManager from "@managers/components/ComponentManager";
@@ -63,7 +63,7 @@ export default class InteractionCreate extends EventListener {
 						await interaction.reply(InteractionCreate._toReplyOptions({ ...options, allowedMentions: { parse: [] } }));
 					}
 				} catch (error) {
-					const sentryId = captureException(error);
+					const sentryId = captureInteractionError(error, interaction);
 
 					await interaction.reply({
 						content: `An error occurred while executing this interaction (\`${sentryId}\`)`,
@@ -84,16 +84,8 @@ export default class InteractionCreate extends EventListener {
 		try {
 			await InteractionCreate._handle(interaction, config);
 		} catch (error) {
-			const sentryId = captureException(error, {
-				user: {
-					id: interaction.user.id,
-					username: interaction.user.username
-				},
-				extra: {
-					channel: interaction.channel?.id,
-					guild: interaction.guild.id,
-					command: InteractionCreate._parseInteractionName(interaction)
-				}
+			const sentryId = captureInteractionError(error, interaction, {
+				interaction_name: InteractionCreate._parseInteractionName(interaction)
 			});
 
 			await interaction.reply({

@@ -8,7 +8,7 @@ import { removeClientReactions, temporaryReply } from "./messages";
 import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
 import { userMentionWithId } from "./index";
 import { log } from "./eventLogging";
-import { captureException } from "@sentry/node";
+import { captureGuildError } from "./sentry";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import StoreMediaCtx from "@/commands/StoreMediaCtx";
@@ -307,7 +307,12 @@ export default class MuteRequestUtil {
 		try {
 			await targetMember?.timeout(data.duration * 1000, data.reason);
 		} catch (error) {
-			const sentryId = captureException(error);
+			const sentryId = captureGuildError(error, config.guild.id, {
+				userId: reviewer.id,
+				username: reviewer.user.username,
+				tags: { source: "mute_request_apply" },
+				extra: { target_id: data.target_id, duration_seconds: data.duration }
+			});
 
 			InfractionManager.deleteInfraction(infraction.id);
 			config.sendNotification(`${reviewer} An error occurred while muting the member (\`${sentryId}\`)`);

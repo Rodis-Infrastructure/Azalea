@@ -15,7 +15,7 @@ import { DEFAULT_EMBED_COLOR, DURATION_FORMAT, EMBED_FIELD_CHAR_LIMIT } from "@u
 import { client, prisma } from "@";
 import { pluralize } from "@/utils";
 import { InfractionUtil } from "@utils/infractions";
-import { captureException } from "@sentry/node";
+import { captureException, captureInteractionError } from "@utils/sentry";
 
 import Command from "@managers/commands/Command";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -157,11 +157,17 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 						interaction.channel!.send(reminderMessage)
 					]);
 				} catch (error) {
-					captureException(error);
+					captureException(error, {
+						tags: { source: "reminder_dispatch", guild_id: interaction.guildId },
+						user: { id: interaction.user.id, username: interaction.user.username },
+						extra: { reminder_id: id }
+					});
 				}
 			}, msExpiresAt - Date.now());
 		} catch (error) {
-			const sentryId = captureException(error);
+			const sentryId = captureInteractionError(error, interaction, {
+				expires_at: expiresAt.toISOString()
+			});
 			return `An error occurred while creating the reminder (\`${sentryId}\`)`;
 		}
 
@@ -253,7 +259,11 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 						channel.send(reminderMessage)
 					]);
 				} catch (error) {
-					captureException(error);
+					captureException(error, {
+						tags: { source: "reminder_dispatch", guild_id: channel.guildId },
+						user: { id: user.id, username: user.username },
+						extra: { reminder_id: reminder.id }
+					});
 				}
 			}, reminder.expires_at.getTime() - Date.now());
 

@@ -2,7 +2,7 @@ import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infr
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON, SECONDS_IN_DAY } from "@utils/constants";
 import { CommandResponse } from "@utils/types";
-import { captureException } from "@sentry/node";
+import { captureInteractionError } from "@utils/sentry";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -106,7 +106,10 @@ export default class Ban extends Command<ChatInputCommandInteraction<"cached">> 
 		try {
 			await interaction.guild.members.ban(user, { reason, deleteMessageSeconds });
 		} catch (error) {
-			const sentryId = captureException(error);
+			const sentryId = captureInteractionError(error, interaction, {
+				target_id: user.id,
+				delete_message_seconds: deleteMessageSeconds
+			});
 			await InfractionManager.deleteInfraction(infraction.id);
 
 			return {

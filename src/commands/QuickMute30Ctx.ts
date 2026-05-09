@@ -21,7 +21,7 @@ import {
 import { CommandResponse, Result } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 import { cleanContent, cropLines, ellipsize } from "@/utils";
-import { captureException } from "@sentry/node";
+import { captureGuildError } from "@utils/sentry";
 import { Message } from "@prisma/client";
 
 import ConfigManager from "@managers/config/ConfigManager";
@@ -174,7 +174,12 @@ export async function handleQuickMute(data: {
 		try {
 			await targetMember.timeout(duration, reason);
 		} catch (error) {
-			const sentryId = captureException(error);
+			const sentryId = captureGuildError(error, executor.guild.id, {
+				userId: executor.id,
+				username: executor.user.username,
+				tags: { command: "quick_mute" },
+				extra: { target_id: targetUserId, duration_ms: duration }
+			});
 			InfractionManager.deleteInfraction(infraction.id);
 
 			return {

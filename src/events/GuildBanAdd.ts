@@ -4,7 +4,7 @@ import { log } from "@utils/eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
 import { pluralize } from "@/utils";
 import { InfractionManager } from "@utils/infractions";
-import { captureException } from "@sentry/node";
+import { captureGuildError } from "@utils/sentry";
 import { prisma } from "@";
 
 import EventListener from "@managers/events/EventListener";
@@ -28,7 +28,11 @@ export default class GuildBanAdd extends EventListener {
 				GuildBanAdd._clearUserReports(ban.user.id, config)
 			]);
 		} catch (error) {
-			const sentryId = captureException(error);
+			const sentryId = captureGuildError(error, ban.guild.id, {
+				userId: ban.user.id,
+				username: ban.user.username,
+				tags: { source: "guild_ban_cleanup" }
+			});
 			Logger.error(`Failed to perform cleanup operations for @${ban.user.username} (${ban.user.id}) | ${sentryId}`);
 		}
 	}
