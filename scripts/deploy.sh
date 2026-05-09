@@ -10,6 +10,11 @@ set -euo pipefail
 # `bun` and `pm2` resolve regardless of how this script was invoked.
 export PATH="$HOME/.bun/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 
+# Keep the host's Bun current. Lockfiles are written by recent Bun in dev
+# and CI; an older host Bun fails to parse them ("Outdated lockfile
+# version"). `bun upgrade` is idempotent and safe when already current.
+bun upgrade
+
 BACKUPS_DIR="prisma/backups"
 KEEP_BACKUPS=10
 
