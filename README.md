@@ -214,7 +214,9 @@ permissions:
       - view_infractions
 ```
 
-**Available permissions:** `manage_infractions`, `transfer_infractions`, `manage_mute_requests`, `manage_ban_requests`, `manage_message_reports`, `manage_user_reports`, `manage_highlights`, `view_infractions`, `view_moderation_activity`, `purge_messages`, `quick_mute`, `report_messages`, `manage_role_requests`, `manage_roles`, `forward_messages`
+**Available permissions:** `manage_infractions`, `transfer_infractions`, `manage_mute_requests`, `manage_ban_requests`, `manage_message_reports`, `manage_user_reports`, `manage_highlights`, `view_infractions`, `view_moderation_activity`, `purge_messages`, `quick_mute`, `report_messages`, `manage_role_requests`, `manage_roles`, `forward_messages`, `manage_guild_config`
+
+> `manage_guild_config` gates the sibling `azalea-editor` web UI; the bot itself does not consume it.
 
 ### Ban & Mute Requests
 

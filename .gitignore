@@ -34,5 +34,5 @@ migration_lock.toml
 # Configuration
 
 configs/*.yml
-!configs/example.yml
+configs/.backups
 azalea.cfg.yml
