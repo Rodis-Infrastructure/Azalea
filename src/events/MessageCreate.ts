@@ -240,13 +240,11 @@ export default class MessageCreate extends EventListener {
 		const autoThreadChannel = config.data.auto_threads
 			.find(autoThreadChannel => autoThreadChannel.channel_id === message.channel.id);
 
-		if (!autoThreadChannel) return;
+		if (!autoThreadChannel || !message.member) return;
 
-		const isExcluded = message.member?.roles.cache.some(role =>
-			autoThreadChannel.exclude_roles.includes(role.id)
-		);
+		const inScope = config.roleInScope(message.member, autoThreadChannel.role_scoping);
 
-		if (isExcluded) return;
+		if (!inScope) return;
 
 		message.startThread({
 			name: autoThreadChannel.name
