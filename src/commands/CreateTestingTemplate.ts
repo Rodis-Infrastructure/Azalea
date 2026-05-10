@@ -13,6 +13,7 @@ import {
 
 import { CommandResponse } from "@utils/types";
 import { readYamlFile } from "@/utils";
+import { captureGuildError } from "@utils/sentry";
 
 import Command from "@managers/commands/Command";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -93,6 +94,11 @@ export default class CreateTestingTemplate extends Command<ChatInputCommandInter
 		setTimeout(() => {
 			CreateTestingTemplate._run(interaction.guild)
 				.catch(error => {
+					captureGuildError(error, interaction.guildId, {
+						userId: interaction.user.id,
+						username: interaction.user.username,
+						tags: { source: "create_testing_template_run" }
+					});
 					Logger.error(`CreateTestingTemplate failed for guild ${interaction.guildId}: ${error.message}`);
 				});
 		}, 1000);
@@ -537,6 +543,10 @@ export default class CreateTestingTemplate extends Command<ChatInputCommandInter
 			embeds: [embed],
 			files: [configAttachment]
 		}).catch(error => {
+			captureGuildError(error, guild.id, {
+				tags: { source: "create_testing_template_readme" },
+				extra: { readme_channel_id: readmeChannel.id }
+			});
 			Logger.error(`CreateTestingTemplate: Failed to send readme message: ${error.message}`);
 		});
 

@@ -8,7 +8,8 @@ import { removeClientReactions, temporaryReply } from "./messages";
 import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
 import { userMentionWithId } from "./index";
 import { log } from "./eventLogging";
-import { captureGuildError } from "./sentry";
+import { captureException, captureGuildError } from "./sentry";
+import { isPrismaErrorWithCode } from "./errors";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import StoreMediaCtx from "@/commands/StoreMediaCtx";
@@ -61,7 +62,14 @@ export default class MuteRequestUtil {
 				where: { id: requestId },
 				data: { status, reviewer_id: reviewerId }
 			});
-		} catch {
+		} catch (error) {
+			// `P2025` ("record not found") is the routine "request was
+			// already deleted" case — return null without alerting.
+			if (isPrismaErrorWithCode(error, "P2025")) return null;
+			captureException(error, {
+				tags: { source: "mute_request_set_status" },
+				extra: { request_id: requestId, status }
+			});
 			return null;
 		}
 	}

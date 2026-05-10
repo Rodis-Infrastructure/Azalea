@@ -14,8 +14,9 @@ import { ObjectDiff } from "./types";
 import { CronJob, CronJobParams } from "cron";
 import { client, prisma } from "@";
 import { DEFAULT_TIMEZONE } from "./constants";
-import { cron } from "@sentry/node";
+import { cron, flush as flushSentry } from "@sentry/node";
 import { captureException } from "./sentry";
+import { runWithRequestContext } from "./requestContext";
 
 import Logger, { AnsiColor } from "./logger";
 import YAML from "yaml";
@@ -101,6 +102,9 @@ export async function startCleanupOperations(event: string): Promise<void> {
 		full: true
 	});
 
+	// Flush in-flight events before pm2 respawns the process; the previous
+	// tick's captures would otherwise be lost.
+	await flushSentry(2000).catch(() => null);
 	process.exit(1);
 }
 
@@ -220,23 +224,28 @@ export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronT
 		// All `onTick` invocations are wrapped — a single failing tick must
 		// never bubble out and become an unhandled rejection. Sentry sees
 		// the error via `captureException`, the next tick still fires.
-		onTick: async () => {
+		// The request context propagates `monitor_slug` into every log
+		// line and Sentry tag emitted inside the tick body.
+		onTick: () => runWithRequestContext({ source: "cron_tick", monitor_slug: monitorSlug }, async () => {
 			Logger.log(monitorSlug, "Running cron job...", {
 				color: AnsiColor.Orange
 			});
 
+			const start = performance.now();
 			try {
 				await onTick();
-				Logger.log(monitorSlug, "Successfully ran cron job", {
+				const elapsedMs = Math.round(performance.now() - start);
+				Logger.log(monitorSlug, `Successfully ran cron job in ${elapsedMs}ms`, {
 					color: AnsiColor.Orange
 				});
 			} catch (error) {
+				const elapsedMs = Math.round(performance.now() - start);
 				const sentryId = captureException(error, {
-					tags: { source: "cron_tick", monitor_slug: monitorSlug }
+					extra: { elapsed_ms: elapsedMs }
 				});
-				Logger.error(`Cron job "${monitorSlug}" failed (${sentryId}): ${error instanceof Error ? error.message : String(error)}`);
+				Logger.error(`Cron job "${monitorSlug}" failed after ${elapsedMs}ms (${sentryId}): ${error instanceof Error ? error.message : String(error)}`);
 			}
-		}
+		})
 	}).start();
 
 	Logger.log(monitorSlug, `Cron job started: ${cronTime}`, {
