@@ -30,4 +30,4 @@ fi
 
 bun run db:migrate
 
-( cd .. && pm2 reload ecosystem.config.js )
+( cd .. && pm2 reload ecosystem.config.js --only azalea --update-env )
