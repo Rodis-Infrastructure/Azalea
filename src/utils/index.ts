@@ -15,6 +15,7 @@ import { CronJob, CronJobParams } from "cron";
 import { client, prisma } from "@";
 import { DEFAULT_TIMEZONE } from "./constants";
 import { cron } from "@sentry/node";
+import { captureException } from "./sentry";
 
 import Logger, { AnsiColor } from "./logger";
 import YAML from "yaml";
@@ -216,16 +217,25 @@ export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronT
 	cronJobWithCheckIn.from({
 		cronTime,
 		timeZone: DEFAULT_TIMEZONE,
+		// All `onTick` invocations are wrapped — a single failing tick must
+		// never bubble out and become an unhandled rejection. Sentry sees
+		// the error via `captureException`, the next tick still fires.
 		onTick: async () => {
 			Logger.log(monitorSlug, "Running cron job...", {
 				color: AnsiColor.Orange
 			});
 
-			await onTick();
-
-			Logger.log(monitorSlug, "Successfully ran cron job", {
-				color: AnsiColor.Orange
-			});
+			try {
+				await onTick();
+				Logger.log(monitorSlug, "Successfully ran cron job", {
+					color: AnsiColor.Orange
+				});
+			} catch (error) {
+				const sentryId = captureException(error, {
+					tags: { source: "cron_tick", monitor_slug: monitorSlug }
+				});
+				Logger.error(`Cron job "${monitorSlug}" failed (${sentryId}): ${error instanceof Error ? error.message : String(error)}`);
+			}
 		}
 	}).start();
 

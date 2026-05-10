@@ -104,8 +104,11 @@ export async function handleMessageReportQuickMute(interaction: ButtonInteractio
 		data: { status }
 	});
 
-	// Delete the report
+	// Delete the report. `.catch(() => null)` covers the race where
+	// another moderator resolved this report a moment earlier and the
+	// message has already been deleted — the desired end state is the
+	// same.
 	await interaction.deferUpdate();
-	await interaction.deleteReply();
+	await interaction.deleteReply().catch(() => null);
 	return null;
 }

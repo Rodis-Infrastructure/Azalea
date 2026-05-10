@@ -247,30 +247,49 @@ export default class Reminders extends Command<ChatInputCommandInteraction<"cach
 			return;
 		}
 
+		let mounted = 0;
 		for (const reminder of reminders) {
-			const reminderMessage = Reminders._formatReminder(reminder.author_id, reminder.reminder, reminder.created_at);
-			const channel = await client.channels.fetch(reminder.channel_id) as GuildTextBasedChannel;
-			const user = await client.users.fetch(reminder.author_id);
-
-			setTimeout(async () => {
-				try {
-					await Promise.all([
-						prisma.reminder.deleteMany({ where: { id: reminder.id } }),
-						channel.send(reminderMessage)
-					]);
-				} catch (error) {
-					captureException(error, {
-						tags: { source: "reminder_dispatch", guild_id: channel.guildId },
-						user: { id: user.id, username: user.username },
-						extra: { reminder_id: reminder.id }
+			// Per-reminder try/catch — one bad row (channel deleted, user
+			// account gone, transient API failure) must not abort the loop
+			// and leave every other reminder unmounted.
+			try {
+				const reminderMessage = Reminders._formatReminder(reminder.author_id, reminder.reminder, reminder.created_at);
+				const channel = await client.channels.fetch(reminder.channel_id).catch(() => null) as GuildTextBasedChannel | null;
+				if (!channel) {
+					captureException(new Error("reminder channel not found"), {
+						tags: { source: "reminder_mount" },
+						extra: { reminder_id: reminder.id, channel_id: reminder.channel_id }
 					});
+					continue;
 				}
-			}, reminder.expires_at.getTime() - Date.now());
+				const user = await client.users.fetch(reminder.author_id);
 
-			Logger.info(`Mounted reminder with ID ${reminder.id} for @${user.username} (${user.id}) in #${channel.name} (${channel.id})`);
+				setTimeout(async () => {
+					try {
+						await Promise.all([
+							prisma.reminder.deleteMany({ where: { id: reminder.id } }),
+							channel.send(reminderMessage)
+						]);
+					} catch (error) {
+						captureException(error, {
+							tags: { source: "reminder_dispatch", guild_id: channel.guildId },
+							user: { id: user.id, username: user.username },
+							extra: { reminder_id: reminder.id }
+						});
+					}
+				}, reminder.expires_at.getTime() - Date.now());
+
+				mounted++;
+				Logger.info(`Mounted reminder with ID ${reminder.id} for @${user.username} (${user.id}) in #${channel.name} (${channel.id})`);
+			} catch (error) {
+				captureException(error, {
+					tags: { source: "reminder_mount" },
+					extra: { reminder_id: reminder.id }
+				});
+			}
 		}
 
-		Logger.log("REMINDERS", `Successfully mounted ${reminders.length} ${pluralize(reminders.length, "reminder")}`, {
+		Logger.log("REMINDERS", `Successfully mounted ${mounted} ${pluralize(mounted, "reminder")}`, {
 			color: AnsiColor.Purple
 		});
 	}
