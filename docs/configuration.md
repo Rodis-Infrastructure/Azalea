@@ -124,6 +124,20 @@ auto_reactions:
     exclude_patterns: ["regex"]         # Optional
 ```
 
+### Auto-Threads
+
+```yaml
+auto_threads:
+  - channel_id: "<channel_id>"
+    # $USERNAME = user's username
+    # $SURFACE_NAME = user's username and surface name, if any
+    # $USER_ID = user's ID
+    name: "$SURFACE_NAME's thread"
+    role_scoping:
+      include_roles: ["<role_id>"]
+      exclude_roles: ["<role_id>"]
+```
+
 ### Media Channels
 
 ```yaml

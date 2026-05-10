@@ -61,6 +61,7 @@ export default class MessageCreate extends EventListener {
 
 		MessageCache.cache(message);
 		MessageCreate._handleAutoReactions(message, config);
+		MessageCreate._handleAutoThreads(message, config);
 		await MessageCreate._handleMediaChannel(message, config);
 
 		// Handle media conversion
@@ -233,6 +234,25 @@ export default class MessageCreate extends EventListener {
 		for (const emoji of autoReactionEmojis) {
 			message.react(emoji).catch(() => null);
 		}
+	}
+
+	private static _handleAutoThreads(message: Message<true>, config: GuildConfig): void {
+		const autoThreadChannel = config.data.auto_threads
+			.find(autoThreadChannel => autoThreadChannel.channel_id === message.channel.id);
+
+		if (!autoThreadChannel || !message.member) return;
+
+		const inScope = config.roleInScope(message.member, autoThreadChannel.role_scoping);
+
+		if (!inScope) return;
+
+		message.startThread({
+			name: autoThreadChannel.name
+				.replace("$USERNAME", `@${message.author.username}`)
+				.replace("$SURFACE_NAME", getSurfaceName(message.member))
+				.replace("$USER_ID", message.author.id),
+			reason: `Auto-thread created from @${message.author.username} (${message.author.id})'s message with ID ${message.id} in #${message.channel.name}`
+		}).catch(() => null);
 	}
 
 	private static async _handleMediaConversion(message: Message<true>, config: GuildConfig): Promise<void> {

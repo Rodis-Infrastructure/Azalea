@@ -23,6 +23,7 @@ A Discord moderation and utility bot built with [Bun](https://bun.sh), [discord.
 - **Moderation Activity** — View staff moderation stats (infractions dealt, requests reviewed/made), filterable by month and year.
 - **Auto-Publish** — Automatically crosspost messages in announcement channels.
 - **Auto-Reactions** — Add configured reactions to messages in specified channels.
+- **Auto-Threads** — Automatically start threads on messages in specified channels.
 - **Media Channels** — Enforce attachment requirements in specified channels.
 - **Scheduled Messages** — Cron-based scheduled messages with Sentry monitor slugs.
 - **Role Requests** — Configurable role request channels with optional TTL.
