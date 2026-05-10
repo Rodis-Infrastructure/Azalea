@@ -19,6 +19,7 @@ import { LoggingEvent } from "@managers/config/schema";
 import { channelMentionWithName, pluralize, roleMentionWithName, userMentionWithId } from "@/utils";
 import { formatMessageContentForShortLog } from "@utils/messages";
 import { captureInteractionError } from "@utils/sentry";
+import { runWithRequestContext, type RequestContext } from "@utils/requestContext";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ComponentManager from "@managers/components/ComponentManager";
@@ -46,6 +47,36 @@ export default class InteractionCreate extends EventListener {
 			return;
 		}
 
+		return runWithRequestContext(InteractionCreate._buildContext(interaction), () => {
+			return InteractionCreate._executeWithContext(interaction);
+		});
+	}
+
+	private static _buildContext(
+		interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>
+	): RequestContext {
+		const ctx: RequestContext = {
+			interaction_id: interaction.id,
+			guild_id: interaction.guildId,
+			user_id: interaction.user.id
+		};
+		if (interaction.channelId) ctx.channel_id = interaction.channelId;
+		if (interaction.isChatInputCommand() || interaction.isContextMenuCommand()) {
+			ctx.command = interaction.commandName;
+			ctx.command_kind = interaction.isChatInputCommand() ? "slash" : "context_menu";
+		} else if (interaction.isModalSubmit()) {
+			ctx.custom_id = interaction.customId;
+			ctx.command_kind = "modal";
+		} else if (interaction.isButton() || interaction.isAnySelectMenu()) {
+			ctx.custom_id = interaction.customId;
+			ctx.command_kind = "component";
+		}
+		return ctx;
+	}
+
+	private static async _executeWithContext(
+		interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>
+	): Promise<void> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId);
 
 		if (!config) {
@@ -64,11 +95,7 @@ export default class InteractionCreate extends EventListener {
 					}
 				} catch (error) {
 					const sentryId = captureInteractionError(error, interaction);
-
-					await interaction.reply({
-						content: `An error occurred while executing this interaction (\`${sentryId}\`)`,
-						flags: MessageFlags.Ephemeral
-					}).catch(() => null);
+					await InteractionCreate._replyError(interaction, sentryId);
 				}
 
 				return;
@@ -87,16 +114,30 @@ export default class InteractionCreate extends EventListener {
 			const sentryId = captureInteractionError(error, interaction, {
 				interaction_name: InteractionCreate._parseInteractionName(interaction)
 			});
-
-			await interaction.reply({
-				content: `An error occurred while executing this interaction (\`${sentryId}\`)`,
-				flags: MessageFlags.Ephemeral
-			}).catch(() => null);
-
+			await InteractionCreate._replyError(interaction, sentryId);
 			return;
 		}
 
 		InteractionCreate._log(interaction, config);
+	}
+
+	// Pick reply / editReply / followUp based on interaction state. The
+	// outer catch used to call reply() unconditionally, so any throw after
+	// the command had already deferred or replied would silently fail with
+	// `InteractionAlreadyReplied` and the user saw nothing.
+	private static async _replyError(
+		interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>,
+		sentryId: string
+	): Promise<void> {
+		const content = `An error occurred while executing this interaction (\`${sentryId}\`)`;
+
+		if (interaction.replied) {
+			await interaction.followUp({ content, flags: MessageFlags.Ephemeral }).catch(() => null);
+		} else if (interaction.deferred) {
+			await interaction.editReply({ content }).catch(() => null);
+		} else {
+			await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => null);
+		}
 	}
 
 	private static async _handle(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {

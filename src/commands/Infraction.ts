@@ -723,6 +723,10 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 					value: userMentionWithId(executor.id)
 				},
 				{
+					name: "Target",
+					value: userMentionWithId(oldState.target_id)
+				},
+				{
 					name: "Old Duration",
 					value: humanizeDuration(msOldDuration)
 				},

@@ -1,7 +1,18 @@
-import { captureException as sentryCapture } from "@sentry/node";
+import { captureException as sentryCapture, flush as flushSentry } from "@sentry/node";
 import type { Interaction } from "discord.js";
 
 export { captureException } from "@sentry/node";
+
+/**
+ * Capture an error and wait for Sentry to drain. Used for unrecoverable
+ * startup paths (missing config dir, schema parse failure, etc) — call
+ * this then `process.exit(1)` so the captured event reaches the upstream
+ * before the transport terminates.
+ */
+export async function captureAndFlush(error: unknown, scope?: SentryScope): Promise<void> {
+	sentryCapture(error, scope);
+	await flushSentry(2000).catch(() => null);
+}
 
 /**
  * Subset of Sentry's ScopeContext we actually use. Defining this locally avoids

@@ -30,6 +30,40 @@ jobs:
             git pull origin main
             bash scripts/deploy.sh
 
+      - name: Checkout source for Sentry release
+        # Read package.json + commit history. The release ID must match
+        # `Sentry.init`'s `release` value (name@version) so issues link
+        # back to the deploy that introduced them. Checkout is cheap, so
+        # always run; the actual release step no-ops if Sentry is unset.
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Sentry release
+        # Becomes a no-op silently when SENTRY_AUTH_TOKEN is unset, which
+        # makes the release step fully opt-in. Failures are non-fatal —
+        # the deploy already succeeded; release tagging is best-effort.
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "SENTRY_AUTH_TOKEN not set; skipping Sentry release."
+            exit 0
+          fi
+
+          NAME="$(node -p "require('./package.json').name")"
+          VERSION="$(node -p "require('./package.json').version")"
+          RELEASE="${NAME}@${VERSION}"
+
+          curl -sL https://sentry.io/get-cli/ | bash
+          sentry-cli releases new "$RELEASE"
+          sentry-cli releases set-commits "$RELEASE" --auto || true
+          sentry-cli releases finalize "$RELEASE"
+          sentry-cli releases deploys "$RELEASE" new --env "${SENTRY_ENVIRONMENT:-production}"
+
       - name: Notify Discord
         # Always runs so failures are reported too. Becomes a no-op
         # silently when the DISCORD_WEBHOOK_URL secret is unset, which

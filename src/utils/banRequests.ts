@@ -13,13 +13,14 @@ import { Result } from "./types";
 import { BanRequest, Prisma } from "@prisma/client";
 import { TypedRegEx } from "typed-regex";
 import { client, prisma } from "@";
+import { captureException, captureGuildError } from "./sentry";
+import { isPrismaErrorWithCode } from "./errors";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { removeClientReactions, temporaryReply } from "./messages";
 import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
 import { SECONDS_IN_DAY } from "./constants";
 import { userMentionWithId } from "./index";
 import { log } from "./eventLogging";
-import { captureGuildError } from "./sentry";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import StoreMediaCtx from "@/commands/StoreMediaCtx";
@@ -70,7 +71,15 @@ export default class BanRequestUtil {
 				where: { id: requestId },
 				data: { status, reviewer_id: reviewerId }
 			});
-		} catch {
+		} catch (error) {
+			// `P2025` ("record not found") is the routine "request was
+			// already deleted" case — return null without alerting.
+			// Anything else is a real DB error worth seeing.
+			if (isPrismaErrorWithCode(error, "P2025")) return null;
+			captureException(error, {
+				tags: { source: "ban_request_set_status" },
+				extra: { request_id: requestId, status }
+			});
 			return null;
 		}
 	}

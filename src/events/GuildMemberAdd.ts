@@ -4,6 +4,7 @@ import { prisma } from "@";
 import { log } from "@utils/eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
 import { toOrdinal, userMentionWithId } from "@/utils";
+import { captureGuildError } from "@utils/sentry";
 
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -57,10 +58,23 @@ export default class GuildMemberAdd extends EventListener {
 			const now = new Date();
 			// The mute hasn't expired and the member isn't muted
 			const msDuration = activeMute.expires_at!.getTime() - now.getTime();
-			member.timeout(msDuration, `Re-applied mute #${activeMute.id}`);
+			member.timeout(msDuration, `Re-applied mute #${activeMute.id}`).catch(error => {
+				captureGuildError(error, member.guild.id, {
+					userId: member.id,
+					username: member.user.username,
+					tags: { source: "reapply_mute" },
+					extra: { infraction_id: activeMute.id, duration_ms: msDuration }
+				});
+			});
 		} else if (member.isCommunicationDisabled()) {
 			// The mute has expired but the member is still muted
-			member.timeout(null, "Ended expired mute");
+			member.timeout(null, "Ended expired mute").catch(error => {
+				captureGuildError(error, member.guild.id, {
+					userId: member.id,
+					username: member.user.username,
+					tags: { source: "clear_expired_mute" }
+				});
+			});
 		}
 	}
 
