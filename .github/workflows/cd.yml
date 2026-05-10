@@ -41,9 +41,11 @@ jobs:
           fetch-depth: 0
 
       - name: Sentry release
-        # Becomes a no-op silently when SENTRY_AUTH_TOKEN is unset, which
-        # makes the release step fully opt-in. Failures are non-fatal —
-        # the deploy already succeeded; release tagging is best-effort.
+        # Becomes a no-op silently when any of the required Sentry inputs
+        # are unset, which makes the release step fully opt-in. Failures
+        # are non-fatal — the deploy already succeeded; release tagging
+        # is best-effort. SENTRY_ORG is optional with an org-level auth
+        # token (the org is embedded); user-level tokens require it.
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
@@ -51,6 +53,11 @@ jobs:
         run: |
           if [ -z "$SENTRY_AUTH_TOKEN" ]; then
             echo "SENTRY_AUTH_TOKEN not set; skipping Sentry release."
+            exit 0
+          fi
+          if [ -z "$SENTRY_PROJECT" ]; then
+            echo "SENTRY_PROJECT not set; skipping Sentry release."
+            echo "Set the SENTRY_PROJECT repo variable to the project slug to enable."
             exit 0
           fi
 
