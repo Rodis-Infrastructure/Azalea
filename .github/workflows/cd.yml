@@ -29,3 +29,60 @@ jobs:
             cd Projects/azalea
             git pull origin main
             bash scripts/deploy.sh
+
+      - name: Notify Discord
+        # Always runs so failures are reported too. Becomes a no-op
+        # silently when the DISCORD_WEBHOOK_URL secret is unset, which
+        # makes the notification fully opt-in.
+        if: always()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          STATUS: ${{ job.status }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          MESSAGE: ${{ github.event.workflow_run.head_commit.message }}
+          ACTOR: ${{ github.event.workflow_run.actor.login }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL not set; skipping notification."
+            exit 0
+          fi
+
+          case "$STATUS" in
+            success)   COLOR=3066993;  TITLE="✅ azalea deploy succeeded";;
+            failure)   COLOR=15158332; TITLE="❌ azalea deploy failed";;
+            cancelled) COLOR=10070709; TITLE="🟤 azalea deploy cancelled";;
+            *)         COLOR=10070709; TITLE="ℹ️ azalea deploy ${STATUS}";;
+          esac
+
+          SHORT_SHA="${SHA:0:7}"
+          FIRST_LINE="$(printf '%s' "$MESSAGE" | head -1)"
+
+          jq -n \
+            --arg title "$TITLE" \
+            --argjson color "$COLOR" \
+            --arg description "$FIRST_LINE" \
+            --arg repo "$REPO" \
+            --arg branch "$BRANCH" \
+            --arg short_sha "$SHORT_SHA" \
+            --arg full_sha "$SHA" \
+            --arg actor "$ACTOR" \
+            --arg run_url "$RUN_URL" \
+            '{
+               embeds: [{
+                 title: $title,
+                 url: $run_url,
+                 color: $color,
+                 description: $description,
+                 fields: [
+                   { name: "Repo",   value: $repo,                                                                   inline: true },
+                   { name: "Branch", value: $branch,                                                                 inline: true },
+                   { name: "Commit", value: ("[`" + $short_sha + "`](https://github.com/" + $repo + "/commit/" + $full_sha + ")"), inline: true },
+                   { name: "Actor",  value: $actor,                                                                  inline: true }
+                 ],
+                 timestamp: (now | todate)
+               }]
+             }' \
+          | curl -fsS -X POST -H "Content-Type: application/json" --data-binary @- "$DISCORD_WEBHOOK_URL"
