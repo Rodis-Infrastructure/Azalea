@@ -20,7 +20,7 @@ bash scripts/deploy.sh
 `scripts/deploy.sh` handles the rest:
 
 1. `bun install --frozen-lockfile --production` — production dependencies only.
-2. **Backup the SQLite database** to `prisma/backups/azalea.db.<UTC-timestamp>`. The 10 most recent backups are retained.
+2. **Backup the SQLite database** to `prisma/backups/azalea.db.<UTC-timestamp>.gz` (gzipped). The 3 most recent backups are retained.
 3. `bun run db:migrate` — apply pending Prisma migrations.
 4. `pm2 reload ecosystem.config.js` — graceful reload.
 
@@ -45,7 +45,7 @@ Configure these in the GitHub repo settings:
 The deploy script is just bash — you can run it locally on the host to reproduce or roll back. To restore from a backup:
 
 ```sh
-cp prisma/backups/azalea.db.<timestamp> prisma/azalea.db
+gunzip -c prisma/backups/azalea.db.<timestamp>.gz > prisma/azalea.db
 pm2 reload ecosystem.config.js
 ```
 
