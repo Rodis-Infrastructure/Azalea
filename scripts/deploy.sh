@@ -10,10 +10,20 @@ set -euo pipefail
 # `bun` and `pm2` resolve regardless of how this script was invoked.
 export PATH="$HOME/.bun/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 
-# Keep the host's Bun current. Lockfiles are written by recent Bun in dev
-# and CI; an older host Bun fails to parse them ("Outdated lockfile
-# version"). `bun upgrade` is idempotent and safe when already current.
-bun upgrade
+# Pin the host's Bun to the version recorded in `.bun-version`. CI uses
+# the same file via `oven-sh/setup-bun`, so dev/CI/prod stay in lockstep
+# and we never silently pull a Bun release that hasn't been vetted in CI
+# first. If `.bun-version` is absent (e.g. when running this script from
+# a stale checkout) we fall back to the currently installed Bun.
+PIN="$(cat .bun-version 2>/dev/null | tr -d '[:space:]')"
+if [ -n "$PIN" ]; then
+  if [ "$(bun --version 2>/dev/null)" != "$PIN" ]; then
+    echo "Pinning Bun to $PIN (current: $(bun --version 2>/dev/null || echo none))"
+    curl -fsSL https://bun.sh/install | bash -s "bun-v$PIN"
+  fi
+else
+  echo "WARNING: .bun-version missing; using installed Bun $(bun --version)"
+fi
 
 BACKUPS_DIR="prisma/backups"
 KEEP_BACKUPS=3
