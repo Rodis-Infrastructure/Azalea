@@ -249,7 +249,7 @@ export default class MessageCreate extends EventListener {
 		message.startThread({
 			name: autoThreadChannel.name
 				.replace("$USERNAME", `@${message.author.username}`)
-				.replace("$SURFACE_NAME", getSurfaceName(message.member))
+				.replace("$NICKNAME", `${message.member.nickname ?? `@${message.author.username}`}`)
 				.replace("$USER_ID", message.author.id),
 			reason: `Auto-thread created from @${message.author.username} (${message.author.id})'s message with ID ${message.id} in #${message.channel.name}`
 		}).catch(() => null);
