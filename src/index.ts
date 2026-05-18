@@ -3,10 +3,12 @@ import { CLIENT_INTENTS, CLIENT_PARTIALS, EXIT_EVENTS } from "@utils/constants";
 import { PrismaClient } from "@prisma/client";
 import { startCleanupOperations } from "./utils";
 import { Client, Events, Options } from "discord.js";
-import { init as initSentry } from "@sentry/node";
+import { flush as flushSentry, init as initSentry, prismaIntegration } from "@sentry/node";
 
 import { version as APP_VERSION, name as APP_NAME } from "../package.json";
 import { captureException } from "./utils/sentry";
+import { redactSecrets, stripUrlQueryString } from "./utils/secrets";
+import { serializeError } from "./utils/errors";
 import CommandManager from "./managers/commands/CommandManager";
 import EventListenerManager from "./managers/events/EventListenerManager";
 import ComponentManager from "./managers/components/ComponentManager";
@@ -53,37 +55,75 @@ export const client: Client<true> = new Client({
 	})
 });
 
+// Surface discord.js client lifecycle events. Without these, transport-level
+// failures and shard errors fall through to `unhandledRejection` with no tag.
+client.on(Events.Error, error => {
+	Logger.error(`Discord client error: ${error.message}`);
+	captureException(error, { tags: { source: "discord_client_error" } });
+});
+client.on(Events.ShardError, (error, shardId) => {
+	Logger.error(`Discord shard ${shardId} error: ${error.message}`);
+	captureException(error, {
+		tags: { source: "discord_shard_error", shard_id: String(shardId) }
+	});
+});
+client.on(Events.Warn, message => {
+	Logger.warn(`Discord client warning: ${message}`);
+});
+
 async function main(): Promise<void> {
 	if (!process.env.DISCORD_TOKEN) {
 		throw new Error("No token provided! Configure the DISCORD_TOKEN environment variable.");
 	}
 
+	const resolvedEnv = process.env.NODE_ENV ?? "development";
+
 	if (process.env.SENTRY_DSN) {
-		const isProd = process.env.NODE_ENV === "production";
+		const isProd = resolvedEnv === "production";
 
 		initSentry({
 			dsn: process.env.SENTRY_DSN,
 			release: `${APP_NAME}@${APP_VERSION}`,
-			environment: process.env.NODE_ENV ?? "development",
+			environment: resolvedEnv,
 			profilesSampleRate: isProd ? 0.1 : 1,
 			tracesSampleRate: isProd ? 0.2 : 1,
 			attachStacktrace: true,
+			integrations: [
+				// Spans every Prisma query so slow / failing DB calls show
+				// up in the performance view.
+				prismaIntegration()
+			],
+			ignoreErrors: [
+				"DiscordAPIError[10008]",
+				"DiscordAPIError[50013]",
+				"AbortError"
+			],
 			beforeSend(event) {
-				// Redact the bot token if it ever leaks into a captured value.
-				const token = process.env.DISCORD_TOKEN;
-				if (token && event.exception?.values) {
+				if (event.exception?.values) {
 					for (const exception of event.exception.values) {
 						if (exception.value) {
-							exception.value = exception.value.replaceAll(token, "[REDACTED]");
+							exception.value = redactSecrets(exception.value);
 						}
 					}
 				}
 				return event;
+			},
+			beforeBreadcrumb(breadcrumb) {
+				const data = breadcrumb.data;
+				if (data && typeof data.url === "string") {
+					data.url = redactSecrets(stripUrlQueryString(data.url));
+				}
+				if (typeof breadcrumb.message === "string") {
+					breadcrumb.message = redactSecrets(breadcrumb.message);
+				}
+				return breadcrumb;
 			}
 		});
 	} else {
 		Logger.warn("SENTRY_DSN is not set; error reporting is disabled.");
 	}
+
+	Logger.info(`Boot: env=${resolvedEnv}, sentry=${process.env.SENTRY_DSN ? "enabled" : "disabled"}, version=${APP_VERSION}`);
 
 	// Cache all components
 	await ComponentManager.cache();
@@ -92,7 +132,7 @@ async function main(): Promise<void> {
 	await client.login(process.env.DISCORD_TOKEN);
 
 	// Cache the configurations
-	ConfigManager.cacheGlobalConfig();
+	await ConfigManager.cacheGlobalConfig();
 	await ConfigManager.cacheGuildConfigs();
 
 	// Cache all commands
@@ -112,24 +152,20 @@ if (process.env.NODE_ENV !== "test") {
 	// Last-resort safety net for async errors that escape the call stack.
 	process.on("unhandledRejection", reason => {
 		const sentryId = captureException(reason);
-		Logger.error(`Unhandled promise rejection (${sentryId}):`);
-		Logger.error(reason instanceof Error ? reason.stack ?? reason.message : String(reason));
+		Logger.error(`Unhandled promise rejection (${sentryId})`, { error: serializeError(reason) });
 	});
 
 	process.on("uncaughtException", error => {
 		const sentryId = captureException(error);
-		Logger.error(`Uncaught exception (${sentryId}):`);
-		Logger.error(error.stack ?? error.message);
+		Logger.error(`Uncaught exception (${sentryId})`, { error: serializeError(error) });
 	});
 
 	// Perform closing operations on error
 	main()
-		.catch(error => {
+		.catch(async error => {
 			const sentryId = captureException(error);
-
-			Logger.error(`An unhandled error occurred: ${sentryId}`);
-			Logger.error(error);
-
+			Logger.error(`An unhandled error occurred (${sentryId})`, { error: serializeError(error) });
+			await flushSentry(2000).catch(() => null);
 			process.exit(1);
 		});
 }

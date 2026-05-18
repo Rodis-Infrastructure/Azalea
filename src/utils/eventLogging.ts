@@ -13,7 +13,11 @@ import { captureException } from "./sentry";
 import GuildConfig from "@managers/config/GuildConfig";
 
 /**
- * Logs an event to the appropriate logging channels
+ * Logs an event to the appropriate logging channels.
+ *
+ * Each configured channel is dispatched independently — a single failed
+ * send (perms revoked, channel deleted) must not silence sends to the
+ * other configured channels for the same event.
  *
  * @param data - The data to log
  */
@@ -26,21 +30,38 @@ export async function log(data: {
 }): Promise<Message<true>[] | null> {
 	const { event, config, channel, message, member } = data;
 
+	let channels: GuildTextBasedChannel[];
 	try {
-		const channels = await getLoggingChannels({ event, config, member, channel });
-
-		// Send the content in parallel to all logging channels
-		return Promise.all(channels.map(c => c.send(message)));
+		channels = await getLoggingChannels({ event, config, member, channel });
 	} catch (error) {
 		captureException(error, {
-			extra: {
-				event,
-				channel: channel?.id
-			}
+			tags: { source: "event_logging_resolve" },
+			extra: { event, channel: channel?.id, guild_id: config.guild.id }
 		});
+		return null;
 	}
 
-	return null;
+	const results = await Promise.allSettled(channels.map(c => c.send(message)));
+	const sent: Message<true>[] = [];
+
+	for (let i = 0; i < results.length; i++) {
+		const result = results[i];
+		if (result.status === "fulfilled") {
+			sent.push(result.value);
+		} else {
+			captureException(result.reason, {
+				tags: { source: "event_logging_send" },
+				extra: {
+					event,
+					guild_id: config.guild.id,
+					target_channel_id: channels[i].id,
+					origin_channel_id: channel?.id
+				}
+			});
+		}
+	}
+
+	return sent;
 }
 
 /**

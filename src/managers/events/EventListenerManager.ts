@@ -1,6 +1,7 @@
 import { client } from "@/index";
 import { pluralize } from "@/utils";
 import { captureException } from "@utils/sentry";
+import { runWithRequestContext } from "@utils/requestContext";
 
 import Logger, { AnsiColor } from "@utils/logger";
 import EventListener from "./EventListener";
@@ -40,9 +41,17 @@ export default class EventListenerManager {
 				const logMessage = `Mounted event listener "${listener.event}"`;
 
 				// Wrap the listener execution in an error boundary to prevent
-				// unhandled errors from crashing the bot
+				// unhandled errors from crashing the bot. The request context
+				// makes `event_name` flow into every log line and Sentry tag
+				// emitted while this listener runs, so the listener itself
+				// doesn't need to thread the event name through call sites.
 				const safeExecute = (...args: unknown[]): void => {
-					Promise.resolve(listener.execute(...args)).catch(error => {
+					Promise.resolve(
+						runWithRequestContext(
+							{ event_name: listener.event },
+							() => listener.execute(...args)
+						)
+					).catch(error => {
 						Logger.error(`Error in event listener "${listener.event}": ${error}`);
 						captureException(error, {
 							tags: { event_name: listener.event, source: "event_listener" }

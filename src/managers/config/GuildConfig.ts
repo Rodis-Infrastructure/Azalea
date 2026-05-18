@@ -33,6 +33,7 @@ import { MuteRequestStatus } from "@utils/muteRequests";
 import { BanRequestStatus } from "@utils/banRequests";
 import { TypedRegEx } from "typed-regex";
 import { capitalize } from "lodash";
+import { captureAndFlush, captureGuildError } from "@utils/sentry";
 
 import Logger from "@utils/logger";
 
@@ -57,7 +58,7 @@ export default class GuildConfig {
 			return null;
 		}
 
-		const config = GuildConfig.parse(guildId, data);
+		const config = await GuildConfig.parse(guildId, data);
 		return new GuildConfig(config, guild);
 	}
 
@@ -69,12 +70,15 @@ export default class GuildConfig {
      * @returns The guild configuration with default values set
      * @private
      */
-	static parse(guildId: Snowflake, data: unknown): RawGuildConfig {
+	static async parse(guildId: Snowflake, data: unknown): Promise<RawGuildConfig> {
 		const parseResult = rawGuildConfigSchema.safeParse(data);
 
 		if (!parseResult.success) {
 			const validationError = fromZodError(parseResult.error);
 			Logger.error(`GUILD_CONFIG: ${guildId} | ${validationError.toString()}`);
+			await captureAndFlush(validationError, {
+				tags: { source: "config_load_guild_validation", guild_id: guildId }
+			});
 			process.exit(1);
 		}
 
@@ -93,11 +97,19 @@ export default class GuildConfig {
 
 			if (!channel) {
 				Logger.error(`Failed to mount scheduled message, unknown channel.\ndata: ${stringifiedData}`);
+				captureGuildError(new Error("Scheduled message channel not found"), this.guild.id, {
+					tags: { source: "scheduled_message_mount", monitor_slug: schedule.monitor_slug },
+					extra: { channel_id: schedule.channel_id }
+				});
 				continue;
 			}
 
 			if (!channel.isTextBased()) {
 				Logger.error(`Failed to mount scheduled message, channel is not text-based.\ndata: ${stringifiedData}`);
+				captureGuildError(new Error("Scheduled message channel is not text-based"), this.guild.id, {
+					tags: { source: "scheduled_message_mount", monitor_slug: schedule.monitor_slug },
+					extra: { channel_id: schedule.channel_id, channel_type: channel.type }
+				});
 				continue;
 			}
 
@@ -171,11 +183,19 @@ export default class GuildConfig {
 
 		if (!reviewReminderChannel) {
 			Logger.error(`Failed to mount ${entityName} review reminders, unknown channel: ${stringifiedData}`);
+			captureGuildError(new Error(`${entityName} review reminder channel not found`), this.guild.id, {
+				tags: { source: "review_reminder_mount", entity_name: entityName, monitor_slug: cronJobSlug },
+				extra: { channel_id: reviewReminderConfig.channel_id }
+			});
 			return;
 		}
 
 		if (!reviewReminderChannel.isTextBased()) {
 			Logger.error(`Failed to mount ${entityName} review reminders, channel is not text-based: ${stringifiedData}`);
+			captureGuildError(new Error(`${entityName} review reminder channel is not text-based`), this.guild.id, {
+				tags: { source: "review_reminder_mount", entity_name: entityName, monitor_slug: cronJobSlug },
+				extra: { channel_id: reviewReminderConfig.channel_id, channel_type: reviewReminderChannel.type }
+			});
 			return;
 		}
 
@@ -229,11 +249,19 @@ export default class GuildConfig {
 
 		if (!reportChannel) {
 			Logger.error(`Failed to mount ${entityName} removal, unknown channel: ${stringifiedData}`);
+			captureGuildError(new Error(`${entityName} removal channel not found`), this.guild.id, {
+				tags: { source: "report_removal_mount", entity_name: entityName, monitor_slug: cronJobSlug },
+				extra: { channel_id: reportChannelId }
+			});
 			return;
 		}
 
 		if (!reportChannel.isTextBased()) {
 			Logger.error(`Failed to mount ${entityName} removal, channel is not text-based: ${stringifiedData}`);
+			captureGuildError(new Error(`${entityName} removal channel is not text-based`), this.guild.id, {
+				tags: { source: "report_removal_mount", entity_name: entityName, monitor_slug: cronJobSlug },
+				extra: { channel_id: reportChannelId, channel_type: reportChannel.type }
+			});
 			return;
 		}
 

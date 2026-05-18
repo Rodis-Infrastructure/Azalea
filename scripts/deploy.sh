@@ -4,6 +4,17 @@
 
 set -euo pipefail
 
+# appleboy/ssh-action runs a non-interactive non-login shell, so the host's
+# ~/.bashrc / ~/.profile (where Bun and PM2 add themselves to PATH) is
+# never sourced. Re-add both binaries' default install dirs explicitly so
+# `bun` and `pm2` resolve regardless of how this script was invoked.
+export PATH="$HOME/.bun/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
+
+# Keep the host's Bun current. Lockfiles are written by recent Bun in dev
+# and CI; an older host Bun fails to parse them ("Outdated lockfile
+# version"). `bun upgrade` is idempotent and safe when already current.
+bun upgrade
+
 BACKUPS_DIR="prisma/backups"
 KEEP_BACKUPS=10
 
@@ -19,4 +30,4 @@ fi
 
 bun run db:migrate
 
-( cd .. && pm2 reload ecosystem.config.js )
+( cd .. && pm2 reload ecosystem.config.js --only azalea --update-env )

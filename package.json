@@ -24,7 +24,7 @@
     "db:validate": "prisma validate",
     "db:format": "prisma format",
     "db:format:check": "prisma format && git diff --exit-code prisma/schema.prisma",
-    "db:check": "prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --shadow-database-url file:./.shadow.db --exit-code",
+    "db:check": "rm -f .shadow.db .shadow.db-journal && prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --shadow-database-url file:./.shadow.db --exit-code",
     "db:studio": "prisma studio",
     "db": "bun run db:migrate && bun run db:generate",
     "docker:build": "docker compose build",

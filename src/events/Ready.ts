@@ -8,6 +8,7 @@ import Logger, { AnsiColor } from "@utils/logger";
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
 import Reminders from "@/commands/Reminders";
+import { captureException } from "@utils/sentry";
 
 export default class Ready extends EventListener {
 	constructor() {
@@ -24,17 +25,29 @@ export default class Ready extends EventListener {
 
 		// Operations that require the global config
 		MessageCache.startDatabaseCronJob();
-		Reminders.mount();
+		// Reminders.mount returns a Promise — discarding it would leak any
+		// rejection. Capture and log so a failed mount doesn't kill the
+		// process via the unhandled-rejection global handler.
+		Reminders.mount().catch(error => captureException(error, {
+			tags: { source: "reminders_mount" }
+		}));
 
-		// Start scheduled messages for all guilds
+		// Start cron jobs for each guild. Per-task `.catch` so one
+		// failing guild (deleted channel, missing permission) doesn't
+		// strand the rest of the registrations.
 		ConfigManager.guildConfigs.forEach(config => {
-			config.startScheduledMessageCronJobs();
-			config.startMuteRequestReviewReminderCronJobs();
-			config.startBanRequestReviewReminderCronJobs();
-			config.startMessageReportReviewReminderCronJob();
-			config.startMessageReportRemovalCronJob();
-			config.startUserReportReviewReminderCronJob();
-			config.startUserReportRemovalCronJob();
+			const safeStart = (task: string, run: () => Promise<void>): void => {
+				run().catch(error => captureException(error, {
+					tags: { source: "guild_cron_mount", task, guild_id: config.guild.id }
+				}));
+			};
+			safeStart("scheduled_messages", () => config.startScheduledMessageCronJobs());
+			safeStart("mute_request_reminder", () => config.startMuteRequestReviewReminderCronJobs());
+			safeStart("ban_request_reminder", () => config.startBanRequestReviewReminderCronJobs());
+			safeStart("message_report_reminder", () => config.startMessageReportReviewReminderCronJob());
+			safeStart("message_report_removal", () => config.startMessageReportRemovalCronJob());
+			safeStart("user_report_reminder", () => config.startUserReportReviewReminderCronJob());
+			safeStart("user_report_removal", () => config.startUserReportRemovalCronJob());
 		});
 
 		// These cron jobs are global — start them once, outside the forEach
@@ -65,9 +78,15 @@ export default class Ready extends EventListener {
 
 			let removalCount = 0;
 
-			// Remove the roles from the users
+			// Remove the roles from the users. Each guild and each role is
+			// wrapped so one failure (kicked-out, deleted guild, missing
+			// permission) doesn't strand the rest of the tick's work.
 			for (const guildId in expiredRolesByGuild) {
-				const guild = await client.guilds.fetch(guildId);
+				const guild = await client.guilds.fetch(guildId).catch(() => null);
+				if (!guild) {
+					Logger.warn(`Skipping temporary role cleanup: guild ${guildId} unreachable`);
+					continue;
+				}
 				const roles = expiredRolesByGuild[guildId];
 
 				for (const role of roles) {
@@ -75,8 +94,8 @@ export default class Ready extends EventListener {
 
 					if (member?.roles.cache.has(role.role_id)) {
 						Logger.info(`Removing role ${role.role_id} from @${member.user.username} (${member.id})`);
-						await member.roles.remove(role.role_id);
-						removalCount++;
+						const removed = await member.roles.remove(role.role_id).catch(() => null);
+						if (removed) removalCount++;
 					}
 				}
 			}
@@ -116,9 +135,14 @@ export default class Ready extends EventListener {
 
 			let removalCount = 0;
 
-			// Remove the roles from the users
+			// Per-channel resilience: one missing or unreachable channel
+			// must not prevent removal of messages in the others.
 			for (const channelId in expiredMessagesByChannel) {
-				const channel = await client.channels.fetch(channelId) as GuildTextBasedChannel;
+				const channel = await client.channels.fetch(channelId).catch(() => null) as GuildTextBasedChannel | null;
+				if (!channel) {
+					Logger.warn(`Skipping temporary message cleanup: channel ${channelId} unreachable`);
+					continue;
+				}
 				const expiredMessages = expiredMessagesByChannel[channelId];
 
 				for (const data of expiredMessages) {

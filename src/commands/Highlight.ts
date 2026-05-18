@@ -7,6 +7,8 @@ import { CommandResponse } from "@utils/types";
 import { prisma } from "@";
 import { pluralize } from "@/utils";
 import { Permission } from "@managers/config/schema";
+import { captureInteractionError } from "@utils/sentry";
+import { isPrismaErrorWithCode } from "@utils/errors";
 
 const PATTERN_LIMIT = 20;
 const PATTERN_CHAR_LIMIT = 45;
@@ -232,7 +234,12 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 					}
 				}
 			});
-		} catch {
+		} catch (error) {
+			// `P2002` is the expected duplicate-key path; surface it to
+			// the user without alerting Sentry. Anything else is a bug.
+			if (!isPrismaErrorWithCode(error, "P2002")) {
+				captureInteractionError(error, interaction, { source: "highlight_pattern_add", pattern });
+			}
 			return {
 				content: "Failed to add pattern. Please check whether the pattern is a duplicate.",
 				ephemeral: true,
@@ -256,7 +263,12 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 					}
 				}
 			});
-		} catch {
+		} catch (error) {
+			// `P2025` = the row didn't exist; that's the user-visible
+			// "pattern not found" case, not an error worth alerting on.
+			if (!isPrismaErrorWithCode(error, "P2025")) {
+				captureInteractionError(error, interaction, { source: "highlight_pattern_remove", pattern });
+			}
 			return {
 				content: "Failed to remove pattern. Please check whether the pattern exists.",
 				ephemeral: true,
@@ -325,7 +337,14 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 					}
 				}
 			});
-		} catch {
+		} catch (error) {
+			if (!isPrismaErrorWithCode(error, "P2002")) {
+				captureInteractionError(error, interaction, {
+					source: "highlight_channel_scope_add",
+					target_channel_id: channel.id,
+					scoping_type: stringifiedScopingType
+				});
+			}
 			return {
 				content: `Failed to ${stringifiedScopingType} ${channel}. Please check whether the channel is already in the scope.`,
 				ephemeral: true,
@@ -349,7 +368,13 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 					}
 				}
 			});
-		} catch {
+		} catch (error) {
+			if (!isPrismaErrorWithCode(error, "P2025")) {
+				captureInteractionError(error, interaction, {
+					source: "highlight_channel_scope_remove",
+					target_channel_id: channel.id
+				});
+			}
 			return {
 				content: `Failed to remove ${channel} from highlights. Please check whether the channel is in the scope.`,
 				ephemeral: true,
@@ -408,7 +433,13 @@ export default class Highlight extends Command<ChatInputCommandInteraction<"cach
 			]);
 
 			return `Successfully erased \`${patterns.count}\` ${pluralize(patterns.count, "highlight")} for ${user}.`;
-		} catch {
+		} catch (error) {
+			if (!isPrismaErrorWithCode(error, "P2025")) {
+				captureInteractionError(error, interaction, {
+					source: "highlight_erase",
+					target_user_id: user.id
+				});
+			}
 			return `Failed to erase highlights for ${user}. This user may not have any highlights set up.`;
 		}
 	}
