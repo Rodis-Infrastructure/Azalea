@@ -40,8 +40,8 @@ Azalea reads and stores member-related data when needed for join/leave logs, mod
 
 Azalea stores operational data in the configured SQLite database. Retention depends on the feature:
 
-- messages are kept until the configured message retention job removes them;
-- reports and user/moderation records are kept until resolved, archived, or removed by the configured cleanup jobs;
+- messages are kept for 28 days;
+- reports and user/moderation records are kept until resolved, archived, or removed by the cleanup jobs;
 - temporary roles and temporary messages are removed when they expire;
 - reminders are kept until they are completed or deleted.
 
