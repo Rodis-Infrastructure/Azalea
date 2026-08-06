@@ -35,7 +35,7 @@ jobs:
         # `Sentry.init`'s `release` value (name@version) so issues link
         # back to the deploy that introduced them. Checkout is cheap, so
         # always run; the actual release step no-ops if Sentry is unset.
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
