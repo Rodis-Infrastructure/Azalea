@@ -42,6 +42,8 @@ model Message {
   deleted      Boolean  @default(false)
   content      String?
   sticker_id   String?
+  /// Number of attachments the message had
+  attachment_count Int @default(0)
   /// ID of the message this message is replying to
   reference_id String?
 

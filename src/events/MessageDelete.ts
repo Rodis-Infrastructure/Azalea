@@ -152,7 +152,7 @@ export async function handleShortMessageDeleteLog(
 			},
 			{
 				name: "Message Content",
-				value: await formatMessageContentForShortLog(message.content, message.sticker_id, messageURL)
+				value: await formatMessageContentForShortLog(message.content, message.sticker_id, messageURL, message.attachment_count)
 			}
 		])
 		.setTimestamp(message.created_at);
