@@ -1,7 +1,7 @@
 import { Colors, EmbedBuilder, Events, GuildMember, roleMention, time, TimestampStyles } from "discord.js";
 import { log } from "@utils/eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
-import { userMentionWithId } from "@/utils";
+import { getEscapedSurfaceName, userMentionWithId } from "@/utils";
 
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -26,7 +26,7 @@ export default class GuildMemberRemove extends EventListener {
 			.setFields([
 				{
 					name: "User",
-					value: userMentionWithId(member.id)
+					value: `${userMentionWithId(member.id)}\n${getEscapedSurfaceName(member)}`
 				},
 				{
 					name: "Created",

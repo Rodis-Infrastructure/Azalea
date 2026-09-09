@@ -4,6 +4,7 @@ import {
 	ThreadChannel,
 	TextBasedChannel,
 	cleanContent as djsCleanContent,
+	escapeMarkdown,
 	User,
 	GuildMember
 } from "discord.js";
@@ -307,6 +308,24 @@ export function getSurfaceName(member: GuildMember | User): string {
 	}
 
 	return `@${username} | ${displayName}`;
+}
+
+/**
+ * Gets a user's surface name, escaped for use in contexts that render markdown (e.g. embed fields)
+ *
+ * Names are escaped because the accounts these are most useful for are the ones likely to
+ * abuse markdown - distorting the log or disguising a link behind the name
+ *
+ * @param member - The guild member or user to get the surface name of
+ * @returns The user's escaped surface name
+ */
+export function getEscapedSurfaceName(member: GuildMember | User): string {
+	return escapeMarkdown(getSurfaceName(member), {
+		heading: true,
+		bulletedList: true,
+		numberedList: true,
+		maskedLink: true
+	});
 }
 
 /**
