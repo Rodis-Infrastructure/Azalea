@@ -319,6 +319,7 @@ export class MessageCache {
 			created_at: message.createdAt,
 			content: cleanContent(message.content, message.channel),
 			sticker_id: stickerId,
+			attachment_count: message.attachments.size,
 			reference_id: referenceId,
 			deleted: false
 		};
@@ -364,7 +365,12 @@ export async function prependReferenceLog(reference: string | Message, embeds: E
 }
 
 // Escape code blocks, truncate the content if it's too long, and wrap it in a code block
-export async function formatMessageContentForShortLog(content: string | null, stickerId: string | null, url: string | null): Promise<string> {
+export async function formatMessageContentForShortLog(
+	content: string | null,
+	stickerId: string | null,
+	url: string | null,
+	attachmentCount = 0
+): Promise<string> {
 	let rawContent = url ? hyperlink("Jump to message", url) : "";
 
 	if (stickerId) {
@@ -375,6 +381,10 @@ export async function formatMessageContentForShortLog(content: string | null, st
 		} else {
 			rawContent += ` \`|\` Lottie Sticker: ${sticker.name}`;
 		}
+	}
+
+	if (attachmentCount) {
+		rawContent += ` \`|\` (attachment count: ${attachmentCount})`;
 	}
 
 	if (content) {
@@ -429,6 +439,10 @@ export async function formatBulkMessageLogEntry(message: Message): Promise<strin
 	}
 
 	content ??= message.content ?? EMPTY_MESSAGE_CONTENT;
+
+	if (message.attachment_count) {
+		content += ` (attachment count: ${message.attachment_count})`;
+	}
 
 	return `[${timestamp}] ${message.author_id} — ${content}`;
 }
