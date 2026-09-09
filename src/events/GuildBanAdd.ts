@@ -1,11 +1,11 @@
 import { Colors, EmbedBuilder, Events, GuildBan, Snowflake } from "discord.js";
 import { MessageReportStatus, UserReportStatus } from "@utils/reports";
-import { log } from "@utils/logging";
+import { log } from "@utils/eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
 import { pluralize } from "@/utils";
 import { InfractionManager } from "@utils/infractions";
-import { captureException } from "@sentry/node";
-import { prisma } from "./..";
+import { captureGuildError } from "@utils/sentry";
+import { prisma } from "@";
 
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -28,13 +28,17 @@ export default class GuildBanAdd extends EventListener {
 				GuildBanAdd._clearUserReports(ban.user.id, config)
 			]);
 		} catch (error) {
-			const sentryId = captureException(error);
+			const sentryId = captureGuildError(error, ban.guild.id, {
+				userId: ban.user.id,
+				username: ban.user.username,
+				tags: { source: "guild_ban_cleanup" }
+			});
 			Logger.error(`Failed to perform cleanup operations for @${ban.user.username} (${ban.user.id}) | ${sentryId}`);
 		}
 	}
 
 	private static async _clearMessageReports(userId: Snowflake, config: GuildConfig): Promise<void> {
-		const messageReportChannelId = config.data.message_reports?.report_channel;
+		const messageReportChannelId = config.data.message_reports?.channel_id;
 		const messageReportChannel = messageReportChannelId && await config.guild.channels
 			.fetch(messageReportChannelId)
 			.catch(() => null);
@@ -43,22 +47,21 @@ export default class GuildBanAdd extends EventListener {
 			return;
 		}
 
+		const reportFilter = {
+			status: MessageReportStatus.Unresolved,
+			message_deleted: true,
+			author_id: userId,
+			guild_id: config.guild.id
+		};
+
 		const [messageReports] = await prisma.$transaction([
 			prisma.messageReport.findMany({
 				select: { id: true },
-				where: {
-					status: MessageReportStatus.Unresolved,
-					message_deleted: true,
-					author_id: userId
-				}
+				where: reportFilter
 			}),
 			prisma.messageReport.updateMany({
 				data: { status: MessageReportStatus.Resolved },
-				where: {
-					status: MessageReportStatus.Unresolved,
-					message_deleted: true,
-					author_id: userId
-				}
+				where: reportFilter
 			})
 		]);
 
@@ -88,7 +91,7 @@ export default class GuildBanAdd extends EventListener {
 	}
 
 	private static async _clearUserReports(userId: Snowflake, config: GuildConfig): Promise<void> {
-		const userReportChannelId = config.data.user_reports?.report_channel;
+		const userReportChannelId = config.data.user_reports?.channel_id;
 		const userReportChannel = userReportChannelId && await config.guild.channels
 			.fetch(userReportChannelId)
 			.catch(() => null);

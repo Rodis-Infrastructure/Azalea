@@ -10,16 +10,18 @@ import {
 } from "discord.js";
 
 import { Snowflake } from "discord-api-types/v10";
-import { Messages } from "./messages";
+import { MessageCache } from "./messages";
 import { ObjectDiff } from "./types";
 import { CronJob, CronJobParams } from "cron";
-import { prisma } from "./..";
+import { client, prisma } from "@";
 import { DEFAULT_TIMEZONE } from "./constants";
-import { cron } from "@sentry/node";
+import { cron, flush as flushSentry } from "@sentry/node";
+import { captureException } from "./sentry";
+import { runWithRequestContext } from "./requestContext";
 
 import Logger, { AnsiColor } from "./logger";
 import YAML from "yaml";
-import _ from "lodash";
+import { isEqual } from "lodash";
 import fs from "fs";
 
 /**
@@ -85,7 +87,8 @@ export async function startCleanupOperations(event: string): Promise<void> {
 	});
 
 	try {
-		await Messages.store();
+		await MessageCache.store();
+		client.destroy();
 		await terminateDbConnection();
 	} catch (error) {
 		Logger.log(event, `Cleanup operations failed: ${error}`, {
@@ -100,7 +103,10 @@ export async function startCleanupOperations(event: string): Promise<void> {
 		full: true
 	});
 
-	process.exit(0);
+	// Flush in-flight events before pm2 respawns the process; the previous
+	// tick's captures would otherwise be lost.
+	await flushSentry(2000).catch(() => null);
+	process.exit(1);
 }
 
 async function terminateDbConnection(): Promise<void> {
@@ -130,10 +136,10 @@ export function getObjectDiff(oldObject: any, newObject: any): ObjectDiff {
 	}
 
 	const differences: ObjectDiff = {};
-	const keys = Object.keys(oldObject);
+	const allKeys = new Set([...Object.keys(oldObject), ...Object.keys(newObject)]);
 
-	for (const key of keys) {
-		if (!_.isEqual(oldObject[key], newObject[key])) {
+	for (const key of allKeys) {
+		if (!isEqual(oldObject[key], newObject[key])) {
 			differences[key] = {
 				old: oldObject[key],
 				new: newObject[key]
@@ -166,7 +172,7 @@ export function roleMentionWithName(role: Role): `<@&${Snowflake}> (\`@${string}
  * @param ms - The number of milliseconds to humanize
  * @returns The string representation of the given number of milliseconds (e.g. 300000 = "5 minutes")
  */
-export function humanizeTimestamp(ms: number): string {
+export function humanizeDuration(ms: number): string {
 	const units = [
 		{ unit: "day", value: 24 * 60 * 60 * 1000 },
 		{ unit: "hour", value: 60 * 60 * 1000 },
@@ -176,9 +182,8 @@ export function humanizeTimestamp(ms: number): string {
 	return units
 		.map(({ unit, value }) => {
 			const count = Math.floor(ms / value);
-			const isInRange = count > 0 && count < 60;
 			ms %= value;
-			return isInRange && `${count} ${pluralize(count, unit)}`;
+			return count > 0 && `${count} ${pluralize(count, unit)}`;
 		})
 		.filter(Boolean)
 		.join(" ") || "< 1 minute";
@@ -191,7 +196,7 @@ export function humanizeTimestamp(ms: number): string {
  * @param maxLength - The maximum length of the string
  * @returns The cropped string (if it exceeds the maximum length)
  */
-export function elipsify(str: string, maxLength: number): string {
+export function ellipsize(str: string, maxLength: number): string {
 	if (str.length > maxLength) {
 		const croppedStr = str.slice(0, maxLength - 23);
 		return `${croppedStr}…(${str.length - croppedStr.length} more characters)`;
@@ -217,17 +222,31 @@ export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronT
 	cronJobWithCheckIn.from({
 		cronTime,
 		timeZone: DEFAULT_TIMEZONE,
-		onTick: async () => {
+		// All `onTick` invocations are wrapped — a single failing tick must
+		// never bubble out and become an unhandled rejection. Sentry sees
+		// the error via `captureException`, the next tick still fires.
+		// The request context propagates `monitor_slug` into every log
+		// line and Sentry tag emitted inside the tick body.
+		onTick: () => runWithRequestContext({ source: "cron_tick", monitor_slug: monitorSlug }, async () => {
 			Logger.log(monitorSlug, "Running cron job...", {
 				color: AnsiColor.Orange
 			});
 
-			await onTick();
-
-			Logger.log(monitorSlug, "Successfully ran cron job", {
-				color: AnsiColor.Orange
-			});
-		}
+			const start = performance.now();
+			try {
+				await onTick();
+				const elapsedMs = Math.round(performance.now() - start);
+				Logger.log(monitorSlug, `Successfully ran cron job in ${elapsedMs}ms`, {
+					color: AnsiColor.Orange
+				});
+			} catch (error) {
+				const elapsedMs = Math.round(performance.now() - start);
+				const sentryId = captureException(error, {
+					extra: { elapsed_ms: elapsedMs }
+				});
+				Logger.error(`Cron job "${monitorSlug}" failed after ${elapsedMs}ms (${sentryId}): ${error instanceof Error ? error.message : String(error)}`);
+			}
+		})
 	}).start();
 
 	Logger.log(monitorSlug, `Cron job started: ${cronTime}`, {
@@ -242,7 +261,7 @@ export function startCronJob(monitorSlug: string, cronTime: CronJobParams["cronT
  * @param url - The URL of the file to preview
  * @returns The URL to preview the file content
  */
-export function getFilePreviewURL(url: string): string {
+export function getFileViewerURL(url: string): string {
 	return `https://discord-fv.vercel.app/?url=${encodeURIComponent(url)}`;
 }
 
@@ -322,16 +341,24 @@ export function stringifyJSON(obj: unknown, space = 2): string {
 	}, space);
 }
 
-export function stringifyPositionalNum(num: number | string): string {
+export function toOrdinal(num: number | string): string {
 	const numStr = num.toLocaleString();
-	const lastDigit = numStr[numStr.length - 1];
+	const numVal = typeof num === "string" ? parseInt(num) : num;
+	const lastTwoDigits = numVal % 100;
+
+	// 11th, 12th, 13th are exceptions to the standard rules
+	if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
+		return `${numStr}th`;
+	}
+
+	const lastDigit = numVal % 10;
 
 	switch (lastDigit) {
-		case "1":
+		case 1:
 			return `${numStr}st`;
-		case "2":
+		case 2:
 			return `${numStr}nd`;
-		case "3":
+		case 3:
 			return `${numStr}rd`;
 		default:
 			return `${numStr}th`;

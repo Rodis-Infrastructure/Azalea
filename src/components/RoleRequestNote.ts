@@ -1,17 +1,21 @@
 import {
+	ActionRow,
 	ActionRowBuilder,
+	APIActionRowComponent,
+	APIComponentInMessageActionRow,
 	ButtonBuilder,
 	ButtonComponentData,
 	ButtonInteraction,
 	ButtonStyle,
 	EmbedBuilder,
+	MessageActionRowComponent,
 	ModalBuilder,
 	StringSelectMenuBuilder,
 	TextInputBuilder,
 	TextInputStyle
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
 
 import Component from "@managers/components/Component";
@@ -25,7 +29,7 @@ export default class RoleRequestNote extends Component {
 		});
 	}
 
-	async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ButtonInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const [embed] = interaction.message.embeds;
 
@@ -78,7 +82,7 @@ export default class RoleRequestNote extends Component {
 		// If the select menu is present, add it back to the components
 		if (rawComponents.length === 2) {
 			const selectMenuActionRow = new ActionRowBuilder<StringSelectMenuBuilder>(
-				rawComponents[0].toJSON()
+				rawComponents[0].toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>
 			);
 
 			components.push(selectMenuActionRow);
@@ -98,7 +102,7 @@ export default class RoleRequestNote extends Component {
 
 		// The request have been approved
 		if (rawComponents.length === 1) {
-			const rawRemoveRoleButton = rawComponents[0].components[2].toJSON() as ButtonComponentData;
+			const rawRemoveRoleButton = (rawComponents[0] as ActionRow<MessageActionRowComponent>).components[2].toJSON() as ButtonComponentData;
 			const removeRoleButton = new ButtonBuilder(rawRemoveRoleButton);
 			buttonActionRow.addComponents(removeRoleButton);
 		}

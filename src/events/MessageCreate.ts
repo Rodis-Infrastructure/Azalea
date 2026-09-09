@@ -12,10 +12,10 @@ import {
 	StringSelectMenuBuilder
 } from "discord.js";
 
-import { formatMessageContentForShortLog, Messages, temporaryReply } from "@utils/messages";
+import { formatMessageContentForShortLog, MessageCache, temporaryReply } from "@utils/messages";
 import { channelMentionWithName, getSurfaceName, pluralize, userMentionWithId } from "@/utils";
 import { RoleRequestNoteAction } from "@/components/RoleRequestNote";
-import { client, prisma } from "./..";
+import { client, prisma } from "@";
 import { DEFAULT_EMBED_COLOR } from "@utils/constants";
 import { ChannelScoping, LoggingEvent } from "@managers/config/schema";
 import { HighlightChannelScopingType } from "@/commands/Highlight";
@@ -27,7 +27,7 @@ import GuildConfig from "@managers/config/GuildConfig";
 import MuteRequestUtil from "@utils/muteRequests";
 import BanRequestUtil from "@utils/banRequests";
 import Logger from "@utils/logger";
-import { log } from "@utils/logging";
+import { log } from "@utils/eventLogging";
 
 export default class MessageCreate extends EventListener {
 	constructor() {
@@ -43,7 +43,7 @@ export default class MessageCreate extends EventListener {
 
 		// Handle announcement publishing
 		if (config.data.auto_publish_announcements.includes(message.channel.id)) {
-			MessageCreate._publishAnnouncement(message, config);
+			await MessageCreate._publishAnnouncement(message, config);
 		}
 
 		// Handle new mute requests
@@ -59,22 +59,23 @@ export default class MessageCreate extends EventListener {
 		// Subsequent processes should not run if the message author is a bot
 		if (message.author.bot) return;
 
-		Messages.queue(message);
+		MessageCache.cache(message);
 		MessageCreate._handleAutoReactions(message, config);
+		MessageCreate._handleAutoThreads(message, config);
 		await MessageCreate._handleMediaChannel(message, config);
 
 		// Handle media conversion
-		if (message.channel.id === config.data.media_conversion_channel) {
+		if (message.channel.id === config.data.media_conversion_channel_id) {
 			await MessageCreate._handleMediaConversion(message, config);
 		}
 
 		// Handle role requests
 		if (config.data.role_requests?.channel_id === message.channel.id && message.mentions.users.size) {
-			MessageCreate._createRoleRequest(message, config);
+			await MessageCreate._createRoleRequest(message, config);
 		}
 
 		// Handle message highlights
-		MessageCreate._highlightMessage(message, config);
+		await MessageCreate._highlightMessage(message, config);
 	}
 
 	private static async _highlightMessage(message: Message<true>, config: GuildConfig): Promise<void> {
@@ -207,7 +208,7 @@ export default class MessageCreate extends EventListener {
 		if (isExcluded) return;
 
 		const hasAttachments = message.attachments.size > 0 || message.content.includes("://");
-		const canPostInMediaChannel = !mediaChannel.allowed_roles || mediaChannel.allowed_roles
+		const canPostInMediaChannel = !mediaChannel.include_roles || mediaChannel.include_roles
 			.some(roleId => message.member?.roles.cache.has(roleId));
 
 		if (!hasAttachments) {
@@ -233,6 +234,25 @@ export default class MessageCreate extends EventListener {
 		for (const emoji of autoReactionEmojis) {
 			message.react(emoji).catch(() => null);
 		}
+	}
+
+	private static _handleAutoThreads(message: Message<true>, config: GuildConfig): void {
+		const autoThreadChannel = config.data.auto_threads
+			.find(autoThreadChannel => autoThreadChannel.channel_id === message.channel.id);
+
+		if (!autoThreadChannel || !message.member) return;
+
+		const inScope = config.roleInScope(message.member, autoThreadChannel.role_scoping);
+
+		if (!inScope) return;
+
+		message.startThread({
+			name: autoThreadChannel.name
+				.replace("$USERNAME", `@${message.author.username}`)
+				.replace("$NICKNAME", `${message.member.nickname ?? `@${message.author.username}`}`)
+				.replace("$USER_ID", message.author.id),
+			reason: `Auto-thread created from @${message.author.username} (${message.author.id})'s message with ID ${message.id} in #${message.channel.name}`
+		}).catch(() => null);
 	}
 
 	private static async _handleMediaConversion(message: Message<true>, config: GuildConfig): Promise<void> {

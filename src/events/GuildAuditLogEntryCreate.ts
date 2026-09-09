@@ -9,10 +9,10 @@ import {
 	User
 } from "discord.js";
 
-import { InfractionAction, InfractionFlag, InfractionManager, InfractionUtil } from "@utils/infractions";
+import { InfractionAction, InfractionSource, InfractionManager, InfractionUtil } from "@utils/infractions";
 import { DEFAULT_INFRACTION_REASON, EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { elipsify } from "@/utils";
-import { client } from "./..";
+import { ellipsize } from "@/utils";
+import { client } from "@";
 
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -32,7 +32,7 @@ export default class GuildAuditLogEntryCreate extends EventListener {
 		const executor = await client.users.fetch(executorId).catch(() => null);
 		if (!executor) return;
 
-		const parsedReason = elipsify(reason ?? DEFAULT_INFRACTION_REASON, EMBED_FIELD_CHAR_LIMIT);
+		const parsedReason = ellipsize(reason ?? DEFAULT_INFRACTION_REASON, EMBED_FIELD_CHAR_LIMIT);
 		const formattedReason = InfractionUtil.formatReason(parsedReason);
 		const executorMember = await guild.members.fetch(executor)
 			.catch(() => null);
@@ -46,8 +46,8 @@ export default class GuildAuditLogEntryCreate extends EventListener {
 		};
 
 		const flag = executor.bot
-			? InfractionFlag.Automatic
-			: InfractionFlag.Native;
+			? InfractionSource.Automatic
+			: InfractionSource.Native;
 
 		switch (auditLog.action) {
 			case AuditLogEvent.MemberKick:

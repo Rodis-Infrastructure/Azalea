@@ -6,10 +6,10 @@ import {
 	GuildMember
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { Snowflake } from "discord-api-types/v10";
 import { randInt, userMentionWithId } from "@/utils";
-import { log } from "@utils/logging";
+import { log } from "@utils/eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
 
 import GuildConfig from "@managers/config/GuildConfig";
@@ -35,14 +35,14 @@ export default class CensorNickname extends Command<ChatInputCommandInteraction<
 		});
 	}
 
-	execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const member = interaction.options.getMember("member");
 
 		return CensorNickname.handle(interaction.member, member, config);
 	}
 
-	static async handle(executor: GuildMember, target: GuildMember | null, config: GuildConfig): Promise<InteractionReplyData> {
+	static async handle(executor: GuildMember, target: GuildMember | null, config: GuildConfig): Promise<CommandResponse> {
 		if (!target) {
 			return {
 				content: "You can't censor the nickname of someone who isn't in the server",

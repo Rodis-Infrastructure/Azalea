@@ -1,19 +1,10 @@
 # use the official Bun image
 # see all versions at https://hub.docker.com/r/oven/bun/tags
-FROM oven/bun:1.3.1@sha256:9c5d3c92b234b4708198577d2f39aab7397a242a40da7c2f059e51b9dc62b408 as base
+FROM oven/bun:1.3.14@sha256:e10577f0db68676a7024391c6e5cb4b879ebd17188ab750cf10024a6d700e5c4 AS base
 WORKDIR /usr/src/app
 
-# set environment variables
-ARG DATABASE_URL
-ARG DISCORD_TOKEN
-ARG SENTRY_DSN
-
-ENV DATABASE_URL=$DATABASE_URL
-ENV DISCORD_TOKEN=$DISCORD_TOKEN
-ENV SENTRY_DSN=$SENTRY_DSN
-
 # copy node binary from official node image
-COPY --from=node:22.21-slim@sha256:f9f7f95dcf1f007b007c4dcd44ea8f7773f931b71dc79d57c216e731c87a090b /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22.22-slim@sha256:e21fc383b50d5347dc7a9f1cae45b8f4e2f0d39f7ade28e4eef7d2934522b752 /usr/local/bin/node /usr/local/bin/node
 
 # install dependencies into temp directory
 # this will cache them and speed up future builds
@@ -28,13 +19,15 @@ RUN cd /temp/prod && bun install --frozen-lockfile --production
 FROM base AS release
 COPY --from=install /temp/prod/ .
 
-# ensure prisma.schema is already in the directory
-# before installing the prisma client
-COPY . .
-RUN bunx prisma generate && bunx prisma migrate deploy
-# give the user permission to write to the prisma directory
-RUN chown -R bun:bun /usr/src/app/prisma
+# copy source code with bun ownership so generated artifacts are writable at runtime
+COPY --chown=bun:bun . .
+RUN bunx prisma generate
 
-# run the app
+# create the SQLite data directory (mounted as a volume in docker-compose)
+RUN mkdir -p data && chown bun:bun data
+
+# run migrations at startup, then start the app
+# secrets (DISCORD_TOKEN, SENTRY_DSN, DATABASE_URL) should be provided
+# at runtime via environment variables or docker-compose env_file
 USER bun
-ENTRYPOINT [ "bun", "start" ]
+ENTRYPOINT [ "sh", "-c", "bunx prisma migrate deploy && bun start" ]

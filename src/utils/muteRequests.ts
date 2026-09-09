@@ -2,13 +2,14 @@ import { Colors, EmbedBuilder, GuildMember, hyperlink, Message, messageLink, Sno
 import { Result } from "./types";
 import { MuteRequest, Prisma } from "@prisma/client";
 import { TypedRegEx } from "typed-regex";
-import { client, prisma } from "./..";
+import { client, prisma } from "@";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { removeClientReactions, temporaryReply } from "./messages";
 import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
 import { userMentionWithId } from "./index";
-import { log } from "./logging";
-import { captureException } from "@sentry/node";
+import { log } from "./eventLogging";
+import { captureException, captureGuildError } from "./sentry";
+import { isPrismaErrorWithCode } from "./errors";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import StoreMediaCtx from "@/commands/StoreMediaCtx";
@@ -61,7 +62,14 @@ export default class MuteRequestUtil {
 				where: { id: requestId },
 				data: { status, reviewer_id: reviewerId }
 			});
-		} catch {
+		} catch (error) {
+			// `P2025` ("record not found") is the routine "request was
+			// already deleted" case — return null without alerting.
+			if (isPrismaErrorWithCode(error, "P2025")) return null;
+			captureException(error, {
+				tags: { source: "mute_request_set_status" },
+				extra: { request_id: requestId, status }
+			});
 			return null;
 		}
 	}
@@ -194,9 +202,9 @@ export default class MuteRequestUtil {
 
 		// Ensure the passed duration does not exceed the maximum mute duration
 		// Use the default mute duration if no duration is provided
-		const durationSeconds = args.duration
-			? Math.min(ms(args.duration as ms.StringValue) / 1000, config.data.default_mute_duration_seconds)
-			: config.data.default_mute_duration_seconds;
+		const durationMs = args.duration
+			? Math.min(ms(args.duration as ms.StringValue), config.data.default_mute_duration)
+			: config.data.default_mute_duration;
 
 		return {
 			ok: true,
@@ -209,7 +217,7 @@ export default class MuteRequestUtil {
 					guild_id: config.guild.id,
 					reason: args.reason,
 					status: MuteRequestStatus.Pending,
-					duration: durationSeconds
+					duration: durationMs / 1000
 				}
 			}
 		};
@@ -307,7 +315,12 @@ export default class MuteRequestUtil {
 		try {
 			await targetMember?.timeout(data.duration * 1000, data.reason);
 		} catch (error) {
-			const sentryId = captureException(error);
+			const sentryId = captureGuildError(error, config.guild.id, {
+				userId: reviewer.id,
+				username: reviewer.user.username,
+				tags: { source: "mute_request_apply" },
+				extra: { target_id: data.target_id, duration_seconds: data.duration }
+			});
 
 			InfractionManager.deleteInfraction(infraction.id);
 			config.sendNotification(`${reviewer} An error occurred while muting the member (\`${sentryId}\`)`);
@@ -394,5 +407,5 @@ export enum MuteRequestStatus {
     /** The request has been deleted. */
     Deleted = 4,
     /** An unsupported reaction has been added to the request. */
-    Unknown = 5
+    Unrecognized = 5
 }

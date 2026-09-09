@@ -1,5 +1,5 @@
 import { ApplicationCommandType, PermissionFlagsBits, UserContextMenuCommandInteraction } from "discord.js";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { pluralize } from "@/utils";
 
 import ConfigManager from "@managers/config/ConfigManager";
@@ -14,7 +14,7 @@ export default class PurgeCtx extends Command<UserContextMenuCommandInteraction<
 		});
 	}
 
-	async execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const member = interaction.targetMember;
 
@@ -25,7 +25,7 @@ export default class PurgeCtx extends Command<UserContextMenuCommandInteraction<
 			});
 		}
 
-		if (interaction.channel.permissionsFor(interaction.member).has(PermissionFlagsBits.ManageRoles)) {
+		if (!interaction.channel.permissionsFor(interaction.member).has(PermissionFlagsBits.ManageMessages)) {
 			return Promise.resolve({
 				content: `You do not have permission to manage messages in ${interaction.channel}.`,
 				temporary: true

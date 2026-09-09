@@ -1,7 +1,7 @@
 import { describe, test } from "bun:test";
 import { readYamlFile } from "@/utils";
 import { globalConfigSchema, rawGuildConfigSchema } from "@managers/config/schema";
-import { fromZodError } from "zod-validation-error";
+import { fromZodError } from "zod-validation-error/v3";
 
 import fs from "fs";
 
@@ -26,7 +26,8 @@ describe.skipIf(process.env.GITHUB_ACTIONS === "true")("config validation", () =
 			throw new Error("configs directory not found in root directory");
 		}
 
-		const filenames = fs.readdirSync("configs");
+		const filenames = fs.readdirSync("configs")
+			.filter(name => name.endsWith(".yml") || name.endsWith(".yaml"));
 
 		for (const filename of filenames) {
 			const data = readYamlFile(`configs/${filename}`);

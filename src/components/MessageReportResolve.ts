@@ -1,8 +1,8 @@
 import { ButtonInteraction, Colors, EmbedBuilder } from "discord.js";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { MessageReportStatus } from "@utils/reports";
-import { prisma } from "./..";
-import { log } from "@utils/logging";
+import { prisma } from "@";
+import { log } from "@utils/eventLogging";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { userMentionWithId } from "@/utils";
 
@@ -15,7 +15,7 @@ export default class MessageReportResolve extends Component {
 		super("message-report-resolve");
 	}
 
-	async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ButtonInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
 		if (!config.hasPermission(interaction.member, Permission.ManageMessageReports)) {
@@ -37,16 +37,19 @@ export default class MessageReportResolve extends Component {
 
 		MessageReportResolve.log(interaction, config);
 
-		// Delete the report
+		// Delete the report. `.catch(() => null)` covers the race where
+		// another moderator resolved this report a moment earlier and
+		// the message has already been deleted — the desired end state
+		// is the same.
 		await interaction.deferUpdate();
-		await interaction.deleteReply();
+		await interaction.deleteReply().catch(() => null);
 		return null;
 	}
 
 	// Format: Resolved by {executor} (action: {action})
 	static log(interaction: ButtonInteraction<"cached">, config: GuildConfig, action?: string): void {
-		const [reminder] = interaction.message.embeds;
-		const embed = new EmbedBuilder(reminder.toJSON())
+		const [reportEmbed] = interaction.message.embeds;
+		const embed = new EmbedBuilder(reportEmbed.toJSON())
 			.setColor(Colors.Green)
 			.setTitle("Message Report Resolved");
 

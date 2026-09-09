@@ -1,7 +1,7 @@
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { ButtonInteraction } from "discord.js";
 import { Permission } from "@managers/config/schema";
-import { client } from "./..";
+import { client } from "@";
 
 import Component from "@managers/components/Component";
 import Infraction, { InfractionSearchFilter } from "@/commands/Infraction";
@@ -13,7 +13,7 @@ export default class InfractionSearch extends Component {
 		super({ matches: /^infraction-search-\d{17,19}$/m });
 	}
 
-	async execute(interaction: ButtonInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ButtonInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
 		if (!config.hasPermission(interaction.member, Permission.ViewInfractions)) {

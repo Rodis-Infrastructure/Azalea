@@ -12,14 +12,15 @@ import {
 import { Result } from "./types";
 import { BanRequest, Prisma } from "@prisma/client";
 import { TypedRegEx } from "typed-regex";
-import { client, prisma } from "./..";
+import { client, prisma } from "@";
+import { captureException, captureGuildError } from "./sentry";
+import { isPrismaErrorWithCode } from "./errors";
 import { LoggingEvent, Permission } from "@managers/config/schema";
 import { removeClientReactions, temporaryReply } from "./messages";
 import { InfractionAction, InfractionManager, InfractionUtil } from "./infractions";
-import { SECONDS_IN_DAY } from "@/commands/Ban";
+import { SECONDS_IN_DAY } from "./constants";
 import { userMentionWithId } from "./index";
-import { log } from "./logging";
-import { captureException } from "@sentry/node";
+import { log } from "./eventLogging";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import StoreMediaCtx from "@/commands/StoreMediaCtx";
@@ -70,7 +71,15 @@ export default class BanRequestUtil {
 				where: { id: requestId },
 				data: { status, reviewer_id: reviewerId }
 			});
-		} catch {
+		} catch (error) {
+			// `P2025` ("record not found") is the routine "request was
+			// already deleted" case — return null without alerting.
+			// Anything else is a real DB error worth seeing.
+			if (isPrismaErrorWithCode(error, "P2025")) return null;
+			captureException(error, {
+				tags: { source: "ban_request_set_status" },
+				extra: { request_id: requestId, status }
+			});
 			return null;
 		}
 	}
@@ -292,10 +301,15 @@ export default class BanRequestUtil {
 		try {
 			await config.guild.members.ban(targetId, {
 				reason: data.reason,
-				deleteMessageSeconds: config.data.delete_message_days_on_ban * SECONDS_IN_DAY
+				deleteMessageSeconds: config.data.ban_delete_message_days * SECONDS_IN_DAY
 			});
 		} catch (error) {
-			const sentryId = captureException(error);
+			const sentryId = captureGuildError(error, config.guild.id, {
+				userId: reviewer.id,
+				username: reviewer.user.username,
+				tags: { source: "ban_request_apply" },
+				extra: { target_id: targetId }
+			});
 
 			InfractionManager.deleteInfraction(infraction.id);
 			config.sendNotification(`${reviewer} An error occurred while banning the user (\`${sentryId}\`)`);
@@ -393,5 +407,5 @@ export enum BanRequestStatus {
     /** The request has been deleted. */
     Deleted = 4,
     /** An unsupported reaction has been added to the request. */
-    Unknown = 5
+    Unrecognized = 5
 }

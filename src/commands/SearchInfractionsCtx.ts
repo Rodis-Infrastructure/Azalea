@@ -1,5 +1,5 @@
-import { ApplicationCommandType, UserContextMenuCommandInteraction } from "discord.js";
-import { InteractionReplyData } from "@utils/types";
+import { ApplicationCommandType, MessageFlags, UserContextMenuCommandInteraction } from "discord.js";
+import { CommandResponse } from "@utils/types";
 
 import Infraction, { InfractionSearchFilter } from "./Infraction";
 import Command from "@managers/commands/Command";
@@ -14,7 +14,7 @@ export default class SearchInfractionsCtx extends Command<UserContextMenuCommand
 		});
 	}
 
-	async execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const member = interaction.targetMember;
 
@@ -32,7 +32,7 @@ export default class SearchInfractionsCtx extends Command<UserContextMenuCommand
 
 		// Defer the reply to ensure the command doesn't time out
 		const isEphemeral = config.channelInScope(interaction.channel);
-		await interaction.deferReply({ ephemeral: isEphemeral });
+		await interaction.deferReply(isEphemeral ? { flags: MessageFlags.Ephemeral } : {});
 
 		return Infraction.search({
 			user: interaction.targetUser,

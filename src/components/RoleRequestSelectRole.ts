@@ -1,17 +1,20 @@
 import {
 	ActionRowBuilder,
+	APIActionRowComponent,
+	APIComponentInMessageActionRow,
 	ButtonBuilder,
 	ButtonStyle,
 	EmbedBuilder,
 	GuildMember,
+	MessageFlags,
 	StringSelectMenuInteraction,
 	time,
 	TimestampStyles,
 	userMention
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
-import { prisma } from "./..";
+import { CommandResponse } from "@utils/types";
+import { prisma } from "@";
 import { pluralize } from "@/utils";
 import { Permission } from "@managers/config/schema";
 import { Prisma } from "@prisma/client";
@@ -24,7 +27,7 @@ export default class RoleRequestSelectRole extends Component {
 		super("role-request-select-role");
 	}
 
-	async execute(interaction: StringSelectMenuInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: StringSelectMenuInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const roleRequestConfig = config.data.role_requests;
 
@@ -84,7 +87,9 @@ export default class RoleRequestSelectRole extends Component {
 
 		const nullableMembers = await Promise.all(memberFetchPromises);
 		const members = nullableMembers.filter(Boolean) as GuildMember[];
-		const buttonActionRow = new ActionRowBuilder<ButtonBuilder>(interaction.message.components[1].toJSON());
+		const buttonActionRow = new ActionRowBuilder<ButtonBuilder>(
+			interaction.message.components[1].toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>
+		);
 
 		const removeRolesButton = new ButtonBuilder()
 			.setLabel("Remove role")
@@ -105,7 +110,7 @@ export default class RoleRequestSelectRole extends Component {
 				await interaction.editReply({});
 				await interaction.followUp({
 					content: "Failed to fetch channel",
-					ephemeral: true
+					flags: MessageFlags.Ephemeral
 				});
 				return null;
 			}
@@ -154,7 +159,7 @@ export default class RoleRequestSelectRole extends Component {
 				await interaction.editReply({});
 				await interaction.followUp({
 					content: `Failed to start expiration ${pluralize(members.length, "timer")}.`,
-					ephemeral: true
+					flags: MessageFlags.Ephemeral
 				});
 				return null;
 			}
@@ -186,13 +191,13 @@ export default class RoleRequestSelectRole extends Component {
 
 			await interaction.followUp({
 				content: `Failed to assign the role to the following ${pluralize(failedMembers.length, "member")}: ${failedMembers}`,
-				ephemeral: true
+				flags: MessageFlags.Ephemeral
 			});
 		} else {
 			// The role was successfully assigned to all members
 			await interaction.followUp({
 				content: `Successfully assigned the role to ${members.length} ${pluralize(members.length, "member")}.`,
-				ephemeral: true
+				flags: MessageFlags.Ephemeral
 			});
 		}
 

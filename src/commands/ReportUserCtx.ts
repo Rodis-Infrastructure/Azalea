@@ -7,9 +7,9 @@ import {
 	UserContextMenuCommandInteraction
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { EMBED_FIELD_CHAR_LIMIT } from "@utils/constants";
-import { prisma } from "./..";
+import { prisma } from "@";
 import { UserReportStatus } from "@utils/reports";
 
 import Command from "@managers/commands/Command";
@@ -33,7 +33,7 @@ export default class ReportUserCtx extends Command<UserContextMenuCommandInterac
 		});
 	}
 
-	async execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
 		if (!config.data.user_reports) {

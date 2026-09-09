@@ -11,7 +11,7 @@ import {
 	Snowflake
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { Permission } from "@managers/config/schema";
 
 import Component from "@managers/components/Component";
@@ -25,7 +25,7 @@ export default class RoleMembers extends Component {
 		super({ matches: /^role-members(-\d{17,19})?$/m });
 	}
 
-	async execute(interaction: RoleSelectMenuInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: RoleSelectMenuInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 
 		if (!config.hasPermission(interaction.member, Permission.ManageRoles)) {

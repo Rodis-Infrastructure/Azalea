@@ -15,7 +15,7 @@ import {
 
 import {
 	ReviewReminder,
-	Scoping,
+	EventScoping,
 	Permission,
 	RawGuildConfig,
 	rawGuildConfigSchema,
@@ -25,7 +25,7 @@ import {
 
 import { client, prisma } from "@/index";
 import { MessageReportStatus, UserReportStatus } from "@utils/reports";
-import { fromZodError } from "zod-validation-error";
+import { fromZodError } from "zod-validation-error/v3";
 import { enhancedRoleMention, pluralize, randInt, startCronJob } from "@/utils";
 import { Snowflake } from "discord-api-types/v10";
 import { LOG_ENTRY_DATE_FORMAT } from "@utils/constants";
@@ -33,6 +33,7 @@ import { MuteRequestStatus } from "@utils/muteRequests";
 import { BanRequestStatus } from "@utils/banRequests";
 import { TypedRegEx } from "typed-regex";
 import { capitalize } from "lodash";
+import { captureAndFlush, captureGuildError } from "@utils/sentry";
 
 import Logger from "@utils/logger";
 
@@ -57,7 +58,7 @@ export default class GuildConfig {
 			return null;
 		}
 
-		const config = GuildConfig.parse(guildId, data);
+		const config = await GuildConfig.parse(guildId, data);
 		return new GuildConfig(config, guild);
 	}
 
@@ -69,12 +70,15 @@ export default class GuildConfig {
      * @returns The guild configuration with default values set
      * @private
      */
-	static parse(guildId: Snowflake, data: unknown): RawGuildConfig {
+	static async parse(guildId: Snowflake, data: unknown): Promise<RawGuildConfig> {
 		const parseResult = rawGuildConfigSchema.safeParse(data);
 
 		if (!parseResult.success) {
 			const validationError = fromZodError(parseResult.error);
 			Logger.error(`GUILD_CONFIG: ${guildId} | ${validationError.toString()}`);
+			await captureAndFlush(validationError, {
+				tags: { source: "config_load_guild_validation", guild_id: guildId }
+			});
 			process.exit(1);
 		}
 
@@ -93,16 +97,24 @@ export default class GuildConfig {
 
 			if (!channel) {
 				Logger.error(`Failed to mount scheduled message, unknown channel.\ndata: ${stringifiedData}`);
+				captureGuildError(new Error("Scheduled message channel not found"), this.guild.id, {
+					tags: { source: "scheduled_message_mount", monitor_slug: schedule.monitor_slug },
+					extra: { channel_id: schedule.channel_id }
+				});
 				continue;
 			}
 
 			if (!channel.isTextBased()) {
 				Logger.error(`Failed to mount scheduled message, channel is not text-based.\ndata: ${stringifiedData}`);
+				captureGuildError(new Error("Scheduled message channel is not text-based"), this.guild.id, {
+					tags: { source: "scheduled_message_mount", monitor_slug: schedule.monitor_slug },
+					extra: { channel_id: schedule.channel_id, channel_type: channel.type }
+				});
 				continue;
 			}
 
 			// Start the cron job for the scheduled message
-			startCronJob(`SCHEDULED_MESSAGE_${schedule.monitor_slug}`, schedule.cron, () => {
+			startCronJob(`SCHEDULED_MESSAGE_${schedule.monitor_slug}`, schedule.cron, async () => {
 				const randomMessageIdx = randInt(0, schedule.messages.length - 1);
 				const randomMessage = schedule.messages[randomMessageIdx];
 				const stringifiedMessage = JSON.stringify(randomMessage);
@@ -110,9 +122,9 @@ export default class GuildConfig {
 				Logger.info(`Sending messages[${randomMessageIdx}] in #${channel.name} (${channel.id}): ${stringifiedMessage}`);
 
 				if (typeof randomMessage === "string") {
-					channel.send(randomMessage);
+					await channel.send(randomMessage).catch(() => null);
 				} else {
-					channel.send({ embeds: [randomMessage] });
+					await channel.send({ embeds: [randomMessage] }).catch(() => null);
 				}
 			});
 		}
@@ -122,53 +134,15 @@ export default class GuildConfig {
 		const config = this.data.mute_requests;
 		if (!config?.review_reminder) return;
 
-		const reviewReminderChannel = await this.guild.channels
-			.fetch(config.review_reminder.channel_id)
-			.catch(() => null);
-
-		const stringifiedData = JSON.stringify(config);
-
-		if (!reviewReminderChannel) {
-			Logger.error(`Failed to mount mute request review reminders, unknown channel: ${stringifiedData}`);
-			return;
-		}
-
-		if (!reviewReminderChannel.isTextBased()) {
-			Logger.error(`Failed to mount mute request review reminders, channel is not text-based: ${stringifiedData}`);
-			return;
-		}
-
-		const mentionedRoles = config.review_reminder.mentioned_roles
-			.map(enhancedRoleMention)
-			.join(" ") || "";
-
-		// Start the cron job for the review reminder
-		startCronJob("MUTE_REQUEST_REVIEW_REMINDER", config.review_reminder.cron, async () => {
-			const unresolvedRequests = await prisma.muteRequest.findMany({
-				where: {
-					status: MuteRequestStatus.Pending,
-					guild_id: this.guild.id
-				},
+		await this._startReviewReminderCronJob({
+			cronJobSlug: "MUTE_REQUEST_REVIEW_REMINDER",
+			entityName: "mute request",
+			reviewReminderConfig: config.review_reminder,
+			sourceChannelId: config.channel_id,
+			queryUnresolved: () => prisma.muteRequest.findMany({
+				where: { status: MuteRequestStatus.Pending, guild_id: this.guild.id },
 				orderBy: { created_at: "asc" }
-			});
-
-			const oldestRequest = unresolvedRequests.at(0);
-			const oldestRequestURL = oldestRequest && messageLink(config.channel_id, oldestRequest.id, this.guild.id);
-
-			const reminder = GuildConfig._entityExceedsReminderThresholds({
-				name: "mute request",
-				count: unresolvedRequests.length,
-				createdAt: oldestRequest?.created_at,
-				oldestEntityURL: oldestRequestURL,
-				config: config.review_reminder!
-			});
-
-			if (!reminder) return;
-
-			reviewReminderChannel.send({
-				content: `${mentionedRoles} Pending mute ${pluralize(unresolvedRequests.length, "request")}`,
-				embeds: config.review_reminder!.embed ? [reminder] : undefined
-			});
+			})
 		});
 	}
 
@@ -176,53 +150,139 @@ export default class GuildConfig {
 		const config = this.data.ban_requests;
 		if (!config?.review_reminder) return;
 
+		await this._startReviewReminderCronJob({
+			cronJobSlug: "BAN_REQUEST_REVIEW_REMINDER",
+			entityName: "ban request",
+			reviewReminderConfig: config.review_reminder,
+			sourceChannelId: config.channel_id,
+			queryUnresolved: () => prisma.banRequest.findMany({
+				where: { status: BanRequestStatus.Pending, guild_id: this.guild.id },
+				orderBy: { created_at: "asc" }
+			})
+		});
+	}
+
+	/**
+	 * Generic helper that sets up a review reminder cron job.
+	 * Handles channel fetching, validation, and the cron callback.
+	 */
+	private async _startReviewReminderCronJob(params: {
+		cronJobSlug: string;
+		entityName: string;
+		reviewReminderConfig: ReviewReminder;
+		sourceChannelId: Snowflake;
+		queryUnresolved: () => Promise<Array<{ id: string; created_at: Date }>>;
+	}): Promise<void> {
+		const { cronJobSlug, entityName, reviewReminderConfig, sourceChannelId, queryUnresolved } = params;
+
 		const reviewReminderChannel = await this.guild.channels
-			.fetch(config.review_reminder.channel_id)
+			.fetch(reviewReminderConfig.channel_id)
 			.catch(() => null);
 
-		const stringifiedData = JSON.stringify(config);
+		const stringifiedData = JSON.stringify(reviewReminderConfig);
 
 		if (!reviewReminderChannel) {
-			Logger.error(`Failed to mount ban request review reminders, unknown channel: ${stringifiedData}`);
+			Logger.error(`Failed to mount ${entityName} review reminders, unknown channel: ${stringifiedData}`);
+			captureGuildError(new Error(`${entityName} review reminder channel not found`), this.guild.id, {
+				tags: { source: "review_reminder_mount", entity_name: entityName, monitor_slug: cronJobSlug },
+				extra: { channel_id: reviewReminderConfig.channel_id }
+			});
 			return;
 		}
 
 		if (!reviewReminderChannel.isTextBased()) {
-			Logger.error(`Failed to mount ban request review reminders, channel is not text-based: ${stringifiedData}`);
+			Logger.error(`Failed to mount ${entityName} review reminders, channel is not text-based: ${stringifiedData}`);
+			captureGuildError(new Error(`${entityName} review reminder channel is not text-based`), this.guild.id, {
+				tags: { source: "review_reminder_mount", entity_name: entityName, monitor_slug: cronJobSlug },
+				extra: { channel_id: reviewReminderConfig.channel_id, channel_type: reviewReminderChannel.type }
+			});
 			return;
 		}
 
-		const mentionedRoles = config.review_reminder.mentioned_roles
+		const mentionedRoles = reviewReminderConfig.mentioned_roles
 			.map(enhancedRoleMention)
 			.join(" ") || "";
 
-		// Start the cron job for the review reminder
-		startCronJob("BAN_REQUEST_REVIEW_REMINDER", config.review_reminder.cron, async () => {
-			const unresolvedRequests = await prisma.banRequest.findMany({
-				where: {
-					status: BanRequestStatus.Pending,
-					guild_id: this.guild.id
-				},
-				orderBy: { created_at: "asc" }
-			});
+		const [adjective, noun] = entityName.split(" ");
 
-			const oldestRequest = unresolvedRequests.at(0);
-			const oldestRequestURL = oldestRequest && messageLink(config.channel_id, oldestRequest.id, this.guild.id);
+		startCronJob(cronJobSlug, reviewReminderConfig.cron, async () => {
+			const unresolvedEntities = await queryUnresolved();
+
+			const oldest = unresolvedEntities.at(0);
+			const oldestURL = oldest && messageLink(sourceChannelId, oldest.id, this.guild.id);
 
 			const reminder = GuildConfig._entityExceedsReminderThresholds({
-				name: "ban request",
-				count: unresolvedRequests.length,
-				createdAt: oldestRequest?.created_at,
-				oldestEntityURL: oldestRequestURL,
-				config: config.review_reminder!
+				name: entityName,
+				count: unresolvedEntities.length,
+				createdAt: oldest?.created_at,
+				oldestEntityURL: oldestURL,
+				config: reviewReminderConfig
 			});
 
 			if (!reminder) return;
 
-			reviewReminderChannel.send({
-				content: `${mentionedRoles} Pending ban ${pluralize(unresolvedRequests.length, "request")}`,
-				embeds: config.review_reminder!.embed ? [reminder] : undefined
+			await reviewReminderChannel.send({
+				content: `${mentionedRoles} Pending ${adjective} ${pluralize(unresolvedEntities.length, noun)}`,
+				embeds: reviewReminderConfig.embed ? [reminder] : undefined
+			}).catch(() => null);
+		});
+	}
+
+	/**
+	 * Generic helper that sets up a report removal cron job.
+	 * Runs hourly, finds expired reports, marks them as expired, and deletes the report messages.
+	 */
+	private async _startReportRemovalCronJob(params: {
+		cronJobSlug: string;
+		entityName: string;
+		reportChannelId: Snowflake;
+		ttl: number;
+		findAndExpire: (expiresAt: Date) => Promise<[Array<{ id: string }>, unknown]>;
+	}): Promise<void> {
+		const { cronJobSlug, entityName, reportChannelId, ttl, findAndExpire } = params;
+
+		const reportChannel = await this.guild.channels
+			.fetch(reportChannelId)
+			.catch(() => null);
+
+		const stringifiedData = JSON.stringify({ ttl, reportChannelId });
+
+		if (!reportChannel) {
+			Logger.error(`Failed to mount ${entityName} removal, unknown channel: ${stringifiedData}`);
+			captureGuildError(new Error(`${entityName} removal channel not found`), this.guild.id, {
+				tags: { source: "report_removal_mount", entity_name: entityName, monitor_slug: cronJobSlug },
+				extra: { channel_id: reportChannelId }
 			});
+			return;
+		}
+
+		if (!reportChannel.isTextBased()) {
+			Logger.error(`Failed to mount ${entityName} removal, channel is not text-based: ${stringifiedData}`);
+			captureGuildError(new Error(`${entityName} removal channel is not text-based`), this.guild.id, {
+				tags: { source: "report_removal_mount", entity_name: entityName, monitor_slug: cronJobSlug },
+				extra: { channel_id: reportChannelId, channel_type: reportChannel.type }
+			});
+			return;
+		}
+
+		// Every hour on the hour
+		startCronJob(cronJobSlug, "0 * * * *", async () => {
+			const expiresAt = new Date(Date.now() - ttl);
+			const [expiredReports] = await findAndExpire(expiresAt);
+
+			if (!expiredReports.length) {
+				Logger.info(`No expired ${entityName}s found, no actions need to be taken`);
+				return;
+			}
+
+			Logger.info(`Removing ${expiredReports.length} expired ${pluralize(expiredReports.length, entityName)}`);
+
+			for (const report of expiredReports) {
+				const reportMessage = await reportChannel.messages.fetch(report.id)
+					.catch(() => null);
+
+				reportMessage?.delete().catch(() => null);
+			}
 		});
 	}
 
@@ -301,226 +361,76 @@ export default class GuildConfig {
 
 	async startMessageReportReviewReminderCronJob(): Promise<void> {
 		const reviewReminderConfig = this.data.message_reports?.review_reminder;
-		const reportChannelId = this.data.message_reports?.report_channel;
-
+		const reportChannelId = this.data.message_reports?.channel_id;
 		if (!reviewReminderConfig || !reportChannelId) return;
 
-		const reviewReminderChannel = await this.guild.channels
-			.fetch(reviewReminderConfig.channel_id)
-			.catch(() => null);
-
-		const stringifiedData = JSON.stringify(reviewReminderConfig);
-
-		if (!reviewReminderChannel) {
-			Logger.error(`Failed to mount message report review reminders, unknown channel: ${stringifiedData}`);
-			return;
-		}
-
-		if (!reviewReminderChannel.isTextBased()) {
-			Logger.error(`Failed to mount message report review reminders, channel is not text-based: ${stringifiedData}`);
-			return;
-		}
-
-		const mentionedRoles = reviewReminderConfig.mentioned_roles
-			.map(enhancedRoleMention)
-			.join(" ") || "";
-
-		// Start the cron job for the review reminder
-		startCronJob("MESSAGE_REPORT_REVIEW_REMINDER", reviewReminderConfig.cron, async () => {
-			const unresolvedReports = await prisma.messageReport.findMany({
-				where: { status: MessageReportStatus.Unresolved },
+		await this._startReviewReminderCronJob({
+			cronJobSlug: "MESSAGE_REPORT_REVIEW_REMINDER",
+			entityName: "message report",
+			reviewReminderConfig,
+			sourceChannelId: reportChannelId,
+			queryUnresolved: () => prisma.messageReport.findMany({
+				where: { status: MessageReportStatus.Unresolved, guild_id: this.guild.id },
 				orderBy: { created_at: "asc" }
-			});
-
-			const oldestReport = unresolvedReports.at(0);
-			const oldestReportURL = oldestReport && messageLink(reportChannelId, oldestReport.id, this.guild.id);
-
-			const reminder = GuildConfig._entityExceedsReminderThresholds({
-				name: "message report",
-				count: unresolvedReports.length,
-				createdAt: oldestReport?.created_at,
-				oldestEntityURL: oldestReportURL,
-				config: reviewReminderConfig
-			});
-
-			if (!reminder) return;
-
-			reviewReminderChannel.send({
-				content: `${mentionedRoles} Pending message ${pluralize(unresolvedReports.length, "report")}`,
-				embeds: reviewReminderConfig.embed ? [reminder] : undefined
-			});
+			})
 		});
 	}
 
 	async startUserReportRemovalCronJob(): Promise<void> {
-		const ttl = this.data.user_reports?.report_ttl;
-		const reportChannelId = this.data.user_reports?.report_channel;
-
+		const ttl = this.data.user_reports?.ttl;
+		const reportChannelId = this.data.user_reports?.channel_id;
 		if (!ttl || !reportChannelId) return;
 
-		const reportChannel = await this.guild.channels
-			.fetch(reportChannelId)
-			.catch(() => null);
-
-		const stringifiedData = JSON.stringify({ ttl, reportChannelId });
-
-		if (!reportChannel) {
-			Logger.error(`Failed to mount user report removal, unknown channel: ${stringifiedData}`);
-			return;
-		}
-
-		if (!reportChannel.isTextBased()) {
-			Logger.error(`Failed to mount user report removal, channel is not text-based: ${stringifiedData}`);
-			return;
-		}
-
-		// Every hour on the hour
-		startCronJob("USER_REPORT_REMOVAL", "0 * * * *", async () => {
-			const expiresAt = new Date(Date.now() - ttl);
-
-			const [expiredUserReports] = await prisma.$transaction([
+		await this._startReportRemovalCronJob({
+			cronJobSlug: "USER_REPORT_REMOVAL",
+			entityName: "user report",
+			reportChannelId,
+			ttl,
+			findAndExpire: expiresAt => prisma.$transaction([
 				prisma.userReport.findMany({
-					where: {
-						created_at: { lte: expiresAt },
-						status: UserReportStatus.Unresolved
-					}
+					where: { created_at: { lte: expiresAt }, status: UserReportStatus.Unresolved, guild_id: this.guild.id }
 				}),
 				prisma.userReport.updateMany({
-					where: {
-						created_at: { lte: expiresAt },
-						status: UserReportStatus.Unresolved
-					},
-					data: {
-						status: UserReportStatus.Expired
-					}
+					where: { created_at: { lte: expiresAt }, status: UserReportStatus.Unresolved, guild_id: this.guild.id },
+					data: { status: UserReportStatus.Expired }
 				})
-			]);
-
-			if (!expiredUserReports.length) {
-				Logger.info("No expired user reports found, no actions need to be taken");
-				return;
-			}
-
-			Logger.info(`Removing ${expiredUserReports.length} expired user ${pluralize(expiredUserReports.length, "report")}`);
-
-			for (const userReport of expiredUserReports) {
-				const reminder = await reportChannel.messages.fetch(userReport.id)
-					.catch(() => null);
-
-				reminder?.delete().catch(() => null);
-			}
+			])
 		});
 	}
 
 	async startUserReportReviewReminderCronJob(): Promise<void> {
 		const reviewReminderConfig = this.data.user_reports?.review_reminder;
-		const reportChannelId = this.data.user_reports?.report_channel;
-
+		const reportChannelId = this.data.user_reports?.channel_id;
 		if (!reviewReminderConfig || !reportChannelId) return;
 
-		const reviewReminderChannel = await this.guild.channels
-			.fetch(reviewReminderConfig.channel_id)
-			.catch(() => null);
-
-		const stringifiedData = JSON.stringify(reviewReminderConfig);
-
-		if (!reviewReminderChannel) {
-			Logger.error(`Failed to mount user report review reminders, unknown channel: ${stringifiedData}`);
-			return;
-		}
-
-		if (!reviewReminderChannel.isTextBased()) {
-			Logger.error(`Failed to mount user report review reminders, channel is not text-based: ${stringifiedData}`);
-			return;
-		}
-
-		const mentionedRoles = reviewReminderConfig.mentioned_roles
-			.map(enhancedRoleMention)
-			.join(" ") || "";
-
-		// Start the cron job for the review reminder
-		startCronJob("USER_REPORT_REVIEW_REMINDER", reviewReminderConfig.cron, async () => {
-			const unresolvedReports = await prisma.userReport.findMany({
-				where: { status: UserReportStatus.Unresolved },
+		await this._startReviewReminderCronJob({
+			cronJobSlug: "USER_REPORT_REVIEW_REMINDER",
+			entityName: "user report",
+			reviewReminderConfig,
+			sourceChannelId: reportChannelId,
+			queryUnresolved: () => prisma.userReport.findMany({
+				where: { status: UserReportStatus.Unresolved, guild_id: this.guild.id },
 				orderBy: { created_at: "asc" }
-			});
-
-			const oldestReport = unresolvedReports.at(0);
-			const oldestReportURL = oldestReport && messageLink(reportChannelId, oldestReport.id, this.guild.id);
-
-			const reminder = GuildConfig._entityExceedsReminderThresholds({
-				name: "user report",
-				count: unresolvedReports.length,
-				createdAt: oldestReport?.created_at,
-				oldestEntityURL: oldestReportURL,
-				config: reviewReminderConfig
-			});
-
-			if (!reminder) return;
-
-			reviewReminderChannel.send({
-				content: `${mentionedRoles} Pending user ${pluralize(unresolvedReports.length, "report")}`,
-				embeds: reviewReminderConfig.embed ? [reminder] : undefined
-			});
+			})
 		});
 	}
 
 	async startMessageReportRemovalCronJob(): Promise<void> {
-		const ttl = this.data.message_reports?.report_ttl;
-		const reportChannelId = this.data.message_reports?.report_channel;
-
+		const ttl = this.data.message_reports?.ttl;
+		const reportChannelId = this.data.message_reports?.channel_id;
 		if (!ttl || !reportChannelId) return;
 
-		const reportChannel = await this.guild.channels
-			.fetch(reportChannelId)
-			.catch(() => null);
-
-		const stringifiedData = JSON.stringify({ ttl, reportChannelId });
-
-		if (!reportChannel) {
-			Logger.error(`Failed to mount message report removal, unknown channel: ${stringifiedData}`);
-			return;
-		}
-
-		if (!reportChannel.isTextBased()) {
-			Logger.error(`Failed to mount message report removal, channel is not text-based: ${stringifiedData}`);
-			return;
-		}
-
-		// Every hour on the hour
-		startCronJob("MESSAGE_REPORT_REMOVAL", "0 * * * *", async () => {
-			const expiresAt = new Date(Date.now() - ttl);
-
-			const [expiredMessageReports] = await prisma.$transaction([
-				prisma.messageReport.findMany({
-					where: {
-						created_at: { lte: expiresAt },
-						status: MessageReportStatus.Unresolved
-					}
-				}),
-				prisma.messageReport.updateMany({
-					where: {
-						created_at: { lte: expiresAt },
-						status: MessageReportStatus.Unresolved
-					},
-					data: {
-						status: MessageReportStatus.Expired
-					}
-				})
-			]);
-
-			if (!expiredMessageReports.length) {
-				Logger.info("No expired message reports found, no actions need to be taken");
-				return;
-			}
-
-			Logger.info(`Removing ${expiredMessageReports.length} expired message ${pluralize(expiredMessageReports.length, "report")}`);
-
-			for (const messageReport of expiredMessageReports) {
-				const reminder = await reportChannel.messages.fetch(messageReport.id)
-					.catch(() => null);
-
-				reminder?.delete().catch(() => null);
+		await this._startReportRemovalCronJob({
+			cronJobSlug: "MESSAGE_REPORT_REMOVAL",
+			entityName: "message report",
+			reportChannelId,
+			ttl,
+			findAndExpire: expiresAt => {
+				const where = { created_at: { lte: expiresAt }, status: MessageReportStatus.Unresolved, guild_id: this.guild.id };
+				return prisma.$transaction([
+					prisma.messageReport.findMany({ where }),
+					prisma.messageReport.updateMany({ where, data: { status: MessageReportStatus.Expired } })
+				]);
 			}
 		});
 	}
@@ -535,7 +445,7 @@ export default class GuildConfig {
      * @param member - The member to check
      * @param scoping - The scoping to check against, defaults to ephemeral scoping
      */
-	inScope(channel: GuildBasedChannel, member: GuildMember | null, scoping: Scoping): boolean {
+	inScope(channel: GuildBasedChannel, member: GuildMember | null, scoping: EventScoping): boolean {
 		const channelInScope = this.channelInScope(channel, {
 			include_channels: scoping.include_channels,
 			exclude_channels: scoping.exclude_channels
@@ -587,7 +497,7 @@ export default class GuildConfig {
      * @param channel - The channel to check
      * @param scoping - The scoping to check against, defaults to ephemeral scoping
      */
-	channelInScope(channel: GuildBasedChannel | null, scoping: ChannelScoping = this.data.ephemeral_scoping): boolean {
+	channelInScope(channel: GuildBasedChannel | null, scoping: ChannelScoping = this.data.ephemeral_scoping.default): boolean {
 		if (!channel) return false;
 
 		const channelData: ChannelScopingParams = {
@@ -715,17 +625,17 @@ export default class GuildConfig {
      * @param allowMentions - Whether to allow mentions in the message (true by default)
      */
 	sendNotification(message: string, allowMentions = true): void {
-		if (!this.data.notification_channel) return;
+		if (!this.data.notification_channel_id) return;
 
 		const channel = this.guild.channels
-			.cache.get(this.data.notification_channel);
+			.cache.get(this.data.notification_channel_id);
 
 		if (!channel || !channel.isTextBased()) return;
 
 		channel.send({
 			content: message,
 			allowedMentions: allowMentions ? undefined : { parse: [] }
-		});
+		}).catch(() => null);
 	}
 }
 

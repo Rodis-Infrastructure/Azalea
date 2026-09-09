@@ -14,8 +14,8 @@ import {
 } from "@utils/constants";
 
 import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
-import { InteractionReplyData } from "@utils/types";
-import { captureException } from "@sentry/node";
+import { CommandResponse } from "@utils/types";
+import { captureInteractionError } from "@utils/sentry";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -63,7 +63,7 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
 		});
 	}
 
-	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const duration = interaction.options.getString("duration", true).trim();
 		const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
@@ -120,7 +120,7 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
 		// Reset the regex index
 		DURATION_FORMAT.lastIndex = 0;
 
-		let msDuration = ms(duration);
+		let msDuration = ms(duration as ms.StringValue);
 
 		if (msDuration > MAX_MUTE_DURATION) msDuration = MAX_MUTE_DURATION;
 		if (msDuration <= 0) {
@@ -158,7 +158,10 @@ export default class Mute extends Command<ChatInputCommandInteraction<"cached">>
 			try {
 				await member.timeout(msDuration, reason);
 			} catch (error) {
-				const sentryId = captureException(error);
+				const sentryId = captureInteractionError(error, interaction, {
+					target_id: member.id,
+					duration_ms: msDuration
+				});
 				InfractionManager.deleteInfraction(infraction.id);
 
 				return {

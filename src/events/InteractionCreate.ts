@@ -3,18 +3,23 @@ import {
 	AutocompleteInteraction,
 	Colors,
 	CommandInteractionOption,
+	ComponentType,
 	EmbedBuilder,
 	Events,
 	hyperlink,
-	Interaction
+	Interaction,
+	InteractionReplyOptions,
+	MessageFlags,
+	TextInputModalData
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
-import { log } from "@utils/logging";
+import { CommandResponse, CommandResponseOptions } from "@utils/types";
+import { log } from "@utils/eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
 import { channelMentionWithName, pluralize, roleMentionWithName, userMentionWithId } from "@/utils";
 import { formatMessageContentForShortLog } from "@utils/messages";
-import { captureException } from "@sentry/node";
+import { captureInteractionError } from "@utils/sentry";
+import { runWithRequestContext, type RequestContext } from "@utils/requestContext";
 
 import GuildConfig from "@managers/config/GuildConfig";
 import ComponentManager from "@managers/components/ComponentManager";
@@ -29,24 +34,76 @@ export default class InteractionCreate extends EventListener {
 
 	async execute(interaction: Interaction): Promise<void> {
 		if (interaction.isAutocomplete()) {
-			throw new Error(`Autocomplete interactions are not supported`);
+			await interaction.respond([]).catch(() => null);
+			return;
 		}
 
 		// Only allow interactions in guilds
 		if (!interaction.inCachedGuild()) {
 			await interaction.reply({
 				content: "Interactions are not supported in DMs.",
-				ephemeral: true
+				flags: MessageFlags.Ephemeral
 			});
 			return;
 		}
 
+		return runWithRequestContext(InteractionCreate._buildContext(interaction), () => {
+			return InteractionCreate._executeWithContext(interaction);
+		});
+	}
+
+	private static _buildContext(
+		interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>
+	): RequestContext {
+		const ctx: RequestContext = {
+			interaction_id: interaction.id,
+			guild_id: interaction.guildId,
+			user_id: interaction.user.id
+		};
+		if (interaction.channelId) ctx.channel_id = interaction.channelId;
+		if (interaction.isChatInputCommand() || interaction.isContextMenuCommand()) {
+			ctx.command = interaction.commandName;
+			ctx.command_kind = interaction.isChatInputCommand() ? "slash" : "context_menu";
+		} else if (interaction.isModalSubmit()) {
+			ctx.custom_id = interaction.customId;
+			ctx.command_kind = "modal";
+		} else if (interaction.isButton() || interaction.isAnySelectMenu()) {
+			ctx.custom_id = interaction.customId;
+			ctx.command_kind = "component";
+		}
+		return ctx;
+	}
+
+	private static async _executeWithContext(
+		interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>
+	): Promise<void> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId);
 
 		if (!config) {
+			// Allow create-testing-template to run without a guild config since it creates one
+			if (interaction.isChatInputCommand() && interaction.commandName === "create-testing-template") {
+				try {
+					const response = await CommandManager.handleCommand(interaction);
+
+					if (response) {
+						const options = typeof response === "string"
+							? { content: response }
+							: response;
+
+						delete options.temporary;
+						await interaction.reply(InteractionCreate._toReplyOptions({ ...options, allowedMentions: { parse: [] } }));
+					}
+				} catch (error) {
+					const sentryId = captureInteractionError(error, interaction);
+					await InteractionCreate._replyError(interaction, sentryId);
+				}
+
+				return;
+			}
+
 			await interaction.reply({
 				content: "This guild does not have a configuration set up.",
-				ephemeral: true
+				flags: MessageFlags.Ephemeral
 			});
 			return;
 		}
@@ -54,27 +111,33 @@ export default class InteractionCreate extends EventListener {
 		try {
 			await InteractionCreate._handle(interaction, config);
 		} catch (error) {
-			const sentryId = captureException(error, {
-				user: {
-					id: interaction.user.id,
-					username: interaction.user.username
-				},
-				extra: {
-					channel: interaction.channel?.id,
-					guild: interaction.guild.id,
-					command: InteractionCreate._parseInteractionName(interaction)
-				}
+			const sentryId = captureInteractionError(error, interaction, {
+				interaction_name: InteractionCreate._parseInteractionName(interaction)
 			});
-
-			await interaction.reply({
-				content: `An error occurred while executing this interaction (\`${sentryId}\`)`,
-				ephemeral: true
-			}).catch(() => null);
-
+			await InteractionCreate._replyError(interaction, sentryId);
 			return;
 		}
 
 		InteractionCreate._log(interaction, config);
+	}
+
+	// Pick reply / editReply / followUp based on interaction state. The
+	// outer catch used to call reply() unconditionally, so any throw after
+	// the command had already deferred or replied would silently fail with
+	// `InteractionAlreadyReplied` and the user saw nothing.
+	private static async _replyError(
+		interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>,
+		sentryId: string
+	): Promise<void> {
+		const content = `An error occurred while executing this interaction (\`${sentryId}\`)`;
+
+		if (interaction.replied) {
+			await interaction.followUp({ content, flags: MessageFlags.Ephemeral }).catch(() => null);
+		} else if (interaction.deferred) {
+			await interaction.editReply({ content }).catch(() => null);
+		} else {
+			await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => null);
+		}
 	}
 
 	private static async _handle(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
@@ -82,7 +145,7 @@ export default class InteractionCreate extends EventListener {
 			? config.channelInScope(interaction.channel)
 			: true;
 
-		let response: InteractionReplyData | null;
+		let response: CommandResponse | null;
 
 		if (interaction.isCommand()) {
 			response = await CommandManager.handleCommand(interaction);
@@ -95,7 +158,7 @@ export default class InteractionCreate extends EventListener {
 			return;
 		}
 
-		const defaultReplyOptions = {
+		const defaultReplyOptions: CommandResponseOptions = {
 			ephemeral: ephemeralReply,
 			allowedMentions: { parse: [] }
 		};
@@ -107,16 +170,14 @@ export default class InteractionCreate extends EventListener {
 		const isTemporary = options.temporary;
 		delete options.temporary;
 
+		const merged: CommandResponseOptions = { ...defaultReplyOptions, ...options };
+
 		if (interaction.deferred) {
-			await interaction.editReply({
-				...defaultReplyOptions,
-				...options
-			});
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars -- editReply doesn't accept ephemeral/flags
+			const { ephemeral, flags, ...editOptions } = merged;
+			await interaction.editReply(editOptions);
 		} else {
-			await interaction.reply({
-				...defaultReplyOptions,
-				...options
-			});
+			await interaction.reply(InteractionCreate._toReplyOptions(merged));
 		}
 
 		if (isTemporary && ephemeralReply) {
@@ -124,6 +185,15 @@ export default class InteractionCreate extends EventListener {
 				interaction.deleteReply().catch(() => null);
 			}, config.data.response_ttl);
 		}
+	}
+
+	// Translate our internal `ephemeral: boolean` to discord.js's `flags: MessageFlags.Ephemeral`.
+	private static _toReplyOptions(options: CommandResponseOptions): InteractionReplyOptions {
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured to omit `temporary` from rest
+		const { ephemeral, flags, temporary, ...rest } = options;
+		const baseFlags = typeof flags === "number" ? flags : 0;
+		const finalFlags = ephemeral ? baseFlags | MessageFlags.Ephemeral : baseFlags;
+		return finalFlags ? { ...rest, flags: finalFlags } : rest;
 	}
 
 	private static async _log(interaction: Exclude<Interaction<"cached">, AutocompleteInteraction>, config: GuildConfig): Promise<void> {
@@ -186,13 +256,15 @@ export default class InteractionCreate extends EventListener {
 		if (interaction.isModalSubmit()) {
 			interactionType = "Modal";
 
-			const mappedOptions: Promise<APIEmbedField>[] = interaction.fields.fields.map(async field => {
-				const content = await formatMessageContentForShortLog(field.value, null, null);
-				return {
-					name: field.customId,
-					value: content
-				};
-			});
+			const mappedOptions: Promise<APIEmbedField>[] = interaction.fields.fields
+				.filter((field): field is TextInputModalData => field.type === ComponentType.TextInput)
+				.map(async field => {
+					const content = await formatMessageContentForShortLog(field.value, null, null);
+					return {
+						name: field.customId,
+						value: content
+					};
+				});
 
 			embed.setFields(await Promise.all(mappedOptions));
 		}
@@ -322,7 +394,7 @@ export default class InteractionCreate extends EventListener {
 				.join(" ");
 		}
 
-		if (interaction.isContextMenuCommand()) {
+		if (interaction.isContextMenuCommand() || interaction.isPrimaryEntryPointCommand()) {
 			return interaction.commandName;
 		}
 

@@ -15,13 +15,13 @@ import {
 	User
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { BLANK_EMBED_FIELD, DEFAULT_EMBED_COLOR, DEFAULT_INFRACTION_REASON } from "@utils/constants";
-import { prisma } from "./..";
+import { prisma } from "@";
 import { Permission, UserFlag } from "@managers/config/schema";
 import { InfractionAction, InfractionUtil } from "@utils/infractions";
 import { getSurfaceName } from "@/utils";
-import { Messages } from "@utils/messages";
+import { MessageCache } from "@utils/messages";
 
 import Command from "@managers/commands/Command";
 import GuildConfig from "@managers/config/GuildConfig";
@@ -144,7 +144,7 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 		embed.addFields(blankFields);
 
 		// Add message count
-		const messageCount = await Messages.count(user.id, config.guild.id);
+		const messageCount = await MessageCache.count(user.id, config.guild.id);
 		const msMessageLifetime = ConfigManager.globalConfig.database.messages.ttl;
 
 		const dateTo = Math.floor(new Date().getTime() / 1000);
@@ -295,7 +295,8 @@ export default class UserInfo extends Command<ChatInputCommandInteraction<"cache
 		return flags;
 	}
 
-	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	// eslint-disable-next-line require-await -- signature requires Promise; UserInfo.get() returns one
+	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const member = interaction.options.getMember("user");
 		const user = member?.user ?? interaction.options.getUser("user", true);
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);

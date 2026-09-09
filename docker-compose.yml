@@ -2,14 +2,11 @@ services:
   bot:
     build:
       context: .
-      args:
-        DISCORD_TOKEN:
-        SENTRY_DSN:
-        DATABASE_URL:
+    env_file: .env
     restart: always
     container_name: azalea
     volumes:
-      - prisma:/usr/src/app/prisma
+      - data:/usr/src/app/data
 
 volumes:
-  prisma:
+  data:

@@ -1,5 +1,5 @@
 import { ApplicationCommandType, UserContextMenuCommandInteraction } from "discord.js";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 
 import CensorNickname from "./CensorNickname";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -13,7 +13,7 @@ export default class CensorNicknameCtx extends Command<UserContextMenuCommandInt
 		});
 	}
 
-	execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	execute(interaction: UserContextMenuCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		return CensorNickname.handle(interaction.member, interaction.targetMember, config);
 	}

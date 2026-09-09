@@ -7,13 +7,17 @@ import {
 	MessageCreateOptions
 } from "discord.js";
 
-import { LoggingEvent, Scoping } from "@managers/config/schema";
-import { captureException } from "@sentry/node";
+import { LoggingEvent, EventScoping } from "@managers/config/schema";
+import { captureException } from "./sentry";
 
 import GuildConfig from "@managers/config/GuildConfig";
 
 /**
- * Logs an event to the appropriate logging channels
+ * Logs an event to the appropriate logging channels.
+ *
+ * Each configured channel is dispatched independently — a single failed
+ * send (perms revoked, channel deleted) must not silence sends to the
+ * other configured channels for the same event.
  *
  * @param data - The data to log
  */
@@ -26,21 +30,38 @@ export async function log(data: {
 }): Promise<Message<true>[] | null> {
 	const { event, config, channel, message, member } = data;
 
+	let channels: GuildTextBasedChannel[];
 	try {
-		const channels = await getLoggingChannels({ event, config, member, channel });
-
-		// Send the content in parallel to all logging channels
-		return Promise.all(channels.map(c => c.send(message)));
+		channels = await getLoggingChannels({ event, config, member, channel });
 	} catch (error) {
 		captureException(error, {
-			extra: {
-				event,
-				channel: channel?.id
-			}
+			tags: { source: "event_logging_resolve" },
+			extra: { event, channel: channel?.id, guild_id: config.guild.id }
 		});
+		return null;
 	}
 
-	return null;
+	const results = await Promise.allSettled(channels.map(c => c.send(message)));
+	const sent: Message<true>[] = [];
+
+	for (let i = 0; i < results.length; i++) {
+		const result = results[i];
+		if (result.status === "fulfilled") {
+			sent.push(result.value);
+		} else {
+			captureException(result.reason, {
+				tags: { source: "event_logging_send" },
+				extra: {
+					event,
+					guild_id: config.guild.id,
+					target_channel_id: channels[i].id,
+					origin_channel_id: channel?.id
+				}
+			});
+		}
+	}
+
+	return sent;
 }
 
 /**
@@ -59,27 +80,30 @@ async function getLoggingChannels(data: {
 }): Promise<GuildTextBasedChannel[]> {
 	const { event, config, member, channel } = data;
 
-	const inLoggingScope = (logScoping: Scoping): boolean => {
-		if (!logScoping.include_roles.length && !logScoping.exclude_roles.length) {
-			logScoping.include_roles = config.data.logging.default_scoping.include_roles;
-			logScoping.exclude_roles = config.data.logging.default_scoping.exclude_roles;
+	const inLoggingScope = (logScoping: EventScoping): boolean => {
+		// Create a copy to avoid mutating the config data
+		const scoping = { ...logScoping };
+
+		if (!scoping.include_roles.length && !scoping.exclude_roles.length) {
+			scoping.include_roles = config.data.logging.default_scoping.include_roles;
+			scoping.exclude_roles = config.data.logging.default_scoping.exclude_roles;
 		}
 
 		// If there is no channel, the event is in scope
 		if (!channel && member) {
-			return config.roleInScope(member, logScoping);
+			return config.roleInScope(member, scoping);
 		} else if (!channel) {
 			return true;
 		}
 
 		// Resort to the default scoping if there is no override for the event
-		if (!logScoping.include_channels.length && !logScoping.exclude_channels.length) {
-			logScoping.include_channels = config.data.logging.default_scoping.include_channels;
-			logScoping.exclude_channels = config.data.logging.default_scoping.exclude_channels;
+		if (!scoping.include_channels.length && !scoping.exclude_channels.length) {
+			scoping.include_channels = config.data.logging.default_scoping.include_channels;
+			scoping.exclude_channels = config.data.logging.default_scoping.exclude_channels;
 		}
 
 		// Check against event-specific scoping
-		return config.inScope(channel, member, logScoping);
+		return config.inScope(channel, member, scoping);
 	};
 
 	// Fetch all logging channels for this event that are in scope
@@ -103,7 +127,7 @@ async function getLoggingChannels(data: {
  *
  * @param entries - The message entries to log
  */
-export function mapLogEntriesToFile(entries: string[]): AttachmentBuilder {
+export function createLogAttachment(entries: string[]): AttachmentBuilder {
 	const buffer = Buffer.from(entries.join("\n\n"), "utf-8");
 	return new AttachmentBuilder(buffer, { name: "data.txt" });
 }

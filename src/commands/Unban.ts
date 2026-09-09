@@ -1,8 +1,8 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction } from "discord.js";
 import { EMBED_FIELD_CHAR_LIMIT, DEFAULT_INFRACTION_REASON } from "@utils/constants";
 import { InfractionAction, InfractionManager, InfractionUtil } from "@utils/infractions";
-import { InteractionReplyData } from "@utils/types";
-import { captureException } from "@sentry/node";
+import { CommandResponse } from "@utils/types";
+import { captureInteractionError } from "@utils/sentry";
 
 import ConfigManager from "@managers/config/ConfigManager";
 import Command from "@managers/commands/Command";
@@ -29,7 +29,7 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
 		});
 	}
 
-	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ChatInputCommandInteraction<"cached">): Promise<CommandResponse> {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const reason = interaction.options.getString("reason") ?? DEFAULT_INFRACTION_REASON;
 		const user = interaction.options.getUser("user", true);
@@ -64,7 +64,9 @@ export default class Unban extends Command<ChatInputCommandInteraction<"cached">
 		try {
 			await interaction.guild.members.unban(user, reason);
 		} catch (error) {
-			const sentryId = captureException(error);
+			const sentryId = captureInteractionError(error, interaction, {
+				target_id: user.id
+			});
 			InfractionManager.deleteInfraction(infraction.id);
 
 			return {

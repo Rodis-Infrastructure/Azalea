@@ -10,11 +10,11 @@ import {
 	userMention
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { enhancedRoleMention, userMentionWithId } from "@/utils";
 import { UserReportStatus } from "@utils/reports";
-import { prisma } from "./..";
-import { log } from "@utils/logging";
+import { prisma } from "@";
+import { log } from "@utils/eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
 
 import Component from "@managers/components/Component";
@@ -27,7 +27,7 @@ export default class ReportUser extends Component {
 		super({ startsWith: "report-user" });
 	}
 
-	async execute(interaction: ModalSubmitInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: ModalSubmitInteraction<"cached">): Promise<CommandResponse> {
 		const reason = interaction.fields.getTextInputValue("reason");
 
 		// Check if the reason is made up of at least one word character
@@ -45,7 +45,7 @@ export default class ReportUser extends Component {
 
 		// The existence of the user_reports key is checked before prompting the modal
 		const userReportChannel = await config.guild.channels
-			.fetch(config.data.user_reports!.report_channel)
+			.fetch(config.data.user_reports!.channel_id)
 			.catch(() => null);
 
 		if (!userReportChannel || !userReportChannel.isTextBased()) {
@@ -81,7 +81,7 @@ export default class ReportUser extends Component {
         targetId: string,
         reason: string,
         config: GuildConfig
-    }): Promise<InteractionReplyData> {
+    }): Promise<CommandResponse> {
 		const { interaction, targetId, reason, userReportChannel, config } = data;
 
 		const embed = new EmbedBuilder()
@@ -171,7 +171,7 @@ export default class ReportUser extends Component {
         targetId: string,
         reason: string,
         config: GuildConfig
-    }): Promise<InteractionReplyData> {
+    }): Promise<CommandResponse> {
 		const { interaction, targetId, reason, userReportChannel, config } = data;
 
 		const filter = {

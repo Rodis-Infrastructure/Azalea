@@ -2,7 +2,8 @@ import { Collection } from "discord.js";
 import { Snowflake } from "discord-api-types/v10";
 import { pluralize, readYamlFile } from "@/utils";
 import { GlobalConfig, globalConfigSchema } from "./schema";
-import { fromZodError } from "zod-validation-error";
+import { fromZodError } from "zod-validation-error/v3";
+import { captureAndFlush } from "@utils/sentry";
 
 import GuildConfig from "./GuildConfig";
 import Logger, { AnsiColor } from "@utils/logger";
@@ -19,15 +20,21 @@ export default class ConfigManager {
 
 		if (!fs.existsSync("configs")) {
 			Logger.error("Configs directory not found, at least one guild config is required");
+			await captureAndFlush(new Error("Configs directory not found"), {
+				tags: { source: "config_load_missing_dir" }
+			});
 			process.exit(1);
 		}
 
-		// Get all files in the configs directory (excluding the example file)
+		// Get all YAML files in the configs directory (excluding the example file)
 		const files = fs.readdirSync("configs")
-			.filter(file => file !== "example.yml");
+			.filter(file => file !== "example.yml" && (file.endsWith(".yml") || file.endsWith(".yaml")));
 
 		if (!files.length) {
 			Logger.error("No guild configs found, at least one guild config is required");
+			await captureAndFlush(new Error("No guild configs found"), {
+				tags: { source: "config_load_empty_dir" }
+			});
 			process.exit(1);
 		}
 
@@ -37,8 +44,11 @@ export default class ConfigManager {
 			// Parse the config file and set default values
 			const parsedConfig = readYamlFile(`configs/${file}`);
 
-			const config = await GuildConfig.from(guildId, parsedConfig).catch(error => {
+			const config = await GuildConfig.from(guildId, parsedConfig).catch(async error => {
 				Logger.error(`Failed to parse config for guild with ID ${guildId} - ${error.message}`);
+				await captureAndFlush(error, {
+					tags: { source: "config_load_guild_parse", guild_id: guildId }
+				});
 				process.exit(1);
 			});
 
@@ -56,27 +66,33 @@ export default class ConfigManager {
 		Logger.info(`Cached ${configCount} guild ${pluralize(configCount, "configuration")}`);
 	}
 
-	static cacheGlobalConfig(): void {
+	static async cacheGlobalConfig(): Promise<void> {
 		Logger.info("Caching global configuration...");
 
 		if (!fs.existsSync("azalea.cfg.yml")) {
 			Logger.error("Global config file not found, it is required");
+			await captureAndFlush(new Error("Global config file not found"), {
+				tags: { source: "config_load_missing_global" }
+			});
 			process.exit(1);
 		}
 
 		// Load and parse the global config from the azalea.cfg.yml file
 		const rawConfig = readYamlFile<GlobalConfig>("azalea.cfg.yml");
-		ConfigManager.globalConfig = ConfigManager.parseGlobalConfig(rawConfig);
+		ConfigManager.globalConfig = await ConfigManager.parseGlobalConfig(rawConfig);
 
 		Logger.info("Cached global configuration");
 	}
 
-	static parseGlobalConfig(data: unknown): GlobalConfig {
+	static async parseGlobalConfig(data: unknown): Promise<GlobalConfig> {
 		const parseResult = globalConfigSchema.safeParse(data);
 
 		if (!parseResult.success) {
 			const validationError = fromZodError(parseResult.error);
 			Logger.error(validationError.toString());
+			await captureAndFlush(validationError, {
+				tags: { source: "config_load_global_validation" }
+			});
 			process.exit(1);
 		}
 
@@ -85,7 +101,8 @@ export default class ConfigManager {
 
 	// Cache an instance of a guild configuration
 	static addGuildConfig(guildId: Snowflake, config: GuildConfig): GuildConfig {
-		return ConfigManager.guildConfigs.set(guildId, config).first()!;
+		ConfigManager.guildConfigs.set(guildId, config);
+		return config;
 	}
 
 	static getGuildConfig(guildId: Snowflake, exists: true): GuildConfig;

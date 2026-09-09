@@ -4,12 +4,13 @@ node_modules/
 
 # TypeScript cache
 
-\*.tsbuildinfo
+*.tsbuildinfo
 
 # dotenv environment variable files
 
 *.env*
 !.env.example
+.secrets
 
 # vuepress v2.x temp and cache directory
 
@@ -28,11 +29,25 @@ node_modules/
 
 *.db
 *.db-journal
+data/
+prisma/backups/
 
-migration_lock.toml
+# Logs
+
+*.log
+logs/
+
+# Test coverage
+
+coverage/
 
 # Configuration
 
 configs/*.yml
-!configs/example.yml
+configs/.backups
 azalea.cfg.yml
+
+# AI agents
+
+.claude
+.opencode

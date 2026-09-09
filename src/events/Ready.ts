@@ -1,13 +1,14 @@
-import { Messages } from "@utils/messages";
+import { MessageCache } from "@utils/messages";
 import { Client, Events, GuildTextBasedChannel } from "discord.js";
-import { client, prisma } from "./..";
-import { TemporaryMessage, TemporaryRole } from "@prisma/client";
+import { client, health, prisma } from "@";
+import { groupBy } from "lodash";
 import { pluralize, startCronJob } from "@/utils";
 
 import Logger, { AnsiColor } from "@utils/logger";
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
 import Reminders from "@/commands/Reminders";
+import { captureException } from "@utils/sentry";
 
 export default class Ready extends EventListener {
 	constructor() {
@@ -23,24 +24,43 @@ export default class Ready extends EventListener {
 		});
 
 		// Operations that require the global config
-		Messages.startDatabaseCronJob();
-		Reminders.mount();
+		MessageCache.startDatabaseCronJob();
+		// Reminders.mount returns a Promise — discarding it would leak any
+		// rejection. Capture and log so a failed mount doesn't kill the
+		// process via the unhandled-rejection global handler.
+		Reminders.mount().catch(error => captureException(error, {
+			tags: { source: "reminders_mount" }
+		}));
 
-		// Start scheduled messages for all guilds
+		// Start cron jobs for each guild. Per-task `.catch` so one
+		// failing guild (deleted channel, missing permission) doesn't
+		// strand the rest of the registrations.
 		ConfigManager.guildConfigs.forEach(config => {
-			config.startScheduledMessageCronJobs();
-			config.startMuteRequestReviewReminderCronJobs();
-			config.startBanRequestReviewReminderCronJobs();
-			config.startMessageReportReviewReminderCronJob();
-			config.startMessageReportRemovalCronJob();
-			config.startUserReportReviewReminderCronJob();
-			config.startUserReportRemovalCronJob();
-			Ready._startTemporaryMessageRemovalCronJob();
-
-			if (config.data.role_requests) {
-				Ready._startTemporaryRoleRemovalCronJob();
-			}
+			const safeStart = (task: string, run: () => Promise<void>): void => {
+				run().catch(error => captureException(error, {
+					tags: { source: "guild_cron_mount", task, guild_id: config.guild.id }
+				}));
+			};
+			safeStart("scheduled_messages", () => config.startScheduledMessageCronJobs());
+			safeStart("mute_request_reminder", () => config.startMuteRequestReviewReminderCronJobs());
+			safeStart("ban_request_reminder", () => config.startBanRequestReviewReminderCronJobs());
+			safeStart("message_report_reminder", () => config.startMessageReportReviewReminderCronJob());
+			safeStart("message_report_removal", () => config.startMessageReportRemovalCronJob());
+			safeStart("user_report_reminder", () => config.startUserReportReviewReminderCronJob());
+			safeStart("user_report_removal", () => config.startUserReportRemovalCronJob());
 		});
+
+		// These cron jobs are global — start them once, outside the forEach
+		Ready._startTemporaryMessageRemovalCronJob();
+
+		const hasRoleRequests = ConfigManager.guildConfigs.some(config => !!config.data.role_requests);
+		if (hasRoleRequests) {
+			Ready._startTemporaryRoleRemovalCronJob();
+		}
+
+		// Signal full readiness to the editor's health poll. Must come after
+		// every cron above so a healthy response means crons are mounted.
+		health.markReady();
 	}
 
 	private static _startTemporaryRoleRemovalCronJob(): void {
@@ -48,49 +68,43 @@ export default class Ready extends EventListener {
 		startCronJob("TEMPORARY_ROLE_REMOVAL", "0 0 * * *", async () => {
 			const now = new Date();
 
-			// Fetch and delete all expired role requests
+			// Fetch all expired role assignments
 			const expiredRoles = await prisma.temporaryRole.findMany({
 				where: { expires_at: { lte: now } }
 			});
 
 			// Map the expired roles to their respective guilds
-			const expiredRolesByGuild = expiredRoles.reduce((acc, request) => {
-				// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-				if (!acc[request.guild_id]) {
-					acc[request.guild_id] = [];
-				}
-
-				acc[request.guild_id].push(request);
-				return acc;
-			}, {} as Record<string, TemporaryRole[]>);
+			const expiredRolesByGuild = groupBy(expiredRoles, role => role.guild_id);
 
 			let removalCount = 0;
 
-			// Remove the roles from the users
+			// Remove the roles from the users. Each guild and each role is
+			// wrapped so one failure (kicked-out, deleted guild, missing
+			// permission) doesn't strand the rest of the tick's work.
 			for (const guildId in expiredRolesByGuild) {
-				const guild = await client.guilds.fetch(guildId);
-				const expiredRoles = expiredRolesByGuild[guildId];
+				const guild = await client.guilds.fetch(guildId).catch(() => null);
+				if (!guild) {
+					Logger.warn(`Skipping temporary role cleanup: guild ${guildId} unreachable`);
+					continue;
+				}
+				const roles = expiredRolesByGuild[guildId];
 
-				for (const role of expiredRoles) {
+				for (const role of roles) {
 					const member = await guild.members.fetch(role.member_id).catch(() => null);
 
 					if (member?.roles.cache.has(role.role_id)) {
 						Logger.info(`Removing role ${role.role_id} from @${member.user.username} (${member.id})`);
-
-						await member.roles.remove(role.role_id);
-						await prisma.temporaryRole.delete({
-							where: {
-								member_id_role_id_guild_id: {
-									member_id: role.member_id,
-									role_id: role.role_id,
-									guild_id: role.guild_id
-								}
-							}
-						});
-
-						removalCount++;
+						const removed = await member.roles.remove(role.role_id).catch(() => null);
+						if (removed) removalCount++;
 					}
 				}
+			}
+
+			// Batch delete all expired role records at once
+			if (expiredRoles.length) {
+				await prisma.temporaryRole.deleteMany({
+					where: { expires_at: { lte: now } }
+				});
 			}
 
 			if (removalCount > 0) {
@@ -117,21 +131,18 @@ export default class Ready extends EventListener {
 			]);
 
 			// Map the expired messages to their respective channels
-			const expiredMessagesByChannel = expiredMessages.reduce((acc, message) => {
-				// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-				if (!acc[message.channel_id]) {
-					acc[message.channel_id] = [];
-				}
-
-				acc[message.channel_id].push(message);
-				return acc;
-			}, {} as Record<string, TemporaryMessage[]>);
+			const expiredMessagesByChannel = groupBy(expiredMessages, message => message.channel_id);
 
 			let removalCount = 0;
 
-			// Remove the roles from the users
+			// Per-channel resilience: one missing or unreachable channel
+			// must not prevent removal of messages in the others.
 			for (const channelId in expiredMessagesByChannel) {
-				const channel = await client.channels.fetch(channelId) as GuildTextBasedChannel;
+				const channel = await client.channels.fetch(channelId).catch(() => null) as GuildTextBasedChannel | null;
+				if (!channel) {
+					Logger.warn(`Skipping temporary message cleanup: channel ${channelId} unreachable`);
+					continue;
+				}
 				const expiredMessages = expiredMessagesByChannel[channelId];
 
 				for (const data of expiredMessages) {

@@ -1,6 +1,6 @@
 import { channelMentionWithName, getObjectDiff, userMentionWithId } from "@/utils";
 import { Colors, EmbedBuilder, Events, ThreadChannel } from "discord.js";
-import { log } from "@utils/logging";
+import { log } from "@utils/eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
 
 import GuildConfig from "@managers/config/GuildConfig";

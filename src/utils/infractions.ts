@@ -1,9 +1,9 @@
-import { humanizeTimestamp, pluralize, userMentionWithId } from "./index";
+import { humanizeDuration, pluralize, userMentionWithId } from "./index";
 import { Infraction, Prisma } from "@prisma/client";
 import { ColorResolvable, Colors, EmbedBuilder, GuildMember } from "discord.js";
 import { Snowflake } from "discord-api-types/v10";
-import { client, prisma } from "./..";
-import { log } from "./logging";
+import { client, prisma } from "@";
+import { log } from "./eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
 import { DEFAULT_INFRACTION_REASON, EMBED_FIELD_CHAR_LIMIT } from "./constants";
 import { TypedRegEx } from "typed-regex";
@@ -38,7 +38,7 @@ export class InfractionManager {
 		const noteCount = infractions.length - infCount;
 
 		// Notes can't be automatic, so we can assume that all automatic infractions are not notes
-		const autoInfCount = infractions.filter(infraction => infraction.flag & InfractionFlag.Automatic).length;
+		const autoInfCount = infractions.filter(infraction => infraction.flag & InfractionSource.Automatic).length;
 		const manualInfCount = infCount - autoInfCount;
 		const messageBuilder: string[] = ["\n\n-# This user has"];
 
@@ -70,7 +70,7 @@ export class InfractionManager {
 		if (infraction.expires_at) {
 			// Since the infraction is new, we can assume that the expiration date is in the future.
 			const msDuration = infraction.expires_at.getTime() - infraction.created_at.getTime();
-			const humanizedDuration = humanizeTimestamp(msDuration);
+			const humanizedDuration = humanizeDuration(msDuration);
 
 			// Insert the duration field after the target field
 			embed.spliceFields(2, 0, {
@@ -152,8 +152,8 @@ export class InfractionUtil {
      * @param flag - The flag associated with the infraction
      * @returns A string combining the string representation of the action and flag
      */
-	static formatAction(action: InfractionAction, flag: InfractionFlag): string {
-		return [InfractionFlag[flag], InfractionAction[action]]
+	static formatAction(action: InfractionAction, flag: InfractionSource): string {
+		return [InfractionSource[flag], InfractionAction[action]]
 			.filter(Boolean)
 			.join(" ");
 	}
@@ -268,12 +268,12 @@ export enum InfractionAction {
 // Quick mute duration in milliseconds
 export enum QuickMuteDuration {
     // 30 minutes
-    Short = 1_800_000,
+    ThirtyMinutes = 1_800_000,
     // 1 hour
-    Long = 3_600_000,
+    OneHour = 3_600_000,
 }
 
-export enum InfractionFlag {
+export enum InfractionSource {
     // Infractions carried out using pre-set actions
     Quick = 1,
     // Infractions carried out by bots

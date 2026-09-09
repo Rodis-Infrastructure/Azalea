@@ -1,5 +1,5 @@
 import { ApplicationCommandType, MessageContextMenuCommandInteraction } from "discord.js";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 import { handleQuickMute } from "./QuickMute30Ctx";
 import { QuickMuteDuration } from "@utils/infractions";
 
@@ -13,11 +13,11 @@ export default class QuickMute60Ctx extends Command<MessageContextMenuCommandInt
 		});
 	}
 
-	async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<CommandResponse> {
 		const result = await handleQuickMute({
 			executor: interaction.member,
 			targetMessage: interaction.targetMessage,
-			duration: QuickMuteDuration.Long
+			duration: QuickMuteDuration.OneHour
 		});
 
 		if (!result.ok) {

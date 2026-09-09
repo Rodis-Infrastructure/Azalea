@@ -1,5 +1,5 @@
 import { ApplicationCommandType, MessageContextMenuCommandInteraction } from "discord.js";
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 
 import Command from "@managers/commands/Command";
 import MessageReactionAdd from "@/events/MessageReactionAdd";
@@ -23,7 +23,7 @@ export default class ReportMessageCtx extends Command<MessageContextMenuCommandI
 		});
 	}
 
-	async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<InteractionReplyData> {
+	async execute(interaction: MessageContextMenuCommandInteraction<"cached">): Promise<CommandResponse> {
 		const targetUser = interaction.targetMessage.author;
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 

@@ -5,7 +5,7 @@ import {
 	User
 } from "discord.js";
 
-import { InteractionReplyData } from "@utils/types";
+import { CommandResponse } from "@utils/types";
 
 import GuildCommand from "@managers/commands/GuildCommand";
 import GuildConfig from "@managers/config/GuildConfig";
@@ -34,7 +34,7 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
 		});
 	}
 
-	execute(interaction: ChatInputCommandInteraction<"cached">): InteractionReplyData {
+	execute(interaction: ChatInputCommandInteraction<"cached">): CommandResponse {
 		const config = ConfigManager.getGuildConfig(interaction.guildId, true);
 		const selected = interaction.options.getString("query", true);
 		const mention = interaction.options.getUser("mention");
@@ -67,7 +67,7 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
 		return choices.length ? choices : undefined;
 	}
 
-	private static _getResponse(query: string, config: GuildConfig): InteractionReplyData {
+	private static _getResponse(query: string, config: GuildConfig): CommandResponse {
 		return config.data.quick_responses.find(response => response.value === query)?.response ?? null;
 	}
 
@@ -77,7 +77,7 @@ export default class FAQ extends GuildCommand<ChatInputCommandInteraction<"cache
 			.join(" ") || undefined;
 	}
 
-	private static _parseResponse(response: Exclude<InteractionReplyData, null>, mention: User | null): InteractionReplyData {
+	private static _parseResponse(response: Exclude<CommandResponse, null>, mention: User | null): CommandResponse {
 		if (typeof response === "string") {
 			return {
 				content: FAQ._formatResponse(mention, response),

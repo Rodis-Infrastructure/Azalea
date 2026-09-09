@@ -8,6 +8,14 @@
 	"config:best-practices",
 	":rebaseStalePrs"
   ],
+  "vulnerabilityAlerts": {
+	"enabled": true,
+	"labels": ["security"]
+  },
+  "lockFileMaintenance": {
+	"enabled": true,
+	"schedule": ["before 5am on monday"]
+  },
   "packageRules": [
 	{
 	  "description": "Automatically merge minor and patch-level updates",
