@@ -3,7 +3,7 @@ import { InfractionManager } from "@utils/infractions";
 import { prisma } from "./..";
 import { log } from "@utils/logging";
 import { LoggingEvent } from "@managers/config/schema";
-import { stringifyPositionalNum, userMentionWithId } from "@/utils";
+import { getEscapedSurfaceName, stringifyPositionalNum, userMentionWithId } from "@/utils";
 
 import EventListener from "@managers/events/EventListener";
 import ConfigManager from "@managers/config/ConfigManager";
@@ -79,7 +79,7 @@ export default class GuildMemberAdd extends EventListener {
 			.setFields([
 				{
 					name: "User",
-					value: userMentionWithId(member.id)
+					value: `${userMentionWithId(member.id)}\n${getEscapedSurfaceName(member)}`
 				},
 				{
 					name: "Created",
