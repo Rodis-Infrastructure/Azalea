@@ -943,6 +943,18 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 			paginationComponents.push(paginationActionRow);
 		}
 
+		if (fields.length) {
+			const viewDetailsButton = new ButtonBuilder()
+				.setCustomId("infraction-search-select-open")
+				.setLabel("View details")
+				.setStyle(ButtonStyle.Secondary);
+
+			const viewDetailsActionRow = new ActionRowBuilder<ButtonBuilder>()
+				.setComponents(viewDetailsButton);
+
+			paginationComponents.push(viewDetailsActionRow);
+		}
+
 		return {
 			embeds: [embed],
 			components: paginationComponents
