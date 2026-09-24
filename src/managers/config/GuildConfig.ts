@@ -8,6 +8,7 @@ import {
 	GuildMember,
 	hyperlink,
 	messageLink,
+	PermissionFlagsBits,
 	Role,
 	time,
 	TimestampStyles
@@ -36,6 +37,9 @@ import { capitalize } from "lodash";
 import { captureAndFlush, captureGuildError } from "@utils/sentry";
 
 import Logger from "@utils/logger";
+
+// 24 hours minus 5 minutes, the maximum Discord accepts is 24 hours
+const DM_PAUSE_DURATION_MS = ((24 * 60) - 5) * 60 * 1000;
 
 export default class GuildConfig {
 	private constructor(public readonly data: RawGuildConfig, public readonly guild: Guild) {
@@ -374,6 +378,25 @@ export default class GuildConfig {
 				orderBy: { created_at: "asc" }
 			})
 		});
+	}
+
+	// Keep "Pause DMs" on indefinitely by renewing it hourly (Discord caps a pause at 24h)
+	async startDmPauseRenewalCronJob(): Promise<void> {
+		if (!this.data.auto_pause_dms) return;
+
+		const renew = async (): Promise<void> => {
+			if (!this.guild.members.me?.permissions.has(PermissionFlagsBits.ManageGuild)) {
+				throw new Error("Cannot pause DMs without the `Manage Server` permission");
+			}
+
+			// Stay slightly under the 24-hour cap to absorb clock skew
+			const dmsDisabledUntil = new Date(Date.now() + DM_PAUSE_DURATION_MS);
+			await this.guild.setIncidentActions({ dmsDisabledUntil });
+			Logger.info(`Paused DMs in ${this.guild.name} (${this.guild.id}) until ${dmsDisabledUntil.toISOString()}`);
+		};
+
+		await renew();
+		startCronJob("DM_PAUSE_RENEWAL", "0 * * * *", renew);
 	}
 
 	async startUserReportRemovalCronJob(): Promise<void> {

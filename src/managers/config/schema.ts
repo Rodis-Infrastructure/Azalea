@@ -566,6 +566,7 @@ export const rawGuildConfigSchema = z.object({
 	// Toggle the `SendMessages` permission in a channel depending on whether a stage event is active
 	stage_event_overrides: z.array(stageEventOverrideSchema).default([]),
 	notification_channel_id: snowflakeSchema.optional(),
+	auto_pause_dms: z.boolean().default(false),
 	lockdown: lockdownSchema.optional(),
 	media_conversion_channel_id: snowflakeSchema.optional(),
 	// Period of time to delete messages on ban (in days) - Default: 0 (disabled)

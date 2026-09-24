@@ -342,8 +342,9 @@ export function stringifyJSON(obj: unknown, space = 2): string {
 }
 
 export function toOrdinal(num: number | string): string {
-	const numStr = num.toLocaleString();
 	const numVal = typeof num === "string" ? parseInt(num) : num;
+	// Pin the locale so separators don't depend on the host environment
+	const numStr = numVal.toLocaleString("en-US");
 	const lastTwoDigits = numVal % 100;
 
 	// 11th, 12th, 13th are exceptions to the standard rules
