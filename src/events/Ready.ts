@@ -48,6 +48,7 @@ export default class Ready extends EventListener {
 			safeStart("message_report_removal", () => config.startMessageReportRemovalCronJob());
 			safeStart("user_report_reminder", () => config.startUserReportReviewReminderCronJob());
 			safeStart("user_report_removal", () => config.startUserReportRemovalCronJob());
+			safeStart("dm_pause_renewal", () => config.startDmPauseRenewalCronJob());
 		});
 
 		// These cron jobs are global — start them once, outside the forEach

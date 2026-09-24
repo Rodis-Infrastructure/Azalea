@@ -31,7 +31,10 @@ media_conversion_channel_id: "<channel_id>"
 auto_publish_announcements: ["<channel_id>"]
 ban_delete_message_days: 0                 # Days of messages to delete on ban (0-7)
 default_mute_duration: 2419200000          # Default mute duration in ms (28 days)
+auto_pause_dms: false                      # Keep Discord's "Pause DMs" security action always on
 ```
+
+`auto_pause_dms` re-applies the pause every hour, because Discord caps a single pause at 24 hours. The bot needs the **Manage Server** permission. Turning the pause off in Discord's UI only lasts until the next renewal, so set this to `false` to disable it.
 
 ### Logging
 

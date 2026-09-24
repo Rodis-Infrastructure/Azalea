@@ -3,7 +3,7 @@ import { InfractionManager } from "@utils/infractions";
 import { prisma } from "@";
 import { log } from "@utils/eventLogging";
 import { LoggingEvent } from "@managers/config/schema";
-import { getEscapedSurfaceName, stringifyPositionalNum, userMentionWithId, toOrdinal, userMentionWithId  } from "@/utils";
+import { getEscapedSurfaceName, toOrdinal, userMentionWithId } from "@/utils";
 import { captureGuildError } from "@utils/sentry";
 
 
