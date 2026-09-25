@@ -912,7 +912,7 @@ export default class Infraction extends Command<ChatInputCommandInteraction<"cac
 			.setAuthor({
 				name: `Infractions of ${surfaceName}`,
 				iconURL: user.displayAvatarURL(),
-				url: user.displayAvatarURL()
+				url: `https://discord.com/users/${user.id}`
 			})
 			// InfractionSearchNext.ts relies on this format
 			.setFooter({ text: `User ID: ${user.id}` });
