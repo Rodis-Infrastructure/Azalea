@@ -380,7 +380,7 @@ export default class GuildConfig {
 		});
 	}
 
-	// Keep "Pause DMs" on indefinitely by renewing it hourly (Discord caps a pause at 24h)
+	// Keep "Pause DMs" on indefinitely by renewing it every 12 hours (Discord caps a pause at 24h)
 	async startDmPauseRenewalCronJob(): Promise<void> {
 		if (!this.data.auto_pause_dms) return;
 
@@ -396,7 +396,7 @@ export default class GuildConfig {
 		};
 
 		await renew();
-		startCronJob("DM_PAUSE_RENEWAL", "0 * * * *", renew);
+		startCronJob("DM_PAUSE_RENEWAL", "0 */12 * * *", renew);
 	}
 
 	async startUserReportRemovalCronJob(): Promise<void> {
